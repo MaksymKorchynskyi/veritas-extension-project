@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VERITAS</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+
+    <!-- Hero Section: Always Visible -->
+    <header class="hero">
+      <h1 class="brand">Veritas</h1>
+      <p class="tagline">News Credibility Analyzer</p>
+    </header>
+
+    <!-- State: Initial (Show Analyze Button) -->
+    <section class="state-initial" id="stateInitial">
+      <div class="hero-score hero-score--empty">
+        <span class="score-placeholder">?</span>
+      </div>
+      <button class="btn-primary" id="analyzeBtn">Analyze This Article</button>
+      <p class="hint">Click to assess article credibility</p>
+    </section>
+
+    <!-- State: Analyzing -->
+    <section class="state-analyzing hidden" id="stateAnalyzing">
+      <div class="hero-score hero-score--loading">
+        <div class="spinner"></div>
+      </div>
+      <p class="status-text" id="statusText">Extracting content...</p>
+      <div class="progress-dots">
+        <span class="dot active" id="dot1"></span>
+        <span class="dot" id="dot2"></span>
+        <span class="dot" id="dot3"></span>
+      </div>
+    </section>
+
+    <!-- State: Results -->
+    <section class="state-results hidden" id="stateResults">
+      <!-- Hero Score Circle -->
+      <div class="hero-score" id="heroScore">
+        <span class="score-value" id="scoreValue">--</span>
+        <span class="score-label">Trust Score</span>
+      </div>
+
+      <!-- Toggle for Details -->
+      <button class="btn-link" id="toggleDetails">View Detailed Breakdown</button>
+
+      <!-- Highlight Navigator -->
+      <div class="highlight-navigator hidden" id="highlightNavigator">
+        <p class="navigator-title">Found Issues</p>
+        <div class="highlight-badges">
+          <button class="highlight-badge highlight-badge--warning" id="badgeWarnings">
+            <span class="badge-count" id="warningCount">0</span>
+            <span class="badge-label">Warnings</span>
+          </button>
+          <button class="highlight-badge highlight-badge--risk" id="badgeRisks">
+            <span class="badge-count" id="riskCount">0</span>
+            <span class="badge-label">High Risk</span>
+          </button>
+        </div>
+        <div class="highlight-nav-controls hidden" id="navControls">
+          <button class="nav-btn" id="prevHighlight">←</button>
+          <span class="nav-position" id="navPosition">1 of 5</span>
+          <button class="nav-btn" id="nextHighlight">→</button>
+        </div>
+      </div>
+
+      <!-- Hidden Accordion Section -->
+      <div class="details-panel hidden" id="detailsPanel">
+        <div class="metrics-list">
+          <div class="metric-row">
+            <span class="metric-name">Source Verification</span>
+            <span class="metric-value" id="metricSource">--</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-name">Objectivity</span>
+            <span class="metric-value" id="metricObjectivity">--</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-name">Headline Relevance</span>
+            <span class="metric-value" id="metricHeadline">--</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-name">Factual Density</span>
+            <span class="metric-value" id="metricDensity">--</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-name">Logical Consistency</span>
+            <span class="metric-value" id="metricLogic">--</span>
+          </div>
+        </div>
+
+        <!-- Explainer at the bottom -->
+        <div class="explainer-section">
+          <p class="explainer-text" id="explainerText"></p>
+        </div>
+      </div>
+
+      <!-- Re-analyze -->
+      <button class="btn-secondary" id="reanalyzeBtn">Analyze Again</button>
+    </section>
+
+    <!-- State: Error -->
+    <section class="state-error hidden" id="stateError">
+      <div class="hero-score hero-score--error">
+        <span class="error-icon">!</span>
+      </div>
+      <p class="error-text" id="errorText">An error occurred</p>
+      <button class="btn-secondary" id="retryBtn">Try Again</button>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="connection-indicator">
+        <span class="dot-status" id="connectionDot"></span>
+        <span class="connection-text" id="connectionText">Checking...</span>
+      </div>
+    </footer>
+
+  </div>
+  <script src="popup.js"></script>
+</body>
+
+</html>

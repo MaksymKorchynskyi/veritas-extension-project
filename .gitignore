@@ -1,0 +1,12 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.env
+
+# MacOS (якщо ви працюєте на Mac)
+.DS_Store
+
+# IDE
+.vscode/
+.cursor/
