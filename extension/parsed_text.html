@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VERITAS — Debug & Testing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Playfair+Display:ital,wght@1,500;1,700&family=Tenor+Sans&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #EFE9E1;
+      --text: #3E2723;
+      --text-sec: #795548;
+      --border: #8D6E63;
+      --card: rgba(255,255,255,0.6);
+      --green: #33691E;
+      --yellow: #C58940;
+      --red: #8D2D24;
+      --font-display: 'Playfair Display', serif;
+      --font-body: 'Tenor Sans', sans-serif;
+      --font-ui: 'Manrope', sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+
+    .page { max-width: 960px; margin: 0 auto; padding: 0 24px; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ─── Header ─── */
+    .header { padding: 32px 0 0; text-align: center; }
+    .brand { font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 2rem; }
+    .brand-sub { font-family: var(--font-ui); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 3px; color: var(--text-sec); margin-top: 2px; }
+
+    /* ─── Tabs ─── */
+    .tabs { display: flex; gap: 0; margin: 24px 0 0; border-bottom: 2px solid var(--border); }
+    .tab-btn {
+      flex: 1; padding: 12px 16px; border: none; background: none; cursor: pointer;
+      font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; color: var(--text-sec);
+      border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .tab-btn:hover { color: var(--text); background: rgba(141,110,99,0.06); }
+    .tab-btn.active { color: var(--text); border-bottom-color: var(--text); }
+
+    .tab-content { display: none; padding: 24px 0; flex: 1; }
+    .tab-content.active { display: block; }
+
+    /* ─── Cards ─── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+    .card-title { font-family: var(--font-ui); font-weight: 800; font-size: 1.15rem; margin-bottom: 8px; }
+
+    .meta-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .meta-label { font-family: var(--font-ui); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-sec); min-width: 65px; }
+    .meta-val { font-family: var(--font-ui); font-size: 0.85rem; }
+    .meta-val a { color: var(--border); text-decoration: none; }
+    .meta-val a:hover { color: var(--text); text-decoration: underline; }
+
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-family: var(--font-ui); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge-ok { background: rgba(51,105,30,0.12); color: var(--green); }
+    .badge-warn { background: rgba(197,137,64,0.15); color: var(--yellow); }
+    .badge-err { background: rgba(141,45,36,0.12); color: var(--red); }
+
+    .stats-bar { display: flex; gap: 12px; margin-bottom: 20px; }
+    .stat { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+    .stat-num { font-family: var(--font-ui); font-weight: 800; font-size: 1.3rem; display: block; }
+    .stat-lbl { font-family: var(--font-ui); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-sec); }
+
+    /* Paragraphs */
+    .para { margin-bottom: 12px; padding: 10px 16px; border-left: 3px solid transparent; border-radius: 0 8px 8px 0; transition: all 0.2s; position: relative; }
+    .para:hover { background: rgba(141,110,99,0.06); border-left-color: var(--border); }
+    .para-id { position: absolute; left: -4px; top: 4px; transform: translateX(-100%); font-family: var(--font-ui); font-size: 0.6rem; font-weight: 600; color: var(--border); opacity: 0.5; }
+    .para-text { font-family: var(--font-body); font-size: 0.95rem; line-height: 1.8; }
+    .raw-text { white-space: pre-wrap; font-family: var(--font-ui); font-size: 0.88rem; line-height: 1.7; padding: 20px; }
+
+    .error-box { background: rgba(141,45,36,0.08); border: 1px solid var(--red); border-radius: 12px; padding: 32px; text-align: center; }
+    .error-box h3 { font-family: var(--font-ui); color: var(--red); margin: 8px 0; }
+    .error-box p { color: var(--text-sec); font-size: 0.9rem; }
+
+    .pulse { animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ═══════════════════════════════════════════════
+       TEST DASHBOARD TAB
+       ═══════════════════════════════════════════════ */
+    .dash-controls { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+    .btn-run {
+      padding: 12px 28px; border: none; border-radius: 10px; background: var(--text); color: var(--bg);
+      font-family: var(--font-ui); font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .btn-run:hover { background: var(--border); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .btn-export { padding: 10px 20px; border: 1px solid var(--border); border-radius: 10px; background: transparent; color: var(--text); font-family: var(--font-ui); font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    .btn-export:hover { background: rgba(141,110,99,0.08); }
+
+    .progress-bar-wrap { flex: 1; min-width: 150px; }
+    .progress-bar { height: 8px; background: rgba(141,110,99,0.15); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width 0.3s; width: 0%; }
+    .progress-text { font-family: var(--font-ui); font-size: 0.7rem; color: var(--text-sec); margin-top: 4px; text-align: center; }
+
+    /* Article rows */
+    .test-article {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px;
+      margin-bottom: 10px; display: grid; grid-template-columns: 50px 1fr 160px; gap: 14px; align-items: center;
+      transition: all 0.2s;
+    }
+    .test-article:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+    .test-article.running { border-color: var(--yellow); }
+    .test-article.passed { border-left: 4px solid var(--green); }
+    .test-article.failed { border-left: 4px solid var(--red); }
+
+    .ta-id { font-family: var(--font-ui); font-weight: 800; font-size: 1rem; text-align: center; }
+    .ta-info {}
+    .ta-title { font-family: var(--font-ui); font-weight: 600; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ta-meta { font-size: 0.72rem; color: var(--text-sec); font-family: var(--font-ui); margin-top: 2px; }
+    .ta-expect { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; font-family: var(--font-ui); margin-top: 4px; }
+    .ta-expect-a { background: rgba(51,105,30,0.1); color: var(--green); }
+    .ta-expect-b { background: rgba(197,137,64,0.12); color: var(--yellow); }
+    .ta-expect-c { background: rgba(141,45,36,0.1); color: var(--red); }
+
+    .ta-result { text-align: right; font-family: var(--font-ui); }
+    .ta-score { font-weight: 800; font-size: 1.4rem; }
+    .ta-time { font-size: 0.65rem; color: var(--text-sec); }
+    .ta-status { font-size: 0.7rem; font-weight: 600; }
+    .color-green { color: var(--green); }
+    .color-red { color: var(--red); }
+    .color-yellow { color: var(--yellow); }
+
+    .cat-header { display: flex; align-items: center; gap: 10px; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .cat-badge { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; color: #fff; font-family: var(--font-ui); }
+    .cat-header h3 { font-family: var(--font-ui); font-size: 0.9rem; font-weight: 600; }
+    .cat-desc { margin-left: auto; font-family: var(--font-ui); font-size: 0.7rem; color: var(--text-sec); }
+
+    /* Summary */
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 20px 0; }
+    .summary-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+    .summary-val { font-family: var(--font-ui); font-weight: 800; font-size: 1.6rem; }
+    .summary-lbl { font-family: var(--font-ui); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-sec); margin-top: 2px; }
+
+    .footer { text-align: center; padding: 20px; font-family: var(--font-ui); font-size: 0.65rem; color: var(--text-sec); letter-spacing: 1px; text-transform: uppercase; border-top: 1px solid rgba(0,0,0,0.06); margin-top: auto; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ─── Header ─── -->
+  <div class="header">
+    <h1 class="brand">Veritas</h1>
+    <p class="brand-sub">Debug & Testing Console</p>
+  </div>
+
+  <!-- ─── Tabs ─── -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="parsed">📄 Parsed Text</button>
+    <button class="tab-btn" data-tab="tests">🧪 Test Dashboard</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       TAB 1: PARSED TEXT
+       ═══════════════════════════════════════════════ -->
+  <div class="tab-content active" id="tab-parsed">
+    <div class="card" id="metaCard">
+      <div class="card-title pulse" id="pt-title">Loading article data...</div>
+      <div class="meta-row"><span class="meta-label">Source</span><span class="meta-val" id="pt-url">—</span></div>
+      <div class="meta-row"><span class="meta-label">Status</span><span class="meta-val" id="pt-status"><span class="badge badge-warn">Loading</span></span></div>
+    </div>
+    <div class="stats-bar" id="pt-stats" style="display:none">
+      <div class="stat"><span class="stat-num" id="pt-paras">0</span><span class="stat-lbl">Paragraphs</span></div>
+      <div class="stat"><span class="stat-num" id="pt-words">0</span><span class="stat-lbl">Words</span></div>
+      <div class="stat"><span class="stat-num" id="pt-chars">0</span><span class="stat-lbl">Characters</span></div>
+    </div>
+    <div id="pt-content">
+      <div class="card"><p class="para-text pulse" style="color:var(--text-sec)">Fetching parsed text from extension storage...</p></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       TAB 2: TEST DASHBOARD
+       ═══════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-tests">
+
+    <div class="dash-controls">
+      <button class="btn-run" id="runAllBtn">▶ Run All Tests</button>
+      <div class="progress-bar-wrap" id="progressWrap" style="display:none">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText">0 / 0</div>
+      </div>
+      <button class="btn-export" id="exportBtn">💾 Export CSV</button>
+    </div>
+
+    <!-- Summary (appears after run) -->
+    <div id="summarySection" style="display:none">
+      <div class="summary-grid">
+        <div class="summary-item"><span class="summary-val color-green" id="sumAccuracy">—</span><span class="summary-lbl">Accuracy</span></div>
+        <div class="summary-item"><span class="summary-val" id="sumSeparation">—</span><span class="summary-lbl">A–C Gap</span></div>
+        <div class="summary-item"><span class="summary-val" id="sumAvgTime">—</span><span class="summary-lbl">Avg Time</span></div>
+        <div class="summary-item"><span class="summary-val" id="sumTotal">—</span><span class="summary-lbl">Total</span></div>
+      </div>
+    </div>
+
+    <div id="testArticlesContainer"></div>
+  </div>
+
+  <div class="footer">Veritas • Coffee Edition • ЛНУ ім. Франка, ПМІ</div>
+</div>
+
+<script src="parsed_text.js"></script>
+</body>
+</html>

@@ -5,6 +5,7 @@
     "version": "0.3.0",
     "permissions": [
         "activeTab",
+        "tabs",
         "scripting",
         "storage"
     ],
@@ -26,6 +27,7 @@
                 "<all_urls>"
             ],
             "js": [
+                "Readability.js",
                 "content.js"
             ],
             "run_at": "document_idle"

@@ -1,7 +1,7 @@
 /**
  * VERITAS Content Script
- * Smart Article Extraction + Aggressive Fuzzy Highlighting
- * Phase 5 - Final Version
+ * Readability.js-Based Article Extraction + Indexed Paragraphs
+ * Phase 6 - Enterprise Architecture
  */
 
 // Guard against duplicate injection
@@ -11,174 +11,149 @@ if (window.__VERITAS_LOADED__) {
     window.__VERITAS_LOADED__ = true;
 
     // =============================================================================
-    // CONFIGURATION
+    // UTILITIES
     // =============================================================================
 
-    const SEMANTIC_SELECTORS = [
-        '.article__content', '[data-component="text-block"]', '.zn-body__paragraph',
-        '.story-body__inner', 'article', '[role="main"]', '[itemprop="articleBody"]',
-        '.article-body', '.article-content', '.post-content', '.entry-content',
-        '.main-content', 'main'
-    ];
+    let veritasParagraphCounter = 0;
 
-    const NOISE_SELECTORS = [
-        '.el-editorial-source', '.media__caption', '.image__caption', '.video__caption',
-        '.related-content', '.ob-widget', '.zn-body__read-more', '.advertisement',
-        '.ad', '[class*="advert"]', '[id*="advert"]', '.share-buttons', '.social-share',
-        '[class*="share"]', '.related-articles', '.related-posts', '.related',
-        '.more-news', '.comments', '.comment-section', '#comments', '.subscribe',
-        '.newsletter', '.subscription', '.author-bio', '.author-box', 'nav', 'aside',
-        'footer:not(article footer)', 'script', 'style', 'noscript', 'iframe', '[hidden]'
-    ];
-
-    const NOISE_INDICATORS = [
-        'sidebar', 'menu', 'navigation', 'nav', 'footer', 'header', 'comment',
-        'advertisement', 'ad-', 'banner', 'widget', 'related', 'popular', 'trending',
-        'subscribe', 'newsletter', 'social', 'share', 'author-bio', 'breadcrumb'
-    ];
-
-    const SOCIAL_DOMAINS = [
-        'facebook.com', 'twitter.com', 't.co', 'x.com', 'instagram.com',
-        'linkedin.com', 'youtube.com', 'tiktok.com', 'telegram.org',
-        't.me', 'wa.me', 'whatsapp.com', 'viber.com', 'pinterest.com'
-    ];
-
-
-    // =============================================================================
-    // UTILITY: Aggressive Text Cleaner
-    // =============================================================================
-
-    function clean(str) {
-        if (!str) return '';
-        return str
-            .replace(/\s+/g, ' ')      // Multiple spaces/newlines -> single space
-            .replace(/[""''„"]/g, '"') // Normalize quotes
-            .replace(/[—–]/g, '-')     // Normalize dashes
-            .replace(/\u00A0/g, ' ')   // Non-breaking space -> space
-            .trim()
-            .toLowerCase();
-    }
-
-
-    // =============================================================================
-    // CONTENT EXTRACTION
-    // =============================================================================
-
-    function findMainContent() {
-        for (const sel of SEMANTIC_SELECTORS) {
-            try {
-                const el = document.querySelector(sel);
-                if (el && (el.innerText || '').split(/\s+/).filter(w => w.length > 2).length > 100) {
-                    console.log('[VERITAS] Found via:', sel);
-                    return { element: el, method: 'semantic', selector: sel };
+    function assignObjectIdsToOriginalDOM() {
+        // Tag all meaningful text containers in original DOM with IDs BEFORE parsing.
+        // This ensures the IDs are preserved when Readability clones the DOM.
+        const blocks = document.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote, div');
+        blocks.forEach(block => {
+            // Only tag if it doesn't already have children that are block elements
+            // (we want leaf nodes or simple text wrappers)
+            if (block.children.length === 0 || block.tagName.toLowerCase() === 'p') {
+                const text = block.innerText || block.textContent;
+                if (text && text.trim().length > 30) {
+                    veritasParagraphCounter++;
+                    block.setAttribute('data-veritas-id', veritasParagraphCounter);
                 }
-            } catch (e) { }
-        }
-        return findByScoringAlgorithm();
-    }
-
-    function findByScoringAlgorithm() {
-        let best = { element: document.body, score: -Infinity, info: 'body' };
-
-        document.querySelectorAll('div, section').forEach(el => {
-            let score = 0;
-            const className = (el.className || '').toLowerCase();
-            const id = (el.id || '').toLowerCase();
-
-            el.querySelectorAll('p').forEach(p => {
-                const len = p.innerText.trim().length;
-                score += len > 100 ? 10 : len > 50 ? 5 : len > 20 ? 2 : 0;
-            });
-            score += el.querySelectorAll('h1, h2, h3').length * 3;
-            NOISE_INDICATORS.forEach(n => { if (className.includes(n) || id.includes(n)) score -= 50; });
-            if ((el.innerText || '').length < 500) score -= 30;
-
-            if (score > best.score) best = { element: el, score, info: (className || id).substring(0, 30) };
+            }
         });
-
-        console.log('[VERITAS] Scoring:', best.info, best.score);
-        return { element: best.element, method: 'scoring', selector: best.info };
+        console.log(`[VERITAS] Assigned IDs to ${veritasParagraphCounter} DOM elements.`);
     }
 
-    function cleanContainer(container) {
-        const clone = container.cloneNode(true);
-        NOISE_SELECTORS.forEach(sel => {
-            try { clone.querySelectorAll(sel).forEach(el => el.remove()); } catch (e) { }
-        });
-        return clone;
-    }
+    function preCleanDOM(doc) {
+        const noiseSelectors = [
+            'aside', 'footer', 'nav', '.sidebar', '#sidebar',
+            '.read-more', '.related-news', '.similar-articles', '.see-also',
+            '.recommended', '.widget', '[class*="widget"]', '[id*="widget"]',
+            '.comments', '#comments', '.advertisement', '.banner',
+            '[class*="lun"]', '[id*="lun"]', // Anti-LUN widgets
+            '[class*="telegram"]', '.social-share', '.subscribe',
+            '.read-also', '[class*="read-also"]', '[class*="recommended"]', '[id*="recommended"]', 
+            '.news-read', '.news-read-more', '.news-video', 'iframe', '[class*="banner"]', '[class*="teaser"]'
+        ];
 
-    function extractText(container) {
-        const clean = cleanContainer(container);
-        const texts = [];
-        clean.querySelectorAll('p').forEach(p => {
-            const t = p.innerText.trim();
-            if (t.length > 30) texts.push(t);
-        });
-        return texts.length > 0 ? texts.join('\n\n') : clean.innerText.replace(/\s+/g, ' ').trim();
-    }
-
-    function extractLinks(container) {
-        const clean = cleanContainer(container);
-        const links = [], seen = new Set();
-        const host = window.location.hostname.replace(/^www\./, '');
-
-        clean.querySelectorAll('a[href]').forEach(a => {
-            const href = a.href;
-            if (seen.has(href) || !href.startsWith('http')) return;
+        noiseSelectors.forEach(selector => {
             try {
-                const linkHost = new URL(href).hostname.replace(/^www\./, '');
-                if (linkHost === host || host.endsWith(linkHost) || linkHost.endsWith(host)) return;
-                if (SOCIAL_DOMAINS.some(d => linkHost.includes(d))) return;
-                seen.add(href);
-                links.push({ url: href, text: (a.innerText || '').trim().substring(0, 200), domain: linkHost });
+                const elements = doc.querySelectorAll(selector);
+                elements.forEach(el => el.remove());
             } catch (e) { }
         });
-
-        console.log('[VERITAS] Links:', links.length);
-        return links;
+        
+        return doc;
     }
 
-    function extractHeadline() {
-        const sels = ['h1[itemprop="headline"]', 'article h1', '.article-title', '.post-title', '.headline', 'h1'];
-        for (const sel of sels) {
-            try {
-                const el = document.querySelector(sel);
-                if (el) {
-                    const t = el.innerText.trim();
-                    if (t.length > 10 && t.length < 500) return t;
-                }
-            } catch (e) { }
-        }
-        return document.title.split('|')[0].split('-')[0].split('—')[0].trim();
-    }
+    // =============================================================================
+    // MAIN EXTRACTION: Readability
+    // =============================================================================
 
     function extractArticleData() {
         console.log('[VERITAS] Extracting from', window.location.hostname);
+
         try {
-            const { element, method, selector } = findMainContent();
-            const headline = extractHeadline();
-            const text = extractText(element);
-            const links = extractLinks(element);
-            const wordCount = text.split(/\s+/).filter(w => w.length > 2).length;
+            // Check if Readability is available
+            if (typeof Readability === 'undefined') {
+                throw new Error('Readability.js not loaded');
+            }
 
-            console.log('[VERITAS] Result:', { method, wordCount, links: links.length });
+            // 1. Tag original DOM so that highlights perfectly map back later
+            assignObjectIdsToOriginalDOM();
 
-            if (wordCount < 50) throw new Error('Text too short');
+            // 2. Clone the DOM so we don't destroy page layout during cleanups
+            let clonedDoc = document.cloneNode(true);
+            
+            // 3. Pre-clean obvious noise
+            clonedDoc = preCleanDOM(clonedDoc);
+
+            // 4. Parse cleanly
+            const reader = new Readability(clonedDoc);
+            const article = reader.parse();
+
+            if (!article || !article.content) {
+                throw new Error('Readability returned null or empty content');
+            }
+
+            // 5. Post-process: Extract the array of paragraphs that Readability kept
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = article.content;
+            
+            const paragraphs = [];
+            const taggedNodes = tempDiv.querySelectorAll('[data-veritas-id]');
+            
+            taggedNodes.forEach(node => {
+                const text = node.textContent.trim();
+                // Filter out empty or tiny fragments
+                if (text.length > 20) {
+                    paragraphs.push({
+                        id: parseInt(node.getAttribute('data-veritas-id'), 10),
+                        text: text
+                    });
+                }
+            });
+
+            if (paragraphs.length === 0) {
+                throw new Error('Readability preserved no tagged paragraphs. Text length was: ' + (article.textContent || '').length);
+            }
+
+            console.log(`[VERITAS] Successfully extracted ${paragraphs.length} structured paragraphs.`);
 
             return {
                 success: true,
-                data: { url: window.location.href, headline, text, html: cleanContainer(element).innerHTML, links, wordCount }
+                data: {
+                    url: window.location.href,
+                    title: article.title || document.title,
+                    html_content: article.content, // HTML includes tags, useful for internal links
+                    paragraphs: paragraphs        // Replaces text_content
+                }
             };
         } catch (e) {
-            console.error('[VERITAS] Error:', e);
+            console.error('[VERITAS] Extraction error:', e.message);
+            // Fallback strategy: just snatch ALL tagged paragraphs from the raw body.
+            // This bypasses Readability's smart filtering, but guarantees SOMETHING returns.
+            const fallbackParagraphs = [];
+            document.body.querySelectorAll('[data-veritas-id]').forEach(node => {
+                const text = node.innerText || node.textContent;
+                if (text && text.trim().length > 30) {
+                    fallbackParagraphs.push({
+                        id: parseInt(node.getAttribute('data-veritas-id'), 10),
+                        text: text.trim().replace(/\s+/g, ' ')
+                    });
+                }
+            });
+
+            if (fallbackParagraphs.length > 0) {
+                console.warn(`[VERITAS] Fallback extraction yielded ${fallbackParagraphs.length} paragraphs.`);
+                return {
+                    success: true,
+                    data: {
+                        url: window.location.href,
+                        title: document.title,
+                        html_content: document.body.innerHTML,
+                        paragraphs: fallbackParagraphs
+                    }
+                };
+            }
+
             return { success: false, error: e.message };
         }
     }
 
 
     // =============================================================================
-    // AGGRESSIVE FUZZY HIGHLIGHTING
+    // PRECISE HIGHLIGHTING (O(1) Element Lookup via ID)
     // =============================================================================
 
     function applyHighlights(highlights) {
@@ -187,74 +162,47 @@ if (window.__VERITAS_LOADED__) {
             return { applied: 0 };
         }
 
-        console.log('[VERITAS] Applying', highlights.length, 'highlights');
+        console.log('[VERITAS] Applying', highlights.length, 'highlights via ID mapping');
         let applied = 0;
 
-        // Collect ALL text nodes
-        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
-            acceptNode: (node) => {
-                const p = node.parentElement;
-                if (!p) return NodeFilter.FILTER_REJECT;
-                const tag = p.tagName.toLowerCase();
-                if (['script', 'style', 'noscript', 'textarea', 'input'].includes(tag)) return NodeFilter.FILTER_REJECT;
-                if (p.classList.contains('veritas-highlight')) return NodeFilter.FILTER_REJECT;
-                return node.nodeValue.trim().length > 3 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-            }
-        });
-
-        const nodes = [];
-        while (walker.nextNode()) nodes.push(walker.currentNode);
-        console.log('[VERITAS] Found', nodes.length, 'text nodes');
-
         for (const h of highlights) {
-            const searchClean = clean(h.text);
-            if (searchClean.length < 8) continue;
+            if (h.paragraph_id === undefined || h.paragraph_id === null) {
+                console.warn('[VERITAS] Highlight missing paragraph_id:', h);
+                continue;
+            }
 
-            // Take first 40 chars for fuzzy match
-            const searchShort = searchClean.substring(0, 40);
-            console.log('[VERITAS] Searching:', searchShort);
-
-            for (const node of nodes) {
-                const nodeClean = clean(node.nodeValue);
-
-                if (nodeClean.includes(searchShort)) {
-                    console.log('[VERITAS] MATCH FOUND!', node.nodeValue.substring(0, 50));
-
-                    try {
-                        // Find position in original text
-                        const origLower = node.nodeValue.toLowerCase().replace(/\s+/g, ' ');
-                        const searchWords = searchShort.split(' ').slice(0, 3).join(' ');
-                        let idx = origLower.indexOf(searchWords);
-
-                        if (idx === -1) idx = 0; // Fallback to start
-
-                        const matchLen = Math.min(h.text.length, node.nodeValue.length - idx, 80);
-
-                        if (matchLen > 5 && idx + matchLen <= node.nodeValue.length) {
-                            const range = document.createRange();
-                            range.setStart(node, idx);
-                            range.setEnd(node, idx + matchLen);
-
-                            const span = document.createElement('span');
-                            span.className = `veritas-highlight veritas-${h.severity || 'warning'}`;
-                            span.title = `VERITAS: ${h.reason || h.severity || 'Issue'}`;
-
-                            // AGGRESSIVE STYLES with !important
-                            if (h.severity === 'risk') {
-                                span.style.cssText = 'background-color: #ff8a80 !important; color: black !important; padding: 2px 4px !important; border-radius: 3px !important;';
-                            } else {
-                                span.style.cssText = 'background-color: #fff176 !important; color: black !important; padding: 2px 4px !important; border-radius: 3px !important;';
-                            }
-
-                            range.surroundContents(span);
-                            applied++;
-                            console.log('[VERITAS] Highlighted:', h.severity);
-                            break;
-                        }
-                    } catch (e) {
-                        console.warn('[VERITAS] Wrap failed:', e.message);
+            const targetElement = document.body.querySelector(`[data-veritas-id="${h.paragraph_id}"]`);
+            
+            if (targetElement) {
+                console.log(`[VERITAS] Found target for ID ${h.paragraph_id}. Wrapping.`);
+                
+                try {
+                    // Wrap the element's INNER contents. Better than range selection because 
+                    // this element was exactly the boundary of the text.
+                    const span = document.createElement('span');
+                    span.className = `veritas-highlight veritas-${h.severity || 'warning'}`;
+                    span.dataset.reason = h.reason || 'Ця ділянка тексту містить маніпуляції.';
+                    span.dataset.category = h.category || '';
+                    span.dataset.severity = h.severity || 'warning';
+                    span.title = `VERITAS: ${h.category || h.reason || h.severity || 'Issue'}`;
+                    
+                    if (h.severity === 'risk') {
+                        span.style.cssText = 'background-color: #ff8a80 !important; color: black !important; padding: 2px 4px !important; border-radius: 3px !important; display: inline-block;';
+                    } else {
+                        span.style.cssText = 'background-color: #fff176 !important; color: black !important; padding: 2px 4px !important; border-radius: 3px !important; display: inline-block;';
                     }
+
+                    // Move all inner content of the targetElement into our highlight span, then append the span.
+                    while (targetElement.firstChild) {
+                        span.appendChild(targetElement.firstChild);
+                    }
+                    targetElement.appendChild(span);
+                    applied++;
+                } catch (e) {
+                    console.error('[VERITAS] Failed to apply highlight to ID', h.paragraph_id, e);
                 }
+            } else {
+                console.warn(`[VERITAS] Could not find element with ID ${h.paragraph_id} in DOM.`);
             }
         }
 
@@ -279,7 +227,6 @@ if (window.__VERITAS_LOADED__) {
     // TOOLTIP SYSTEM (Coffee Edition Design)
     // =============================================================================
 
-    // Inject Coffee Edition styles for tooltip
     function injectTooltipStyles() {
         if (document.getElementById('veritas-tooltip-styles')) return;
 
@@ -309,29 +256,25 @@ if (window.__VERITAS_LOADED__) {
                 gap: 8px !important;
             }
             
-            .veritas-tooltip__icon {
-                font-size: 18px !important;
-            }
-            
             .veritas-tooltip__title {
-                font-size: 14px !important;
-                font-weight: 600 !important;
                 font-family: 'Playfair Display', serif !important;
+                font-size: 15px !important;
+                font-weight: 700 !important;
                 font-style: italic !important;
                 margin: 0 !important;
                 line-height: 1.3 !important;
             }
             
             .veritas-tooltip__title--warning {
-                color: #C58940 !important;
-                background: rgba(197, 137, 64, 0.1) !important;
+                color: #7A5321 !important;
+                background: rgba(197, 137, 64, 0.15) !important;
                 padding: 4px 8px !important;
                 border-radius: 4px !important;
             }
             
             .veritas-tooltip__title--risk {
-                color: #8D2D24 !important;
-                background: rgba(141, 45, 36, 0.1) !important;
+                color: #631F18 !important;
+                background: rgba(141, 45, 36, 0.15) !important;
                 padding: 4px 8px !important;
                 border-radius: 4px !important;
             }
@@ -345,20 +288,6 @@ if (window.__VERITAS_LOADED__) {
                 color: #3E2723 !important;
                 line-height: 1.5 !important;
                 margin: 0 0 12px 0 !important;
-            }
-            
-            .veritas-tooltip__tip {
-                font-size: 12px !important;
-                color: #795548 !important;
-                background: rgba(255,255,255,0.6) !important;
-                padding: 8px 10px !important;
-                border-radius: 8px !important;
-                margin: 0 !important;
-                line-height: 1.4 !important;
-            }
-            
-            .veritas-tooltip__tip-icon {
-                margin-right: 4px !important;
             }
             
             .veritas-tooltip__footer {
@@ -423,37 +352,31 @@ if (window.__VERITAS_LOADED__) {
         document.head.appendChild(style);
     }
 
-    // Category display names (clean, no emojis - professional look)
-    const CATEGORY_LABELS = {
-        'emotional_manipulation': 'Emotional Manipulation',
-        'unverified_claim': 'Unverified Claim',
-        'source_contradiction': 'Source Contradiction',
-        'logical_fallacy': 'Logical Fallacy',
-        'clickbait': 'Clickbait'
-    };
+    function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
 
     function createTooltip(highlight, targetElement) {
-        removeTooltip(); // Remove any existing tooltip
+        removeTooltip();
         injectTooltipStyles();
 
-        console.log('[VERITAS Tooltip] Creating with data:', highlight);
+        const reason = targetElement.dataset.reason || highlight.reason || 'This content has been flagged for review.';
+        const category = targetElement.dataset.category || highlight.category || '';
+        const severity = targetElement.dataset.severity || highlight.severity || 'warning';
+        const title = category || (severity === 'risk' ? 'Manipulative Claim' : 'Unverified Claim');
 
         const tooltip = document.createElement('div');
         tooltip.className = 'veritas-tooltip';
         tooltip.id = 'veritas-active-tooltip';
 
-        const isRisk = highlight.severity === 'risk';
-        const categoryLabel = CATEGORY_LABELS[highlight.category] || CATEGORY_LABELS['unverified_claim'];
-
         tooltip.innerHTML = `
             <div class="veritas-tooltip__header">
-                <span class="veritas-tooltip__title veritas-tooltip__title--${highlight.severity}">${categoryLabel}</span>
+                <span class="veritas-tooltip__title veritas-tooltip__title--${severity}">${escapeHTML(title)}</span>
             </div>
             <div class="veritas-tooltip__body">
-                <p class="veritas-tooltip__explanation">${highlight.explanation || 'This content has been flagged for review.'}</p>
-                <p class="veritas-tooltip__tip">
-                    <strong>Tip:</strong> ${highlight.recommendation || 'Verify this information with trusted sources.'}
-                </p>
+                <p class="veritas-tooltip__explanation">${escapeHTML(reason)}</p>
             </div>
             <div class="veritas-tooltip__footer">
                 <button class="veritas-tooltip__btn" id="veritas-dismiss-btn">Dismiss</button>
@@ -462,17 +385,13 @@ if (window.__VERITAS_LOADED__) {
         `;
 
         document.body.appendChild(tooltip);
-
-        // Position tooltip
         positionTooltip(tooltip, targetElement);
 
-        // Dismiss button
         tooltip.querySelector('#veritas-dismiss-btn').addEventListener('click', (e) => {
             e.stopPropagation();
             removeTooltip();
         });
 
-        // Close on click outside
         setTimeout(() => {
             document.addEventListener('click', handleOutsideClick);
         }, 100);
@@ -486,27 +405,22 @@ if (window.__VERITAS_LOADED__) {
         const scrollX = window.scrollX;
         const scrollY = window.scrollY;
 
-        // Calculate horizontal center
         let left = targetRect.left + scrollX + (targetRect.width / 2) - (tooltipRect.width / 2);
 
-        // Keep within viewport
         const padding = 10;
         if (left < padding) left = padding;
         if (left + tooltipRect.width > window.innerWidth - padding) {
             left = window.innerWidth - tooltipRect.width - padding;
         }
 
-        // Position above or below based on space
         const spaceAbove = targetRect.top;
         const spaceBelow = window.innerHeight - targetRect.bottom;
 
         let top;
         if (spaceAbove > tooltipRect.height + 20 || spaceAbove > spaceBelow) {
-            // Position above
             top = targetRect.top + scrollY - tooltipRect.height - 10;
             arrow.className = 'veritas-tooltip__arrow veritas-tooltip__arrow--top';
         } else {
-            // Position below
             top = targetRect.bottom + scrollY + 10;
             arrow.className = 'veritas-tooltip__arrow veritas-tooltip__arrow--bottom';
         }
@@ -514,7 +428,6 @@ if (window.__VERITAS_LOADED__) {
         tooltip.style.left = `${left}px`;
         tooltip.style.top = `${top}px`;
 
-        // Position arrow horizontally
         const arrowLeft = targetRect.left + scrollX + (targetRect.width / 2) - left - 6;
         arrow.style.left = `${Math.max(10, Math.min(arrowLeft, tooltipRect.width - 22))}px`;
     }
@@ -532,7 +445,6 @@ if (window.__VERITAS_LOADED__) {
         }
     }
 
-    // Add click listeners to highlights
     function setupHighlightClicks() {
         document.querySelectorAll('.veritas-highlight').forEach((el, index) => {
             el.style.cursor = 'pointer';
@@ -552,7 +464,6 @@ if (window.__VERITAS_LOADED__) {
         });
     }
 
-    // Scroll to highlight with pulse
     function scrollToHighlight(index) {
         const highlights = document.querySelectorAll('.veritas-highlight');
         if (index < 0 || index >= highlights.length) return false;
@@ -560,10 +471,8 @@ if (window.__VERITAS_LOADED__) {
         const target = highlights[index];
         if (!target) return false;
 
-        // Scroll into view
         target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        // Add pulse animation
         target.classList.add('veritas-highlight--pulse');
         setTimeout(() => {
             target.classList.remove('veritas-highlight--pulse');
@@ -599,10 +508,8 @@ if (window.__VERITAS_LOADED__) {
                     break;
                 case 'applyHighlights':
                     console.log('[VERITAS] Received highlights:', request.highlights);
-                    // Store highlights globally
                     window.__VERITAS_HIGHLIGHTS__ = request.highlights || [];
                     const result = applyHighlights(request.highlights);
-                    // Setup click handlers after applying
                     injectTooltipStyles();
                     setupHighlightClicks();
                     sendResponse(result);

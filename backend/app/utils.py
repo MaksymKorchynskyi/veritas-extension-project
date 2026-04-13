@@ -1,82 +1,101 @@
 """
 VERITAS Utils
-Text cleaning and HTML processing utilities
+Lightweight link extraction from pre-cleaned Readability.js HTML.
+
+The heavy HTML scraping/cleaning is now done client-side by Readability.js.
+Backend only needs BeautifulSoup for <a> tag extraction.
+Phase 5: Enhanced internal link detection & URL sanitization.
 """
 
 from bs4 import BeautifulSoup
-import re
+from urllib.parse import urlparse, urljoin
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Social media domains to filter out of source links
+SOCIAL_DOMAINS = {
+    'facebook.com', 'twitter.com', 't.co', 'x.com', 'instagram.com',
+    'linkedin.com', 'youtube.com', 'tiktok.com', 'telegram.org',
+    't.me', 'wa.me', 'whatsapp.com', 'viber.com', 'pinterest.com',
+    't.tiktok.com', 'invite.viber.com', 'fb.watch'
+}
+
+# Social share URL patterns (usually injected by share buttons)
+SOCIAL_SHARE_PATTERNS = {
+    'twitter.com/intent', 'facebook.com/sharer', 'linkedin.com/share',
+    'reddit.com/submit', 'pinterest.com/pin', 't.me/share'
+}
 
 
-def clean_html(html: str) -> str:
+def extract_links(html_content: str, article_domain: str = "", base_url: str = "") -> list[dict]:
     """
-    Clean HTML content by removing navigation, scripts, and other non-article elements.
+    Extract external and internal hyperlinks from pre-cleaned Readability.js HTML.
     
     Args:
-        html: Raw HTML string from the article page
+        html_content: Clean article HTML from Readability.js
+        article_domain: Domain of the article (to detect internal links)
+        base_url: The full URL of the article (used to resolve relative links)
         
     Returns:
-        Cleaned text content
+        List of dicts with 'url', 'text', and 'domain' keys.
+        Internal links are included so `core.py` can penalize SEO spam.
     """
-    soup = BeautifulSoup(html, 'lxml')
+    if not html_content:
+        return []
     
-    # CRITICAL: Remove unwanted elements as per TECH_STACK.md
-    unwanted_tags = [
-        'nav', 'footer', 'script', 'style', 'aside', 'header',
-        'noscript', 'iframe', 'form', 'button', 'input'
-    ]
-    
-    for tag in unwanted_tags:
-        for element in soup.find_all(tag):
-            element.decompose()
-    
-    # Remove elements by common class names (ads, navigation, etc.)
-    unwanted_classes = [
-        'advertisement', 'ad', 'ads', 'sidebar', 'navigation',
-        'menu', 'comments', 'related', 'social', 'share'
-    ]
-    
-    for class_name in unwanted_classes:
-        for element in soup.find_all(class_=re.compile(class_name, re.I)):
-            element.decompose()
-    
-    # Extract text from remaining content
-    text = soup.get_text(separator='\n', strip=True)
-    
-    # Clean up multiple newlines and spaces
-    text = re.sub(r'\n\s*\n', '\n\n', text)
-    text = re.sub(r' +', ' ', text)
-    
-    return text.strip()
-
-
-def extract_links(html: str) -> list[dict]:
-    """
-    Extract all hyperlinks from the HTML content.
-    
-    Args:
-        html: Raw HTML string
-        
-    Returns:
-        List of dicts with 'url' and 'text' keys
-    """
-    soup = BeautifulSoup(html, 'lxml')
+    soup = BeautifulSoup(html_content, 'html.parser')
     links = []
+    seen_urls = set()
+    
+    # Нормалізація базового домену для порівнянь
+    article_domain_clean = article_domain.lower().replace('www.', '') if article_domain else ""
     
     for anchor in soup.find_all('a', href=True):
-        href = anchor.get('href', '')
+        href = anchor.get('href', '').strip()
         text = anchor.get_text(strip=True)
         
-        # Skip empty, anchor, or javascript links
-        if not href or href.startswith('#') or href.startswith('javascript:'):
+        # 1. Skip strictly empty, anchor-only, or javascript links
+        if not href or href.startswith(('#', 'javascript:', 'mailto:', 'tel:')):
             continue
             
-        # Skip social media share links
-        if any(social in href.lower() for social in ['twitter.com/intent', 'facebook.com/sharer', 'linkedin.com/share']):
+        # 2. Resolve relative URLs (e.g., "/politics/news-123") -> "https://domain.com/..."
+        # If no base_url is provided, we assume relative URLs belong to article_domain
+        if not href.startswith(('http://', 'https://')):
+            if base_url:
+                href = urljoin(base_url, href)
+            else:
+                # If we don't have base_url, we still treat it as an internal link
+                href = f"https://{article_domain_clean}{href if href.startswith('/') else '/' + href}"
+                
+        # 3. Skip exact duplicates to prevent duplicate processing
+        if href in seen_urls:
             continue
+            
+        # 4. Parse the normalized link
+        try:
+            parsed = urlparse(href)
+            link_domain = parsed.netloc.lower().replace('www.', '')
+        except ValueError:
+            # Skip completely malformed URLs
+            continue
+            
+        # 5. Skip social media profile / share domains
+        if any(social in link_domain for social in SOCIAL_DOMAINS):
+            continue
+            
+        # 6. Skip social share action URLs
+        if any(pattern in href.lower() for pattern in SOCIAL_SHARE_PATTERNS):
+            continue
+            
+        # Увага: Ми БІЛЬШЕ НЕ пропускаємо internal_links тут!
+        # Вони потрібні у core.py, щоб алгоритм міг застосувати internal_penalty (Анти-SEO).
         
+        seen_urls.add(href)
         links.append({
             'url': href,
-            'text': text
+            'text': text[:200] if text else '', # Текст лінку (напр. "пише Reuters")
+            'domain': link_domain,
         })
     
     return links
@@ -84,13 +103,7 @@ def extract_links(html: str) -> list[dict]:
 
 def count_words(text: str) -> int:
     """
-    Count words in text.
-    
-    Args:
-        text: Text string
-        
-    Returns:
-        Word count
+    Count words in text accurately.
     """
     if not text:
         return 0
@@ -100,22 +113,14 @@ def count_words(text: str) -> int:
 def truncate_text(text: str, max_length: int = 10000) -> str:
     """
     Truncate text to a maximum length while preserving word boundaries.
-    
-    Args:
-        text: Text to truncate
-        max_length: Maximum character length
-        
-    Returns:
-        Truncated text
     """
     if len(text) <= max_length:
         return text
     
-    # Find the last space before max_length
     truncated = text[:max_length]
     last_space = truncated.rfind(' ')
     
-    if last_space > max_length * 0.8:  # Only use if within reasonable range
+    if last_space > max_length * 0.8:
         return truncated[:last_space] + '...'
     
     return truncated + '...'

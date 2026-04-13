@@ -73,11 +73,12 @@ async function performAnalysis(tabId, tabUrl) {
     console.log('[VERITAS BG] Starting analysis for tab:', tabId);
 
     try {
-        // Update state: analyzing
+        // Update state: analyzing (store URL for stale-state detection)
         await setAnalysisState(tabId, {
             status: 'analyzing',
             step: 1,
-            message: 'Extracting content...'
+            message: 'Extracting content...',
+            url: tabUrl
         });
 
         // Step 1: Extract content from tab
@@ -98,7 +99,7 @@ async function performAnalysis(tabId, tabUrl) {
             try {
                 await chrome.scripting.executeScript({
                     target: { tabId },
-                    files: ['content.js']
+                    files: ['Readability.js', 'content.js']
                 });
                 await new Promise(r => setTimeout(r, 300));
                 console.log('[VERITAS BG] Script injected');
@@ -133,23 +134,34 @@ async function performAnalysis(tabId, tabUrl) {
         await setAnalysisState(tabId, {
             status: 'analyzing',
             step: 2,
-            message: 'Analyzing with AI...'
+            message: 'Analyzing with AI...',
+            url: tabUrl
         });
 
-        // Step 2: Call backend API
+        // Step 2: Call backend API with Readability-extracted content
+        const storage = await chrome.storage.local.get(['appLanguage']);
+        const lang = storage.appLanguage || 'uk';
+        
         const apiResponse = await fetch(`${BASE_URL}/analyze`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 url: extractedData.url,
-                text: extractedData.text,
-                headline: extractedData.headline
+                title: extractedData.title,
+                html_content: extractedData.html_content,
+                paragraphs: extractedData.paragraphs,
+                language: lang
             })
         });
 
         if (!apiResponse.ok) {
             const err = await apiResponse.json().catch(() => ({}));
-            throw new Error(err.detail || `Server error: ${apiResponse.status}`);
+            let errMsg = err.detail || `Server error: ${apiResponse.status}`;
+            // If FastAPI validation error (422), detail is an array of objects
+            if (typeof errMsg === 'object') {
+                errMsg = JSON.stringify(errMsg);
+            }
+            throw new Error(errMsg);
         }
 
         const analysisResult = await apiResponse.json();
@@ -163,7 +175,9 @@ async function performAnalysis(tabId, tabUrl) {
             status: 'complete',
             step: 3,
             message: 'Analysis complete',
-            result: analysisResult
+            result: analysisResult,
+            url: tabUrl,
+            extractedParagraphs: extractedData.paragraphs
         });
 
         // Apply highlights if any
@@ -241,6 +255,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     return false;
+});
+
+
+// =============================================================================
+// AUTO-CLEAR STATE ON TAB NAVIGATION
+// =============================================================================
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    // When a tab navigates to a new URL, clear old analysis state
+    if (changeInfo.url) {
+        console.log('[VERITAS BG] Tab', tabId, 'navigated to:', changeInfo.url.substring(0, 60));
+        // Clear the analysis state for this tab so popup shows fresh "Analyze" button
+        chrome.storage.local.remove([`state_${tabId}`]);
+    }
 });
 
 

@@ -1,10 +1,8 @@
 fastapi
 uvicorn[standard]
-httpx
 beautifulsoup4
 lxml
-google-generativeai>=0.8.0
+google-genai
 python-dotenv
-tenacity
-fake-useragent
 pydantic
+duckduckgo-search

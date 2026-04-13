@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VERITAS — Chrome Extension Test Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Playfair+Display:ital,wght@1,500;1,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #EFE9E1;
+            --text: #3E2723;
+            --text-sec: #795548;
+            --border: #8D6E63;
+            --card: rgba(255,255,255,0.6);
+            --green: #33691E;
+            --yellow: #C58940;
+            --red: #8D2D24;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            font-family: 'Manrope', sans-serif;
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-sec);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 40px;
+        }
+
+        .instructions {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 30px;
+        }
+
+        .instructions h2 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+            color: var(--text-sec);
+        }
+
+        .instructions code {
+            background: rgba(62, 39, 35, 0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        /* Category Headers */
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 30px 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .category-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-weight: 800;
+            font-size: 0.9rem;
+            color: white;
+        }
+        .cat-A { background: var(--green); }
+        .cat-B { background: var(--yellow); }
+        .cat-C { background: var(--red); }
+        .cat-D { background: var(--text-sec); }
+
+        .category-header h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .category-desc {
+            font-size: 0.8rem;
+            color: var(--text-sec);
+            margin-left: auto;
+        }
+
+        /* Article Cards */
+        .article-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+            display: grid;
+            grid-template-columns: 40px 1fr 120px;
+            gap: 16px;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .article-card:hover {
+            box-shadow: 0 4px 16px rgba(62,39,35,0.1);
+            transform: translateY(-1px);
+        }
+
+        .article-id {
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: var(--text-sec);
+            text-align: center;
+        }
+
+        .article-info { min-width: 0; }
+
+        .article-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .article-meta {
+            font-size: 0.75rem;
+            color: var(--text-sec);
+        }
+
+        .article-expected {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .expect-high { background: rgba(51,105,30,0.12); color: var(--green); }
+        .expect-mid { background: rgba(197,137,64,0.15); color: var(--yellow); }
+        .expect-low { background: rgba(141,45,36,0.12); color: var(--red); }
+
+        .article-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .btn-open {
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--text);
+            color: var(--bg);
+            font-family: 'Manrope', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .btn-open:hover {
+            background: var(--border);
+            transform: translateY(-1px);
+        }
+
+        .score-input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            font-family: 'Manrope', sans-serif;
+            font-size: 0.85rem;
+            text-align: center;
+            color: var(--text);
+        }
+
+        .score-input::placeholder {
+            color: var(--text-sec);
+            font-size: 0.75rem;
+        }
+
+        /* Summary Table */
+        .summary-section {
+            margin-top: 40px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .summary-section h2 {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 8px 6px;
+            border-bottom: 2px solid var(--border);
+            font-weight: 600;
+            color: var(--text-sec);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 6px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .btn-export {
+            margin-top: 16px;
+            padding: 10px 20px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--text);
+            color: var(--bg);
+            font-family: 'Manrope', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-export:hover {
+            background: var(--border);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: var(--text-sec);
+            font-size: 0.75rem;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Veritas</h1>
+        <p class="subtitle">Chrome Extension Test Dashboard</p>
+
+        <div class="instructions">
+            <h2>📋 Інструкція з тестування</h2>
+            <ol>
+                <li>Переконайтесь, що бекенд запущений (<code>uvicorn app.main:app --reload</code>)</li>
+                <li>Переконайтесь, що VERITAS розширення встановлено в Chrome</li>
+                <li>Натисніть <strong>"Open"</strong> біля статті — вона відкриється у новій вкладці</li>
+                <li>Натисніть іконку VERITAS у Chrome → <strong>"Analyze This Article"</strong></li>
+                <li>Запишіть <strong>Trust Score</strong> у поле біля статті</li>
+                <li>Перевірте highlights, tooltip'и на сторінці</li>
+                <li>Після аналізу всіх статей натисніть <strong>"Export CSV"</strong></li>
+            </ol>
+        </div>
+
+        <div id="articles-container"></div>
+
+        <div class="summary-section">
+            <h2>📊 Зведена таблиця результатів</h2>
+            <table id="summaryTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Кат.</th>
+                        <th>Заголовок</th>
+                        <th>Очікуваний</th>
+                        <th>Факт. Score</th>
+                        <th>Відповідає?</th>
+                    </tr>
+                </thead>
+                <tbody id="summaryBody"></tbody>
+            </table>
+            <br>
+            <button class="btn-export" onclick="exportCSV()">💾 Export CSV</button>
+            <button class="btn-export" onclick="updateSummary()" style="margin-left:8px; background:var(--border);">🔄 Оновити таблицю</button>
+        </div>
+
+        <div class="footer">
+            VERITAS Test Dashboard — Курсова робота, ЛНУ ім. Франка, ПМІ, Комп'ютерні науки
+        </div>
+    </div>
+
+    <script>
+    // =========================================================================
+    // TEST DATASET — Real URLs for Chrome Extension testing
+    // =========================================================================
+
+    const TEST_ARTICLES = [
+        // --- CATEGORY A: High Quality (Expected 65-100) ---
+        {
+            id: "A1", category: "A", expected: [65, 100],
+            title: "Зеленський відреагував на ухвалення закону",
+            url: "https://www.pravda.com.ua/",
+            source: "Українська Правда"
+        },
+        {
+            id: "A2", category: "A", expected: [65, 100],
+            title: "Ukraine latest news — BBC coverage",
+            url: "https://www.bbc.com/ukrainian",
+            source: "BBC Україна"
+        },
+        {
+            id: "A3", category: "A", expected: [65, 100],
+            title: "Новини від Укрінформ",
+            url: "https://www.ukrinform.ua/",
+            source: "Укрінформ"
+        },
+        {
+            id: "A4", category: "A", expected: [65, 100],
+            title: "Суспільне — головні новини",
+            url: "https://suspilne.media/",
+            source: "Суспільне"
+        },
+        {
+            id: "A5", category: "A", expected: [60, 100],
+            title: "Reuters World News",
+            url: "https://www.reuters.com/world/",
+            source: "Reuters"
+        },
+        {
+            id: "A6", category: "A", expected: [60, 100],
+            title: "НВ — останні новини",
+            url: "https://nv.ua/",
+            source: "НВ (Новое Время)"
+        },
+        {
+            id: "A7", category: "A", expected: [60, 100],
+            title: "Ліга.net — Аналітика",
+            url: "https://www.liga.net/",
+            source: "Liga.net"
+        },
+
+        // --- CATEGORY B: Medium Quality (Expected 30-74) ---
+        {
+            id: "B1", category: "B", expected: [25, 80],
+            title: "Регіональні новини / Блоги",
+            url: "https://www.unian.ua/",
+            source: "УНІАН"
+        },
+        {
+            id: "B2", category: "B", expected: [25, 80],
+            title: "Обозреватель — новини",
+            url: "https://www.obozrevatel.com/",
+            source: "Обозреватель"
+        },
+        {
+            id: "B3", category: "B", expected: [25, 80],
+            title: "Кореспондент",
+            url: "https://ua.korrespondent.net/",
+            source: "Кореспондент"
+        },
+
+        // --- CATEGORY C: Low Quality / Manipulative (Expected 0-45) ---
+        {
+            id: "C1", category: "C", expected: [0, 50],
+            title: "⚠️ Знайди маніпулятивну статтю зі StopFake",
+            url: "https://www.stopfake.org/uk/category/fejky/",
+            source: "StopFake (архів фейків)"
+        },
+        {
+            id: "C2", category: "C", expected: [0, 50],
+            title: "⚠️ Знайди статтю з клікбейтним заголовком",
+            url: "https://www.stopfake.org/uk/category/fejky/",
+            source: "Таблоїд / StopFake"
+        },
+
+        // --- CATEGORY D: Edge Cases ---
+        {
+            id: "D1", category: "D", expected: [0, 100],
+            title: "Wikipedia (не новинна стаття)",
+            url: "https://uk.wikipedia.org/wiki/Україна",
+            source: "Wikipedia"
+        },
+        {
+            id: "D2", category: "D", expected: [0, 100],
+            title: "YouTube (сторінка без статті)",
+            url: "https://www.youtube.com/",
+            source: "YouTube"
+        },
+    ];
+
+    // =========================================================================
+    // RENDER
+    // =========================================================================
+
+    function renderArticles() {
+        const container = document.getElementById('articles-container');
+        const categories = {
+            "A": { label: "Якісні статті (авторитетні видання)", desc: "Очікуваний Score: 65–100" },
+            "B": { label: "Середня якість (збалансовані, але з проблемами)", desc: "Очікуваний Score: 30–74" },
+            "C": { label: "Маніпулятивні / фейкові", desc: "Очікуваний Score: 0–45" },
+            "D": { label: "Edge Cases (спеціальні випадки)", desc: "Будь-який Score" },
+        };
+
+        let html = '';
+        let currentCat = '';
+
+        for (const article of TEST_ARTICLES) {
+            if (article.category !== currentCat) {
+                currentCat = article.category;
+                const cat = categories[currentCat];
+                html += `
+                <div class="category-header">
+                    <span class="category-badge cat-${currentCat}">${currentCat}</span>
+                    <h2>${cat.label}</h2>
+                    <span class="category-desc">${cat.desc}</span>
+                </div>`;
+            }
+
+            const expectClass = article.category === 'A' ? 'expect-high' :
+                                article.category === 'C' ? 'expect-low' : 'expect-mid';
+
+            html += `
+            <div class="article-card" data-id="${article.id}">
+                <div class="article-id">${article.id}</div>
+                <div class="article-info">
+                    <div class="article-title" title="${article.title}">${article.title}</div>
+                    <div class="article-meta">${article.source} — ${article.url.substring(0, 50)}...</div>
+                    <span class="article-expected ${expectClass}">
+                        Очікуваний: ${article.expected[0]}–${article.expected[1]}
+                    </span>
+                </div>
+                <div class="article-actions">
+                    <a class="btn-open" href="${article.url}" target="_blank">Open ↗</a>
+                    <input type="number" class="score-input" id="score-${article.id}"
+                           placeholder="Score?" min="0" max="100" oninput="updateSummary()">
+                </div>
+            </div>`;
+        }
+
+        container.innerHTML = html;
+    }
+
+    // =========================================================================
+    // SUMMARY TABLE
+    // =========================================================================
+
+    function updateSummary() {
+        const tbody = document.getElementById('summaryBody');
+        let html = '';
+
+        for (const article of TEST_ARTICLES) {
+            const input = document.getElementById(`score-${article.id}`);
+            const score = input ? parseFloat(input.value) : NaN;
+            const [lo, hi] = article.expected;
+
+            let matchCell = '';
+            if (!isNaN(score)) {
+                const match = score >= lo && score <= hi;
+                matchCell = match ? '✅' : '❌';
+            } else {
+                matchCell = '—';
+            }
+
+            html += `
+            <tr>
+                <td><strong>${article.id}</strong></td>
+                <td>${article.category}</td>
+                <td style="max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${article.title}</td>
+                <td>${lo}–${hi}</td>
+                <td>${isNaN(score) ? '—' : score}</td>
+                <td style="text-align:center; font-size:1.1rem">${matchCell}</td>
+            </tr>`;
+        }
+
+        tbody.innerHTML = html;
+    }
+
+    // =========================================================================
+    // CSV EXPORT
+    // =========================================================================
+
+    function exportCSV() {
+        let csv = 'ID,Category,Source,Expected_Min,Expected_Max,Actual_Score,In_Range,URL\n';
+
+        for (const article of TEST_ARTICLES) {
+            const input = document.getElementById(`score-${article.id}`);
+            const score = input ? parseFloat(input.value) : '';
+            const [lo, hi] = article.expected;
+            const inRange = score !== '' && !isNaN(score) ? (score >= lo && score <= hi ? 'YES' : 'NO') : '';
+
+            csv += `${article.id},${article.category},"${article.source}",${lo},${hi},${score},${inRange},"${article.url}"\n`;
+        }
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `veritas_chrome_test_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+    }
+
+    // =========================================================================
+    // INIT
+    // =========================================================================
+
+    renderArticles();
+    updateSummary();
+    </script>
+</body>
+</html>

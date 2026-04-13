@@ -9,17 +9,22 @@
 // =============================================================================
 
 const el = {
-    // States
-    stateInitial: document.getElementById('stateInitial'),
-    stateAnalyzing: document.getElementById('stateAnalyzing'),
-    stateResults: document.getElementById('stateResults'),
-    stateError: document.getElementById('stateError'),
-
     // Buttons
     analyzeBtn: document.getElementById('analyzeBtn'),
     reanalyzeBtn: document.getElementById('reanalyzeBtn'),
     retryBtn: document.getElementById('retryBtn'),
     toggleDetails: document.getElementById('toggleDetails'),
+    resetBtn: document.getElementById('resetBtn'), // New hard reset button
+    settingsBtn: document.getElementById('settingsBtn'),
+    backToAnalysisBtn: document.getElementById('backToAnalysisBtn'),
+    languageSelect: document.getElementById('languageSelect'),
+    
+    // States
+    stateInitial: document.getElementById('stateInitial'),
+    stateAnalyzing: document.getElementById('stateAnalyzing'),
+    stateResults: document.getElementById('stateResults'),
+    stateError: document.getElementById('stateError'),
+    stateSettings: document.getElementById('stateSettings'),
 
     // Analyzing
     statusText: document.getElementById('statusText'),
@@ -64,12 +69,73 @@ let currentHighlights = [];
 let currentHighlightIndex = 0;
 
 
+const translations = {
+    "uk": {
+        "tagline": "Аналізатор Достовірності Новин",
+        "analyze_article": "Аналізувати Цю Статтю",
+        "hint_click": "Натисніть, щоб оцінити достовірність",
+        "extracting_content": "Витягуємо контент...",
+        "cancel": "Скасувати",
+        "trust_score": "Рейтинг Довіри",
+        "view_breakdown": "Показати деталі",
+        "hide_details": "Приховати деталі",
+        "found_issues": "Знайдені Проблеми",
+        "warnings": "Попередження",
+        "high_risk": "Ризики",
+        "source_verification": "Перевірка Джерел",
+        "objectivity": "Об'єктивність",
+        "headline_relevance": "Заголовок",
+        "factual_density": "Фактологічність",
+        "logical_consistency": "Логіка",
+        "analyze_again": "Аналізувати Знову",
+        "try_again": "Спробувати Знову",
+        "checking": "Перевірка...",
+        "settings_title": "Налаштування",
+        "language_label": "Мова Додатку",
+        "back_to_analysis": "Повернутись до Аналізу"
+    },
+    "en": {
+        "tagline": "News Credibility Analyzer",
+        "analyze_article": "Analyze This Article",
+        "hint_click": "Click to assess article credibility",
+        "extracting_content": "Extracting content...",
+        "cancel": "Cancel",
+        "trust_score": "Trust Score",
+        "view_breakdown": "View Detailed Breakdown",
+        "hide_details": "Hide Details",
+        "found_issues": "Found Issues",
+        "warnings": "Warnings",
+        "high_risk": "High Risk",
+        "source_verification": "Source Verification",
+        "objectivity": "Objectivity",
+        "headline_relevance": "Headline Relevance",
+        "factual_density": "Factual Density",
+        "logical_consistency": "Logical Consistency",
+        "analyze_again": "Analyze Again",
+        "try_again": "Try Again",
+        "checking": "Checking...",
+        "settings_title": "Settings",
+        "language_label": "App Language",
+        "back_to_analysis": "Back to Analysis"
+    }
+};
+
+let currentLanguage = 'uk'; // Default
+
 // =============================================================================
 // INITIALIZATION
 // =============================================================================
 
 async function init() {
     console.log('[VERITAS Popup] Initializing...');
+
+    // Load language preferences
+    const storage = await chrome.storage.local.get(['appLanguage']);
+    if (storage.appLanguage) {
+        currentLanguage = storage.appLanguage;
+        if (el.languageSelect) el.languageSelect.value = currentLanguage;
+    }
+    applyTranslations();
 
     // Get current tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -83,6 +149,25 @@ async function init() {
     el.reanalyzeBtn?.addEventListener('click', startAnalysis);
     el.retryBtn?.addEventListener('click', startAnalysis);
     el.toggleDetails?.addEventListener('click', toggleDetailsPanel);
+    el.resetBtn?.addEventListener('click', forceResetState);
+    
+    // Settings Binding
+    el.settingsBtn?.addEventListener('click', () => showState('settings'));
+    el.backToAnalysisBtn?.addEventListener('click', () => {
+        // Just reload the logical state by running init checks again, or just show initial
+        // But safer to just reload popup context fully, or handle states
+        window.location.reload(); 
+    });
+    el.languageSelect?.addEventListener('change', async (e) => {
+        currentLanguage = e.target.value;
+        await chrome.storage.local.set({ appLanguage: currentLanguage });
+        applyTranslations();
+    });
+    
+    // Bind new View Parsed Text button
+    document.getElementById('viewParsedTextBtn')?.addEventListener('click', () => {
+        chrome.tabs.create({ url: `parsed_text.html?tabId=${currentTabId}` });
+    });
 
     // Highlight Navigator events
     el.badgeWarnings?.addEventListener('click', () => jumpToHighlight('warning'));
@@ -93,7 +178,7 @@ async function init() {
     // Check server connection
     checkConnection();
 
-    // Check for cached result first
+    // Check for cached result first (cached by URL, so safe)
     const cached = await getCachedResult();
     if (cached) {
         console.log('[VERITAS Popup] Found cached result');
@@ -103,6 +188,14 @@ async function init() {
 
     // Check if analysis is in progress
     const state = await getAnalysisState();
+
+    // Safety check: ignore state if it belongs to a different URL (user navigated away)
+    if (state?.url && currentTabUrl && state.url !== currentTabUrl) {
+        console.log('[VERITAS Popup] State URL mismatch, clearing stale state');
+        await forceResetState();
+        return;
+    }
+
     if (state?.status === 'analyzing') {
         console.log('[VERITAS Popup] Analysis in progress, showing loading');
         showState('analyzing');
@@ -121,6 +214,31 @@ async function init() {
     showState('initial');
 }
 
+async function forceResetState() {
+    console.log('[VERITAS Popup] Force resetting state...');
+    if (currentTabId) {
+        await chrome.runtime.sendMessage({ action: 'CLEAR_STATE', tabId: currentTabId });
+    }
+    stopPolling();
+    showState('initial');
+}
+
+
+function applyTranslations() {
+    const dict = translations[currentLanguage] || translations["uk"];
+    document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        if (dict[key]) {
+            element.textContent = dict[key];
+        }
+    });
+
+    // Handle dynamically toggled text safely
+    if (el.toggleDetails) {
+        const isHidden = el.detailsPanel?.classList.contains('hidden');
+        el.toggleDetails.textContent = isHidden ? dict["view_breakdown"] : dict["hide_details"];
+    }
+}
 
 // =============================================================================
 // STATE MANAGEMENT
@@ -131,6 +249,7 @@ function showState(stateName) {
     el.stateAnalyzing?.classList.add('hidden');
     el.stateResults?.classList.add('hidden');
     el.stateError?.classList.add('hidden');
+    el.stateSettings?.classList.add('hidden');
 
     switch (stateName) {
         case 'initial':
@@ -144,6 +263,9 @@ function showState(stateName) {
             break;
         case 'error':
             el.stateError?.classList.remove('hidden');
+            break;
+        case 'settings':
+            el.stateSettings?.classList.remove('hidden');
             break;
     }
 }
@@ -290,8 +412,9 @@ function getScoreClass(score) {
 
 function toggleDetailsPanel() {
     const isHidden = el.detailsPanel?.classList.toggle('hidden');
+    const dict = translations[currentLanguage] || translations["uk"];
     if (el.toggleDetails) {
-        el.toggleDetails.textContent = isHidden ? 'View Detailed Breakdown' : 'Hide Details';
+        el.toggleDetails.textContent = isHidden ? dict["view_breakdown"] : dict["hide_details"];
     }
 }
 
