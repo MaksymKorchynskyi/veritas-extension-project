@@ -28,7 +28,7 @@ CACHE_TTL = 3600 * 12  # 12 hours
 @router.post("/analyze", response_model=AnalysisResponse)
 async def analyze_article(request: AnalysisRequest):
     """
-    Analyze article credibility using WMFA v2.0 algorithm with Concurrent Execution.
+    Analyze article credibility using WMFA v5.1 algorithm with Concurrent Execution.
     """
     headline = request.title.strip()
     
@@ -112,7 +112,7 @@ async def analyze_article(request: AnalysisRequest):
         imbalance_detected=raw_data.imbalance_detected
     )
     
-    # 🧨 WMFA v5.0 CRITICAL PENALTY CHECK
+    # 🧨 WMFA v5.1 CRITICAL PENALTY CHECK
     # Штраф -40 застосовується ТІЛЬКИ для доведених фейків (OSINT), а не для токсичності
     has_contradiction = any("спростовано" in str(h.category).lower() or "contradict" in str(h.category).lower() or "fake" in str(h.category).lower() for h in final_highlights)
     

@@ -148,15 +148,18 @@ body {
   line-height: 1;
 }
 
-.hero-score.score-high .score-value {
+.hero-score.score-high .score-value,
+.hero-score-content.score-high .score-value {
   color: var(--score-high);
 }
 
-.hero-score.score-mid .score-value {
+.hero-score.score-mid .score-value,
+.hero-score-content.score-mid .score-value {
   color: var(--score-mid);
 }
 
-.hero-score.score-low .score-value {
+.hero-score.score-low .score-value,
+.hero-score-content.score-low .score-value {
   color: var(--score-low);
 }
 
@@ -172,6 +175,63 @@ body {
   font-size: 3rem;
   font-weight: 800;
   color: var(--score-low);
+}
+
+/* =========================================
+   SVG SCORE RING (Results Hero)
+   ========================================= */
+.hero-score-wrapper {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto var(--spacing-md);
+}
+
+.score-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.score-ring__track {
+  stroke: var(--border-accent);
+  opacity: 0.25;
+}
+
+.score-ring__fill {
+  stroke: var(--border-accent);
+  stroke-dasharray: 389.56; /* 2 * PI * 62 */
+  stroke-dashoffset: 389.56; /* starts fully hidden */
+  transition: stroke 0.3s ease;
+}
+
+.score-ring__fill.score-high {
+  stroke: var(--score-high);
+}
+
+.score-ring__fill.score-mid {
+  stroke: var(--score-mid);
+}
+
+.score-ring__fill.score-low {
+  stroke: var(--score-low);
+}
+
+.hero-score-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
 }
 
 /* =========================================
@@ -200,6 +260,12 @@ body {
   font-size: 0.85rem;
   color: var(--text-secondary);
   margin-bottom: var(--spacing-sm);
+  min-height: 1.3em;
+  transition: opacity 0.3s ease;
+}
+
+.status-text.fade-out {
+  opacity: 0;
 }
 
 .progress-dots {
@@ -332,6 +398,21 @@ body {
   border-radius: var(--radius);
   padding: var(--spacing-md);
   margin-top: var(--spacing-md);
+}
+
+/* =========================================
+   RADAR CHART
+   ========================================= */
+.radar-chart-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.radar-chart-container svg {
+  display: block;
 }
 
 .metrics-list {

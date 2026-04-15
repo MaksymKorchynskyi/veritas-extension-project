@@ -34,8 +34,11 @@ const el = {
 
     // Results
     heroScore: document.getElementById('heroScore'),
+    heroScoreWrapper: document.getElementById('heroScoreWrapper'),
     scoreValue: document.getElementById('scoreValue'),
+    scoreRingFill: document.getElementById('scoreRingFill'),
     detailsPanel: document.getElementById('detailsPanel'),
+    radarChartContainer: document.getElementById('radarChartContainer'),
     metricSource: document.getElementById('metricSource'),
     metricObjectivity: document.getElementById('metricObjectivity'),
     metricHeadline: document.getElementById('metricHeadline'),
@@ -67,6 +70,10 @@ let currentTabUrl = null;
 let pollInterval = null;
 let currentHighlights = [];
 let currentHighlightIndex = 0;
+
+// Dynamic loading status messages timer
+let loadingStatusTimer = null;
+let loadingStatusIndex = 0;
 
 
 const translations = {
@@ -123,6 +130,293 @@ const translations = {
 let currentLanguage = 'uk'; // Default
 
 // =============================================================================
+// DYNAMIC LOADING STATUS MESSAGES
+// =============================================================================
+
+const loadingMessages = {
+    "uk": [
+        "Аналіз структури документа...",
+        "Виявлення іменованих сутностей...",
+        "Перехресна перевірка баз OSINT...",
+        "Аналіз логічної послідовності...",
+        "Синтез Veritas Trust Score..."
+    ],
+    "en": [
+        "Parsing document structure...",
+        "Extracting named entities...",
+        "Cross-referencing OSINT databases...",
+        "Analyzing logical consistency...",
+        "Synthesizing Veritas Trust Score..."
+    ]
+};
+
+function startLoadingStatusCycle() {
+    stopLoadingStatusCycle();
+    loadingStatusIndex = 0;
+
+    const messages = loadingMessages[currentLanguage] || loadingMessages["en"];
+    // Set the first message immediately
+    setStatusTextAnimated(messages[0]);
+
+    loadingStatusTimer = setInterval(() => {
+        loadingStatusIndex = (loadingStatusIndex + 1) % messages.length;
+        setStatusTextAnimated(messages[loadingStatusIndex]);
+    }, 1800);
+}
+
+function stopLoadingStatusCycle() {
+    if (loadingStatusTimer) {
+        clearInterval(loadingStatusTimer);
+        loadingStatusTimer = null;
+    }
+}
+
+/** Fade-out, swap text, fade-in */
+function setStatusTextAnimated(text) {
+    if (!el.statusText) return;
+    el.statusText.classList.add('fade-out');
+    setTimeout(() => {
+        el.statusText.textContent = text;
+        el.statusText.classList.remove('fade-out');
+    }, 300);
+}
+
+
+// =============================================================================
+// ANIMATED SCORE RING + COUNTER
+// =============================================================================
+
+const RING_CIRCUMFERENCE = 2 * Math.PI * 62; // ≈ 389.56
+
+/**
+ * Animate the score ring fill and numeric counter from 0 → targetScore
+ * @param {number} targetScore - The final score value (0-100)
+ * @param {number} duration - Animation duration in ms (default 1500)
+ */
+function animateScoreRing(targetScore, duration = 1500) {
+    const ringFill = el.scoreRingFill;
+    const scoreDisplay = el.scoreValue;
+    if (!ringFill || !scoreDisplay) return;
+
+    // Determine color class
+    const colorClass = getScoreClass(targetScore);
+    ringFill.classList.remove('score-high', 'score-mid', 'score-low');
+    ringFill.classList.add(colorClass);
+
+    // Apply color class to content container too
+    el.heroScore?.classList.remove('score-high', 'score-mid', 'score-low');
+    el.heroScore?.classList.add(colorClass);
+
+    const startTime = performance.now();
+    const fraction = Math.max(0, Math.min(targetScore, 100)) / 100;
+    const targetOffset = RING_CIRCUMFERENCE * (1 - fraction);
+
+    function tick(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Ease-out cubic
+        const ease = 1 - Math.pow(1 - progress, 3);
+
+        // Ring fill
+        const currentOffset = RING_CIRCUMFERENCE - (RING_CIRCUMFERENCE - targetOffset) * ease;
+        ringFill.setAttribute('stroke-dashoffset', currentOffset.toFixed(2));
+
+        // Number counter
+        const currentValue = Math.round(targetScore * ease);
+        scoreDisplay.textContent = currentValue;
+
+        if (progress < 1) {
+            requestAnimationFrame(tick);
+        } else {
+            // Final exact values
+            ringFill.setAttribute('stroke-dashoffset', targetOffset.toFixed(2));
+            scoreDisplay.textContent = Math.round(targetScore);
+        }
+    }
+
+    // Reset before starting
+    ringFill.setAttribute('stroke-dashoffset', RING_CIRCUMFERENCE.toFixed(2));
+    scoreDisplay.textContent = '0';
+
+    requestAnimationFrame(tick);
+}
+
+
+// =============================================================================
+// SVG PENTAGON RADAR CHART
+// =============================================================================
+
+/**
+ * Draw a pentagon radar chart into the radarChartContainer
+ * @param {Object} scores - { source, objectivity, headline, density, logic } each 0-100
+ */
+function drawRadarChart(scores) {
+    const container = el.radarChartContainer;
+    if (!container) return;
+
+    // Clear previous chart
+    container.innerHTML = '';
+
+    const size = 210;
+    const cx = size / 2;
+    const cy = size / 2;
+    const maxRadius = 80; // max radius for the outermost ring
+    const labels = ['Source', 'Objectivity', 'Headline', 'Density', 'Logic'];
+    const values = [
+        Math.max(0, Math.min(scores.source || 0, 100)),
+        Math.max(0, Math.min(scores.objectivity || 0, 100)),
+        Math.max(0, Math.min(scores.headline || 0, 100)),
+        Math.max(0, Math.min(scores.density || 0, 100)),
+        Math.max(0, Math.min(scores.logic || 0, 100))
+    ];
+
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+    svg.setAttribute('width', '200');
+    svg.setAttribute('height', '200');
+    svg.style.display = 'block';
+
+    // Read CSS variable colors
+    const style = getComputedStyle(document.documentElement);
+    const borderAccent = style.getPropertyValue('--border-accent').trim() || '#8D6E63';
+    const textSecondary = style.getPropertyValue('--text-secondary').trim() || '#795548';
+    const textPrimary = style.getPropertyValue('--text-primary').trim() || '#3E2723';
+
+    // Determine fill color based on average score
+    const avgScore = values.reduce((a, b) => a + b, 0) / values.length;
+    let fillColor, strokeColor;
+    if (avgScore >= 70) {
+        fillColor = style.getPropertyValue('--score-high').trim() || '#33691E';
+        strokeColor = fillColor;
+    } else if (avgScore >= 40) {
+        fillColor = style.getPropertyValue('--score-mid').trim() || '#C58940';
+        strokeColor = fillColor;
+    } else {
+        fillColor = style.getPropertyValue('--score-low').trim() || '#8D2D24';
+        strokeColor = fillColor;
+    }
+
+    /**
+     * Get (x, y) for a pentagon vertex
+     * @param {number} index 0-4
+     * @param {number} radius
+     */
+    function getPoint(index, radius) {
+        // Start from top (−90° = −π/2), go clockwise
+        const angle = (2 * Math.PI * index) / 5 - Math.PI / 2;
+        return {
+            x: cx + radius * Math.cos(angle),
+            y: cy + radius * Math.sin(angle)
+        };
+    }
+
+    /** Build a polygon points-string from indices 0..4 at given radius */
+    function pentagonPoints(radius) {
+        return Array.from({ length: 5 }, (_, i) => {
+            const p = getPoint(i, radius);
+            return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+        }).join(' ');
+    }
+
+    // --- Background grid: 4 concentric pentagons ---
+    const rings = [0.25, 0.5, 0.75, 1.0];
+    rings.forEach(frac => {
+        const polygon = document.createElementNS(ns, 'polygon');
+        polygon.setAttribute('points', pentagonPoints(maxRadius * frac));
+        polygon.setAttribute('fill', 'none');
+        polygon.setAttribute('stroke', borderAccent);
+        polygon.setAttribute('stroke-opacity', '0.2');
+        polygon.setAttribute('stroke-width', '1');
+        svg.appendChild(polygon);
+    });
+
+    // --- Axes (from center to each vertex) ---
+    for (let i = 0; i < 5; i++) {
+        const p = getPoint(i, maxRadius);
+        const line = document.createElementNS(ns, 'line');
+        line.setAttribute('x1', cx);
+        line.setAttribute('y1', cy);
+        line.setAttribute('x2', p.x.toFixed(2));
+        line.setAttribute('y2', p.y.toFixed(2));
+        line.setAttribute('stroke', borderAccent);
+        line.setAttribute('stroke-opacity', '0.2');
+        line.setAttribute('stroke-width', '1');
+        svg.appendChild(line);
+    }
+
+    // --- Data polygon ---
+    const dataPoints = values.map((v, i) => {
+        const r = (v / 100) * maxRadius;
+        const p = getPoint(i, r);
+        return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+    }).join(' ');
+
+    const dataPolygon = document.createElementNS(ns, 'polygon');
+    dataPolygon.setAttribute('points', dataPoints);
+    dataPolygon.setAttribute('fill', fillColor);
+    dataPolygon.setAttribute('fill-opacity', '0.15');
+    dataPolygon.setAttribute('stroke', strokeColor);
+    dataPolygon.setAttribute('stroke-width', '2');
+    dataPolygon.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(dataPolygon);
+
+    // --- Data point dots ---
+    values.forEach((v, i) => {
+        const r = (v / 100) * maxRadius;
+        const p = getPoint(i, r);
+        const circle = document.createElementNS(ns, 'circle');
+        circle.setAttribute('cx', p.x.toFixed(2));
+        circle.setAttribute('cy', p.y.toFixed(2));
+        circle.setAttribute('r', '3');
+        circle.setAttribute('fill', strokeColor);
+        svg.appendChild(circle);
+    });
+
+    // --- Labels ---
+    const labelOffsets = [
+        { dx: 0, dy: -12 },    // top
+        { dx: 14, dy: 2 },     // top-right
+        { dx: 10, dy: 14 },    // bottom-right
+        { dx: -10, dy: 14 },   // bottom-left
+        { dx: -14, dy: 2 }     // top-left
+    ];
+    const labelAnchors = ['middle', 'start', 'start', 'end', 'end'];
+
+    labels.forEach((label, i) => {
+        const p = getPoint(i, maxRadius);
+        const text = document.createElementNS(ns, 'text');
+        text.setAttribute('x', (p.x + labelOffsets[i].dx).toFixed(2));
+        text.setAttribute('y', (p.y + labelOffsets[i].dy).toFixed(2));
+        text.setAttribute('text-anchor', labelAnchors[i]);
+        text.setAttribute('font-family', 'Manrope, sans-serif');
+        text.setAttribute('font-size', '9');
+        text.setAttribute('font-weight', '600');
+        text.setAttribute('fill', textSecondary);
+        text.textContent = label;
+
+        // Also show value next to label
+        const valText = document.createElementNS(ns, 'text');
+        valText.setAttribute('x', (p.x + labelOffsets[i].dx).toFixed(2));
+        valText.setAttribute('y', (p.y + labelOffsets[i].dy + 10).toFixed(2));
+        valText.setAttribute('text-anchor', labelAnchors[i]);
+        valText.setAttribute('font-family', 'Manrope, sans-serif');
+        valText.setAttribute('font-size', '8');
+        valText.setAttribute('font-weight', '400');
+        valText.setAttribute('fill', textSecondary);
+        valText.setAttribute('opacity', '0.7');
+        valText.textContent = Math.round(values[i]);
+
+        svg.appendChild(text);
+        svg.appendChild(valText);
+    });
+
+    container.appendChild(svg);
+}
+
+
+// =============================================================================
 // INITIALIZATION
 // =============================================================================
 
@@ -166,7 +460,8 @@ async function init() {
     
     // Bind new View Parsed Text button
     document.getElementById('viewParsedTextBtn')?.addEventListener('click', () => {
-        chrome.tabs.create({ url: `parsed_text.html?tabId=${currentTabId}` });
+        const encodedUrl = encodeURIComponent(currentTabUrl || '');
+        chrome.tabs.create({ url: `parsed_text.html?tabId=${currentTabId}&articleUrl=${encodedUrl}` });
     });
 
     // Highlight Navigator events
@@ -220,6 +515,7 @@ async function forceResetState() {
         await chrome.runtime.sendMessage({ action: 'CLEAR_STATE', tabId: currentTabId });
     }
     stopPolling();
+    stopLoadingStatusCycle();
     showState('initial');
 }
 
@@ -254,25 +550,30 @@ function showState(stateName) {
     switch (stateName) {
         case 'initial':
             el.stateInitial?.classList.remove('hidden');
+            stopLoadingStatusCycle();
             break;
         case 'analyzing':
             el.stateAnalyzing?.classList.remove('hidden');
+            startLoadingStatusCycle();
             break;
         case 'results':
             el.stateResults?.classList.remove('hidden');
+            stopLoadingStatusCycle();
             break;
         case 'error':
             el.stateError?.classList.remove('hidden');
+            stopLoadingStatusCycle();
             break;
         case 'settings':
             el.stateSettings?.classList.remove('hidden');
+            stopLoadingStatusCycle();
             break;
     }
 }
 
 function updateProgress(step, message) {
-    if (el.statusText) el.statusText.textContent = message || 'Processing...';
-
+    // The dynamic loading messages handle status text now,
+    // but we still update dots based on step
     el.dot1?.classList.toggle('active', step >= 1);
     el.dot1?.classList.toggle('done', step > 1);
     el.dot2?.classList.toggle('active', step >= 2);
@@ -367,11 +668,13 @@ function showResults(result) {
     showState('results');
 
     const score = result.trust_score;
-    if (el.scoreValue) el.scoreValue.textContent = score.toFixed(0);
 
-    // Apply color class
+    // Apply color class to content container
     el.heroScore?.classList.remove('score-high', 'score-mid', 'score-low');
     el.heroScore?.classList.add(getScoreClass(score));
+
+    // Animate score ring + counter
+    animateScoreRing(score);
 
     // Metrics
     const c = result.criteria || {};
@@ -380,6 +683,15 @@ function showResults(result) {
     setMetric(el.metricHeadline, c.headline_relevance);
     setMetric(el.metricDensity, c.factual_density);
     setMetric(el.metricLogic, c.logical_consistency);
+
+    // Draw radar chart with the criteria scores
+    drawRadarChart({
+        source: c.source_verification || 0,
+        objectivity: c.objectivity || 0,
+        headline: c.headline_relevance || 0,
+        density: c.factual_density || 0,
+        logic: c.logical_consistency || 0
+    });
 
     // Explainer
     if (el.explainerText && result.explainer) {
@@ -394,7 +706,8 @@ function showResults(result) {
 
     // Collapse details by default
     el.detailsPanel?.classList.add('hidden');
-    if (el.toggleDetails) el.toggleDetails.textContent = 'View Detailed Breakdown';
+    const dict = translations[currentLanguage] || translations["uk"];
+    if (el.toggleDetails) el.toggleDetails.textContent = dict["view_breakdown"];
 }
 
 function setMetric(element, value) {
@@ -438,10 +751,18 @@ function updateHighlightNavigator(highlights) {
     const warnings = highlights.filter(h => h.severity === 'warning').length;
     const risks = highlights.filter(h => h.severity === 'risk').length;
 
+    // Hide badge if count is 0
     if (el.warningCount) el.warningCount.textContent = warnings;
+    if (el.badgeWarnings) el.badgeWarnings.style.display = warnings > 0 ? '' : 'none';
     if (el.riskCount) el.riskCount.textContent = risks;
+    if (el.badgeRisks) el.badgeRisks.style.display = risks > 0 ? '' : 'none';
 
-    el.highlightNavigator?.classList.remove('hidden');
+    // Only show navigator if there's at least one actual badge visible
+    if (warnings === 0 && risks === 0) {
+        el.highlightNavigator?.classList.add('hidden');
+    } else {
+        el.highlightNavigator?.classList.remove('hidden');
+    }
     el.navControls?.classList.add('hidden');
 }
 

@@ -39,12 +39,22 @@ async function getAnalysisState(tabId) {
     return result[key] || null;
 }
 
-async function saveAnalysisResult(url, data) {
+async function saveAnalysisResult(url, data, extractedParagraphs, articleTitle) {
     const key = await getStorageKey(url);
-    await chrome.storage.local.set({
+    const storagePayload = {
         [key]: data,
         [`timestamp_${key}`]: Date.now()
-    });
+    };
+    // Persist extracted paragraphs alongside the analysis result (keyed by URL)
+    // so parsed_text.html can retrieve them even after tab state is cleared
+    if (extractedParagraphs) {
+        storagePayload[`paragraphs_${key}`] = extractedParagraphs;
+        storagePayload[`url_${key}`] = url;
+    }
+    if (articleTitle) {
+        storagePayload[`title_${key}`] = articleTitle;
+    }
+    await chrome.storage.local.set(storagePayload);
     console.log('[VERITAS BG] Result saved for:', url.substring(0, 50));
 }
 
@@ -168,7 +178,7 @@ async function performAnalysis(tabId, tabUrl) {
         console.log('[VERITAS BG] Analysis complete, score:', analysisResult.trust_score);
 
         // Save result to storage
-        await saveAnalysisResult(tabUrl, analysisResult);
+        await saveAnalysisResult(tabUrl, analysisResult, extractedData.paragraphs, extractedData.title);
 
         // Update state: complete
         await setAnalysisState(tabId, {
@@ -177,7 +187,8 @@ async function performAnalysis(tabId, tabUrl) {
             message: 'Analysis complete',
             result: analysisResult,
             url: tabUrl,
-            extractedParagraphs: extractedData.paragraphs
+            extractedParagraphs: extractedData.paragraphs,
+            articleTitle: extractedData.title
         });
 
         // Apply highlights if any
@@ -243,6 +254,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         getAnalysisResult(url).then(result => {
             sendResponse({ result });
         });
+        return true; // Async response
+    }
+
+    if (request.action === 'GET_CACHED_FULL') {
+        // Returns analysis result + extracted paragraphs + url, keyed by URL
+        const { url } = request;
+        (async () => {
+            const key = await getStorageKey(url);
+            const result = await chrome.storage.local.get([key, `paragraphs_${key}`, `url_${key}`, `title_${key}`, `timestamp_${key}`]);
+            if (result[key]) {
+                sendResponse({
+                    found: true,
+                    result: result[key],
+                    extractedParagraphs: result[`paragraphs_${key}`] || null,
+                    url: result[`url_${key}`] || url,
+                    articleTitle: result[`title_${key}`] || '',
+                    status: 'complete'
+                });
+            } else {
+                sendResponse({ found: false });
+            }
+        })();
         return true; // Async response
     }
 

@@ -59,10 +59,17 @@
 
     <!-- State: Results -->
     <section class="state-results hidden" id="stateResults">
-      <!-- Hero Score Circle -->
-      <div class="hero-score" id="heroScore">
-        <span class="score-value" id="scoreValue">--</span>
-        <span class="score-label" data-i18n="trust_score">Trust Score</span>
+      <!-- Hero Score Circle with SVG Ring -->
+      <div class="hero-score-wrapper" id="heroScoreWrapper">
+        <svg class="score-ring" viewBox="0 0 140 140" width="140" height="140">
+          <circle class="score-ring__track" cx="70" cy="70" r="62" fill="none" stroke-width="6"/>
+          <circle class="score-ring__fill" id="scoreRingFill" cx="70" cy="70" r="62" fill="none" stroke-width="6"
+            stroke-linecap="round" transform="rotate(-90 70 70)"/>
+        </svg>
+        <div class="hero-score-content" id="heroScore">
+          <span class="score-value" id="scoreValue">--</span>
+          <span class="score-label" data-i18n="trust_score">Trust Score</span>
+        </div>
       </div>
 
       <!-- Toggle for Details -->
@@ -90,6 +97,11 @@
 
       <!-- Hidden Accordion Section -->
       <div class="details-panel hidden" id="detailsPanel">
+        <!-- Radar Chart Container -->
+        <div class="radar-chart-container" id="radarChartContainer">
+          <!-- SVG radar chart will be injected by JS -->
+        </div>
+
         <div class="metrics-list">
           <div class="metric-row">
             <span class="metric-name" data-i18n="source_verification">Source Verification</span>

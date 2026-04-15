@@ -1,6 +1,6 @@
 """
 VERITAS Core Analysis Engine
-WMFA v2.0 (Weighted Multi-Factor Analysis) Algorithm Implementation
+WMFA v5.1 (Weighted Multi-Factor Analysis) Algorithm Implementation
 
 All scoring functions are pure Python - no AI guessing.
 Gemini provides raw data counts, Python calculates exact scores.
@@ -126,9 +126,10 @@ def calculate_source_score(
         
     # ШТРАФ ЗА SEO-НАКРУТКУ
     if internal_links_count > 5:
-        score -= (internal_links_count - 5) * 2.0
+        seo_penalty = min(20.0, (internal_links_count - 5) * 2.0)
+        score -= seo_penalty
         
-    return score
+    return max(0.0, min(100.0, score))
 
 
 # =============================================================================
@@ -146,7 +147,7 @@ def calculate_objectivity_score(
     # Remove size penalty. 5 toxic words in a 2000-word article is negligible.
     density = (toxic_count + 0.5 * opinion_count) / max(50, word_count)
     score = 100 * math.exp(-15.0 * density)
-    return score
+    return max(0.0, min(100.0, score))
 
 
 # =============================================================================
@@ -194,7 +195,7 @@ def calculate_headline_score(
     score = 100 * (0.75 ** mismatch_severity)
     # Minor flat penalty for clickbait triggers if any
     score -= (total_triggers * 5)
-    return max(0.0, score)
+    return max(0.0, min(100.0, score))
 
 
 # =============================================================================
@@ -213,9 +214,9 @@ def calculate_density_score(
         return 0.0
         
     d = entity_count / max(50, word_count)
-    # 20 is baseline. Approaches 100 asymptoticaly.
-    score = 20.0 + 80.0 * (d / (d + 0.02))
-    return score
+    # 5 is baseline. Approaches 100 asymptoticaly.
+    score = 5.0 + 95.0 * (d / (d + 0.02))
+    return max(0.0, min(100.0, score))
 
 
 # =============================================================================
@@ -233,7 +234,7 @@ def calculate_logic_score(
     score = 100 * (0.80 ** fallacy_count)
     if imbalance_detected:
         score *= 0.8  # Further 20% reduction
-    return score
+    return max(0.0, min(100.0, score))
 
 
 # =============================================================================
@@ -257,7 +258,7 @@ def aggregate_trust_score(
     has_contradiction: bool = False,
     reputation_index: float | None = None
 ) -> float:
-    """Calculate final Trust Score using WMFA v4.0 weighted average with OSINT Critical Penalties."""
+    """Calculate final Trust Score using WMFA v5.1 weighted average with OSINT Critical Penalties and Harmonic Drag."""
     final = (
         source_score * WEIGHTS["source_verification"] +
         objectivity_score * WEIGHTS["objectivity"] +
@@ -270,9 +271,11 @@ def aggregate_trust_score(
     if has_contradiction:
         final -= 40.0
         
-    # 2. Reputation Multiplier: If domain is a known propaganda/poor source
-    if reputation_index is not None and reputation_index < 0.4:
-        final *= 0.7
+    # 2. Harmonic Drag: Penalize if any single criterion is exceptionally weak
+    min_score = min(source_score, objectivity_score, headline_score, density_score, logic_score)
+    if min_score < 25.0:
+        drag = (25.0 - min_score) * 0.15 # Max drag = 3.75 pts
+        final -= drag
         
     return round(max(0.0, min(100.0, final)), 2)
 

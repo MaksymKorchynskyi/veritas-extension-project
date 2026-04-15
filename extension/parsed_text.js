@@ -26,61 +26,243 @@ if (urlParams.get('tab') === 'tests') {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TAB 1: PARSED TEXT
+// TAB 1: PARSED TEXT — Premium Article Reader
 // ═══════════════════════════════════════════════════════════════
 (async () => {
   const tabId = urlParams.get('tabId');
+  const articleUrl = urlParams.get('articleUrl') ? decodeURIComponent(urlParams.get('articleUrl')) : null;
+
   const titleEl = document.getElementById('pt-title');
   const urlEl = document.getElementById('pt-url');
-  const statusEl = document.getElementById('pt-status');
+  const sourceDomainEl = document.getElementById('pt-source-domain');
   const contentEl = document.getElementById('pt-content');
   const statsBar = document.getElementById('pt-stats');
+  const layoutEl = document.getElementById('pt-layout');
+  const headerEl = document.getElementById('pt-header');
+  const errorContainer = document.getElementById('pt-error-container');
 
-  if (!tabId) {
-    titleEl.textContent = 'No tab selected';
-    titleEl.classList.remove('pulse');
-    contentEl.innerHTML = '<div class="error-box"><div style="font-size:2rem">📄</div><h3>No Tab ID</h3><p>Open this page from the VERITAS popup by clicking the document icon.</p></div>';
+  function showError(icon, title, message) {
+    headerEl.style.display = 'none';
+    layoutEl.style.display = 'none';
+    errorContainer.innerHTML = `<div class="error-box"><div style="font-size:2.5rem">${icon}</div><h3>${title}</h3><p>${message}</p></div>`;
+  }
+
+  if (!tabId && !articleUrl) {
+    showError('📄', 'No Tab ID', 'Open this page from the VERITAS popup by clicking the document icon.');
     return;
   }
 
+  // ─── Fetch Data (two sources) ───
+  let state = null;
+  let analysisResult = null;
+
+  // Source 1: Tab state (active session)
+  if (tabId) {
+    try {
+      const data = await chrome.storage.local.get(`state_${tabId}`);
+      const tabState = data[`state_${tabId}`];
+      if (tabState && (tabState.extractedParagraphs || tabState.extractedText)) {
+        state = tabState;
+        analysisResult = tabState.result || null;
+        console.log('[VERITAS PT] Loaded from tab state');
+      }
+    } catch (e) {
+      console.warn('[VERITAS PT] Tab state lookup failed:', e.message);
+    }
+  }
+
+  // Source 2: URL-keyed persistent cache (fallback after reload)
+  if (!state && articleUrl) {
+    try {
+      const response = await new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          { action: 'GET_CACHED_FULL', url: articleUrl },
+          (resp) => resolve(resp)
+        );
+      });
+      if (response?.found && response.extractedParagraphs) {
+        state = {
+          url: response.url || articleUrl,
+          status: response.status || 'complete',
+          extractedParagraphs: response.extractedParagraphs,
+          articleTitle: response.articleTitle || ''
+        };
+        analysisResult = response.result || null;
+        console.log('[VERITAS PT] Loaded from URL-keyed cache');
+      }
+    } catch (e) {
+      console.warn('[VERITAS PT] URL cache lookup failed:', e.message);
+    }
+  }
+
+  if (!state || (!state.extractedParagraphs && !state.extractedText)) {
+    showError('⚠️', 'No Analysis Data', 'Run an analysis first by clicking "Analyze This Article" in the popup.');
+    return;
+  }
+
+  // ─── Render Article ───
   try {
-    const data = await chrome.storage.local.get(`state_${tabId}`);
-    const state = data[`state_${tabId}`];
-    if (!state || (!state.extractedParagraphs && !state.extractedText)) {
-      titleEl.textContent = 'No data available';
-      titleEl.classList.remove('pulse');
-      contentEl.innerHTML = '<div class="error-box"><div style="font-size:2rem">⚠️</div><h3>No Analysis Data</h3><p>Run an analysis first by clicking "Analyze This Article" in the popup.</p></div>';
-      return;
+    const effectiveUrl = state.url || articleUrl || '';
+    let hostname = 'Unknown';
+    try { hostname = new URL(effectiveUrl).hostname.replace('www.', ''); } catch(_) {}
+
+    // Article title
+    const articleTitle = state.articleTitle || '';
+    if (articleTitle) {
+      titleEl.textContent = articleTitle;
+    } else {
+      titleEl.textContent = hostname;
+    }
+    titleEl.classList.remove('pulse', 'loading-title');
+
+    // Source link
+    sourceDomainEl.textContent = hostname;
+    urlEl.href = effectiveUrl;
+
+    // Build highlight map: paragraph_id -> highlight data
+    const highlightMap = {};
+    const actualHighlights = [];
+    if (analysisResult?.highlights?.length) {
+      for (const h of analysisResult.highlights) {
+        if (h.paragraph_id !== undefined && h.paragraph_id !== null) {
+          highlightMap[h.paragraph_id] = h;
+          actualHighlights.push(h);
+        }
+      }
     }
 
-    const hostname = state.url ? new URL(state.url).hostname.replace('www.','') : 'Unknown';
-    titleEl.textContent = hostname + ' — Article';
-    titleEl.classList.remove('pulse');
-    urlEl.innerHTML = `<a href="${state.url}" target="_blank">${state.url}</a>`;
-    const sc = state.status === 'done' ? 'ok' : state.status === 'error' ? 'err' : 'warn';
-    statusEl.innerHTML = `<span class="badge badge-${sc}">${(state.status||'unknown').toUpperCase()}</span>`;
-
+    // Render paragraphs
     let fullText = '';
     if (state.extractedParagraphs?.length) {
-      let h = '<div class="card">';
-      state.extractedParagraphs.forEach(p => {
-        h += `<div class="para"><span class="para-id">#${p.id}</span><p class="para-text">${esc(p.text)}</p></div>`;
+      let h = '';
+      state.extractedParagraphs.forEach((p, idx) => {
+        const hl = highlightMap[p.id];
+        const hlClass = hl ? (hl.severity === 'risk' ? 'hl-risk' : 'hl-warning') : '';
+        const tooltipId = `tooltip-${p.id}`;
+
+        h += `<div class="para ${hlClass}" data-para-id="${p.id}">`;
+        h += `<span class="para-id">#${p.id}</span>`;
+        h += `<p class="para-text">${esc(p.text)}</p>`;
+
+        if (hl) {
+          const sevLabel = hl.severity === 'risk' ? '🔴 Risk' : '🟡 Warning';
+          h += `<div class="hl-badge ${hl.severity}" data-tooltip="${tooltipId}">`;
+          h += `${sevLabel} — ${esc(hl.category || '')}`;
+          h += `</div>`;
+          h += `<div class="hl-tooltip ${hl.severity === 'risk' ? 'risk-bg' : 'warning-bg'}" id="${tooltipId}">`;
+          h += `${esc(hl.reason || '')}`;
+          h += `</div>`;
+        }
+
+        h += `</div>`;
         fullText += p.text + ' ';
       });
-      h += '</div>';
       contentEl.innerHTML = h;
       document.getElementById('pt-paras').textContent = state.extractedParagraphs.length;
     } else {
       fullText = state.extractedText;
-      contentEl.innerHTML = `<div class="card"><div class="raw-text">${esc(state.extractedText)}</div></div>`;
-      document.getElementById('pt-paras').textContent = state.extractedText.split('\n\n').filter(p=>p.trim()).length;
+      contentEl.innerHTML = `<div class="raw-text">${esc(state.extractedText)}</div>`;
+      document.getElementById('pt-paras').textContent = state.extractedText.split('\n\n').filter(p => p.trim()).length;
     }
-    document.getElementById('pt-words').textContent = fullText.trim().split(/\s+/).filter(w=>w).length.toLocaleString();
+
+    // Stats
+    document.getElementById('pt-words').textContent = fullText.trim().split(/\s+/).filter(w => w).length.toLocaleString();
     document.getElementById('pt-chars').textContent = fullText.length.toLocaleString();
     statsBar.style.display = 'flex';
+
+    // Show layout
+    layoutEl.style.display = 'grid';
+
+    // ─── Highlight badge click → toggle tooltip ───
+    contentEl.querySelectorAll('.hl-badge').forEach(badge => {
+      badge.addEventListener('click', () => {
+        const tooltipId = badge.dataset.tooltip;
+        const tooltip = document.getElementById(tooltipId);
+        if (tooltip) {
+          const isVisible = tooltip.classList.contains('visible');
+          // Close all other tooltips first
+          contentEl.querySelectorAll('.hl-tooltip.visible').forEach(t => t.classList.remove('visible'));
+          if (!isVisible) tooltip.classList.add('visible');
+        }
+      });
+    });
+
+    // ─── Populate Analysis Sidebar ───
+    const sidebar = document.getElementById('pt-sidebar');
+
+    if (analysisResult) {
+      // Trust Score
+      const score = analysisResult.trust_score || 0;
+      const scoreEl = document.getElementById('sb-score');
+      scoreEl.textContent = Math.round(score);
+      scoreEl.classList.remove('score-high', 'score-mid', 'score-low');
+      scoreEl.classList.add(score >= 70 ? 'score-high' : score >= 40 ? 'score-mid' : 'score-low');
+
+      // Criteria
+      const c = analysisResult.criteria || {};
+      const criteriaData = [
+        { name: 'Source Verification', value: c.source_verification, weight: '35%' },
+        { name: 'Objectivity', value: c.objectivity, weight: '20%' },
+        { name: 'Headline Relevance', value: c.headline_relevance, weight: '15%' },
+        { name: 'Factual Density', value: c.factual_density, weight: '15%' },
+        { name: 'Logical Consistency', value: c.logical_consistency, weight: '15%' },
+      ];
+      const criteriaList = document.getElementById('sb-criteria');
+      criteriaList.innerHTML = criteriaData.map(cr => {
+        const val = cr.value ?? 0;
+        const color = val >= 70 ? 'var(--green)' : val >= 40 ? 'var(--yellow)' : 'var(--red)';
+        return `<li class="criteria-item">
+          <span class="criteria-name">${cr.name}</span>
+          <div class="criteria-bar-wrap"><div class="criteria-bar" style="width:${val}%;background:${color}"></div></div>
+          <span class="criteria-score" style="color:${color}">${Math.round(val)}</span>
+        </li>`;
+      }).join('');
+
+      // Highlights in sidebar (only actual highlights that exist)
+      const hlList = document.getElementById('sb-highlights');
+      if (actualHighlights.length > 0) {
+        hlList.innerHTML = actualHighlights.map(h => {
+          return `<li class="hl-summary-item" data-target-para="${h.paragraph_id}">
+            <span class="hl-severity-dot ${h.severity}"></span>
+            <div class="hl-summary-text">
+              <span class="hl-summary-cat">${esc(h.category || (h.severity === 'risk' ? 'High Risk' : 'Warning'))}</span>
+              ${esc(h.reason || '')}
+            </div>
+          </li>`;
+        }).join('');
+
+        // Click to scroll to paragraph
+        hlList.querySelectorAll('.hl-summary-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const paraId = item.dataset.targetPara;
+            const target = contentEl.querySelector(`[data-para-id="${paraId}"]`);
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              target.style.transition = 'box-shadow 0.3s';
+              target.style.boxShadow = '0 0 0 3px rgba(93,64,55,0.3)';
+              setTimeout(() => { target.style.boxShadow = 'none'; }, 2000);
+            }
+          });
+        });
+      } else {
+        document.getElementById('sb-highlights-card').style.display = 'none';
+      }
+
+      // Explainer
+      if (analysisResult.explainer) {
+        document.getElementById('sb-explainer').textContent = analysisResult.explainer;
+      } else {
+        document.getElementById('sb-explainer-card').style.display = 'none';
+      }
+
+    } else {
+      // No analysis result — hide sidebar cards except a notice
+      sidebar.innerHTML = `<div class="sidebar-card"><p class="no-highlights-msg">Analysis data will appear here after running an analysis.</p></div>`;
+    }
+
   } catch(e) {
-    titleEl.textContent = 'Error'; titleEl.classList.remove('pulse');
-    contentEl.innerHTML = `<div class="error-box"><div style="font-size:2rem">❌</div><h3>Load Failed</h3><p>${esc(e.message)}</p></div>`;
+    console.error('[VERITAS PT] Render error:', e);
+    showError('❌', 'Load Failed', esc(e.message));
   }
 })();
 
@@ -185,15 +367,17 @@ const ARTICLES = [
 
   // ─── C: Manipulative / Fake ───
   {
-    id:"C1", cat:"C", expect:[0,45],
-    title:"ШОК! ВЛАДА ПРИХОВУЄ ПРАВДУ! МОБІЛІЗАЦІЮ ТАЄМНО СКАСУВАЛИ!",
-    url:"https://fake-news-ua.xyz/shock-mobilization-cancelled/",
+    id:"C1", cat:"C", expect:[0,20],
+    title:"ЄС офіційно скасовує паперові гроші: Європарламент ухвалив скандальну директиву щодо переходу на «цифру»",
+    url:"https://eu-insider-news.com/world/economy/eu-bans-cash-2024",
     paragraphs:[
-      "Покидьки з влади знову зрадили народ! Це ганебне рішення доведе всьому світу, що ця огидна істерика ні до чого доброго не призведе!",
-      "Мобілізацію нібито офіційно скасували, але владні безчестивці замовчують цю злочинну таємницю від простих людей!",
-      "Деякі експерти вважають, що мобілізація — це справжній злочин проти людства та грубе порушення всіх конституційних прав та свобод громадян.",
-      "Жодне авторитетне джерело не підтвердило цю інформацію, але ми абсолютно впевнені, що це стовідсоткова правда, яку приховує корумпована влада.",
-      "ПІДПИСУЙТЕСЬ НА НАШ ТЕЛЕГРАМ КАНАЛ для ексклюзивних шокуючих новин, яких ви НІКОЛИ не побачите у продажних та підконтрольних ЗМІ!",
+      "Сьогодні вранці Європейський парламент на закритому засіданні ухвалив безпрецедентне рішення, яке назавжди змінить фінансову систему Європи. Згідно з новою Директивою 2024/89-EU, з 1 грудня 2024 року на всій території Європейського Союзу повністю забороняється використання готівкових коштів для будь-яких транзакцій.",
+      "Як стало відомо з внутрішнього документа, який опинився в розпорядженні нашої редакції, єдиним законним платіжним засобом залишиться виключно цифровий євро (e-Euro), який контролюватиметься Європейським центральним банком.",
+      "«Ми живемо в епоху, коли паперові гроші стали пережитком минулого, який лише сприяє тіньовій економіці та ухиленню від сплати податків. Повна цифровізація — це крок до абсолютно прозорого суспільства», — заявив під час брифінгу новопризначений Комісар з питань фінансового моніторингу Жан-Клод Мартен.",
+      "Згідно з текстом директиви, жителі країн ЄС та туристи мають рівно два з половиною місяці, щоб здати всі свої банкноти та монети до спеціальних пунктів прийому, які будуть облаштовані у відділеннях поліції та поштових офісах.",
+      "Після 1 грудня 2024 року будь-яка спроба розрахуватися готівкою в магазині каратиметься штрафом у розмірі від 5 000 євро, а при повторному порушенні — блокуванням усіх банківських рахунків на 30 днів.",
+      "Експерти вже б'ють на сполох. Відомий економічний аналітик з Мюнхена, доктор Ганс Мюллер, зазначає: «Це катастрофа для літніх людей та малого бізнесу. Крім того, централізована цифрова валюта дозволить чиновникам відстежувати кожну покупку і за бажання одним кліком відключати неугодних громадян від фінансової системи».",
+      "Новина вже викликала хвилю невдоволення. У Відні та Берліні тисячі людей почали стихійно збиратися біля будівель місцевих парламентів, вимагаючи накласти вето на рішення Брюсселя."
     ]
   },
   {
