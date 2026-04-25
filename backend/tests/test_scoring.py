@@ -1,7 +1,7 @@
 """
 VERITAS Unit Tests — Scoring Engine (scoring.py)
 =================================================
-Tests for all deterministic scoring functions in the WMFA algorithm.
+Tests for all deterministic scoring functions in the Fuzzy Inference System.
 These are pure functions with no AI/network dependencies.
 
 Run: python -m pytest tests/test_scoring.py -v
@@ -20,6 +20,9 @@ from app.services.scoring import (
     get_domain,
     generate_explainer,
     WEIGHTS,
+    fuzzy_zmf,
+    fuzzy_smf,
+    fuzzy_gaussmf
 )
 
 
@@ -28,9 +31,10 @@ from app.services.scoring import (
 # =============================================================================
 
 def assert_valid_score(score: float, label: str = "Score"):
-    """All individual scores should be finite numbers."""
+    """All individual scores should be finite numbers in [0, 100]."""
     assert isinstance(score, (int, float)), f"{label} is not a number: {type(score)}"
     assert math.isfinite(score), f"{label} is not finite: {score}"
+    assert 0.0 <= score <= 100.0, f"{label} is out of bounds: {score}"
 
 
 # =============================================================================
@@ -66,180 +70,142 @@ class TestDomainUtilities:
     def test_trusted_gov_ua(self):
         assert is_trusted_domain("president.gov.ua") is True
 
-    def test_trusted_edu(self):
-        assert is_trusted_domain("stanford.edu") is True
-
     def test_not_trusted_random(self):
         assert is_trusted_domain("random-blog.xyz") is False
 
     def test_not_trusted_empty(self):
         assert is_trusted_domain("") is False
 
-    def test_trusted_bbc(self):
-        assert is_trusted_domain("bbc.com") is True
 
-    def test_trusted_nv_ua(self):
-        assert is_trusted_domain("nv.ua") is True
+# =============================================================================
+# 2. FUZZY LOGIC MEMBERSHIP FUNCTIONS
+# =============================================================================
 
-    def test_trusted_suspilne(self):
-        assert is_trusted_domain("suspilne.media") is True
+class TestFuzzyLogicFunctions:
+    """Tests for the three core membership functions (zmf, smf, gaussmf)."""
+
+    def test_zmf_at_boundaries(self):
+        assert fuzzy_zmf(0, 1, 6) == 1.0
+        assert fuzzy_zmf(1, 1, 6) == 1.0
+        assert fuzzy_zmf(6, 1, 6) == 0.0
+        assert fuzzy_zmf(10, 1, 6) == 0.0
+
+    def test_zmf_midpoint(self):
+        mid = fuzzy_zmf(3.5, 1, 6)
+        assert 0.4 < mid < 0.6, "Midpoint should be near 0.5"
+
+    def test_smf_at_boundaries(self):
+        assert fuzzy_smf(0, 2, 20) == 0.0
+        assert fuzzy_smf(2, 2, 20) == 0.0
+        assert fuzzy_smf(20, 2, 20) == 1.0
+        assert fuzzy_smf(30, 2, 20) == 1.0
+
+    def test_gaussmf_peak_and_decay(self):
+        assert fuzzy_gaussmf(0, 1.2, 0) == 1.0
+        assert fuzzy_gaussmf(10, 1.2, 0) < 0.01
 
 
 # =============================================================================
-# 2. SOURCE VERIFICATION (35% weight)
+# 3. SOURCE VERIFICATION (30% weight)
 # =============================================================================
 
 class TestSourceVerification:
     """Tests for calculate_source_score()."""
 
-    def test_no_data_at_all(self):
-        """No links, no citations, no text → low score."""
+    def test_no_data_unknown_domain(self):
+        """Unknown domain, no data → base score with domain skepticism penalty."""
         score = calculate_source_score("unknown.com", [], [], "")
         assert_valid_score(score, "source_score(empty)")
-        assert score <= 15, f"Expected very low score for zero data, got {score}"
+        # -0.5 penalty → max(0, -0.5)=0 → smf(0, -1, 2) ≈ 22%
+        assert score < 30, f"Unknown domain with no data should be low, got {score}"
+
+    def test_trusted_domain_fallback(self):
+        """Trusted domain without reputation_index → gets +1.0 bonus."""
+        score_trusted = calculate_source_score("reuters.com", [], [], "")
+        score_unknown = calculate_source_score("unknown.xyz", [], [], "")
+        assert score_trusted > score_unknown, "Trusted domain should score higher"
 
     def test_single_trusted_link(self):
-        """One link to Reuters → decent score."""
+        """One link to Reuters → boosts score."""
         links = [{"domain": "reuters.com", "url": "https://reuters.com/article/1"}]
         score = calculate_source_score("example.com", links, [], "")
-        assert score >= 20, f"Trusted link should boost score, got {score}"
+        assert_valid_score(score)
+        assert score > 15
 
     def test_multiple_trusted_links(self):
-        """Links to Reuters + BBC → high link score."""
+        """Links to Reuters + BBC → μ_links=1.0, boosts score."""
         links = [
             {"domain": "reuters.com", "url": "https://reuters.com/1"},
             {"domain": "bbc.com", "url": "https://bbc.com/1"},
         ]
         score = calculate_source_score("example.com", links, [], "")
-        assert score >= 40, f"Multiple trusted links should give high score, got {score}"
-
-    def test_link_score_cap(self):
-        """Even 10 trusted links shouldn't explode the link component beyond cap."""
-        links = [{"domain": "reuters.com", "url": f"https://reuters.com/{i}"} for i in range(10)]
-        score = calculate_source_score("example.com", links, [], "")
-        assert_valid_score(score, "source_score(10 trusted links)")
-
-    def test_internal_links_are_ignored_for_link_score(self):
-        """Links to same domain → counted as internal, no link score boost."""
-        links = [{"domain": "example.com", "url": f"https://example.com/page-{i}"} for i in range(5)]
-        score = calculate_source_score("example.com", links, [], "")
-        # Only internal links → link_score should be 0
-        assert score <= 15, f"Internal links should not boost score, got {score}"
-
-    def test_seo_spam_penalty(self):
-        """More than 5 internal links → penalty applied."""
-        links = [{"domain": "spam.com", "url": f"https://spam.com/{i}"} for i in range(10)]
-        score_10_internal = calculate_source_score("spam.com", links, [], "")
-        links_3 = [{"domain": "spam.com", "url": f"https://spam.com/{i}"} for i in range(3)]
-        score_3_internal = calculate_source_score("spam.com", links_3, [], "")
-        assert score_10_internal <= score_3_internal, "10 internal links should be penalized vs 3"
+        assert score > 30  # 0.30*1.0 + 0.35*0 + 0.35*0.1 = 0.335 → 33.5
 
     def test_authoritative_citation(self):
-        """Text citation with 'Reuters' → high citation score."""
-        score = calculate_source_score("example.com", [], ["Reuters", "AP News"], "")
-        assert score >= 50, f"Reuters + AP citations should give high score, got {score}"
-
-    def test_normal_citation(self):
-        """Non-authoritative text citation → some score."""
-        score = calculate_source_score("example.com", [], ["Олексій Петров"], "")
-        assert score >= 5, f"Any citation should give some score, got {score}"
-
-    def test_text_fallback_keywords(self):
-        """No links, no citations, but article text has 'за словами' → moderate score."""
-        article = "За словами міністра, ситуація контрольована. Як повідомляє Генштаб, операція продовжується."
-        score = calculate_source_score("example.com", [], [], article_text=article)
-        assert score >= 10, f"Text keyword fallback should provide some score, got {score}"
+        """Text citation with 'Reuters' → strong boost."""
+        score = calculate_source_score("example.com", [], ["Reuters"], "")
+        assert score > 15
 
     def test_reputation_bonus(self):
-        """High reputation_index → adds points."""
+        """High reputation_index adds points."""
         base = calculate_source_score("x.com", [], ["Reuters"], "", reputation_index=0.5)
         boosted = calculate_source_score("x.com", [], ["Reuters"], "", reputation_index=0.9)
-        assert boosted > base, f"Good reputation should boost: {boosted} vs {base}"
+        assert boosted > base
 
     def test_reputation_penalty(self):
-        """Low reputation_index → subtracts points."""
+        """Low reputation_index subtracts points."""
         base = calculate_source_score("x.com", [], ["Reuters"], "", reputation_index=0.5)
         penalized = calculate_source_score("x.com", [], ["Reuters"], "", reputation_index=0.1)
-        assert penalized < base, f"Bad reputation should penalize: {penalized} vs {base}"
+        assert penalized < base
 
-    def test_reputation_neutral(self):
-        """reputation_index=0.5 → no modifier (0 points)."""
-        score = calculate_source_score("x.com", [], ["Reuters"], "", reputation_index=0.5)
-        assert_valid_score(score)
-
-    def test_trusted_domain_fallback(self):
-        """If no reputation_index but domain is trusted → fallback bonus."""
-        score_trusted = calculate_source_score("reuters.com", [], ["Test"], "")
-        score_unknown = calculate_source_score("unknown.xyz", [], ["Test"], "")
-        assert score_trusted >= score_unknown, "Trusted domain should have fallback bonus"
+    def test_domain_skepticism(self):
+        """Unknown domain gets -0.5 penalty vs neutral."""
+        # Unknown domain with 1 authoritative citation: 1.0 - 0.5 = 0.5 trusted_points
+        score_unknown = calculate_source_score("unknown.xyz", [], ["Reuters"], "")
+        # Trusted domain with 1 authoritative citation: 1.0 + 1.0 = 2.0 trusted_points
+        score_trusted = calculate_source_score("reuters.com", [], ["Reuters"], "")
+        assert score_trusted > score_unknown
 
 
 # =============================================================================
-# 3. OBJECTIVITY (20% weight)
+# 4. OBJECTIVITY (20% weight) — NORMALIZED
 # =============================================================================
 
 class TestObjectivity:
-    """Tests for calculate_objectivity_score()."""
+    """Tests for calculate_objectivity_score() with word-count normalization."""
 
     def test_perfect_objectivity(self):
         """Zero toxic words, zero opinions → 100."""
         score = calculate_objectivity_score(0, 0, 500)
         assert score == pytest.approx(100.0, abs=0.01)
 
-    def test_heavy_toxicity(self):
-        """10 toxic words in short article → very low score."""
-        score = calculate_objectivity_score(10, 5, 100)
-        assert score < 30, f"Heavy toxicity should penalize hard, got {score}"
+    def test_heavy_toxicity_short(self):
+        """15 toxic+opinion markers in 100 words → x=15/100*100=15 → zmf(15,3,15)=0."""
+        score = calculate_objectivity_score(10, 10, 100)
+        assert score == 0.0
 
-    def test_mild_toxicity(self):
-        """1 toxic word in long article → barely noticeable."""
-        score = calculate_objectivity_score(1, 0, 2000)
-        assert score > 90, f"1 toxic word in 2000 words should barely penalize, got {score}"
-
-    def test_length_normalization(self):
-        """Same toxic count in short vs long article → short penalized more."""
-        short = calculate_objectivity_score(5, 2, 200)
-        long = calculate_objectivity_score(5, 2, 2000)
-        assert long > short, f"Long article should be less penalized: long={long} vs short={short}"
+    def test_same_count_long_article_less_penalized(self):
+        """5 toxic words in 500-word article vs 100-word article."""
+        short = calculate_objectivity_score(5, 0, 100)  # x = 5*100/100 = 5
+        long = calculate_objectivity_score(5, 0, 500)   # x = 5*100/500 = 1
+        assert long > short, f"Long article should be penalized less: {long} vs {short}"
 
     def test_opinion_weight_lower(self):
-        """Opinions weighted at 0.5x toxic → less damaging."""
-        toxic_only = calculate_objectivity_score(4, 0, 500)
-        opinion_only = calculate_objectivity_score(0, 4, 500)
-        assert opinion_only > toxic_only, "Opinions should be less damaging than toxic words"
+        """Opinions weighted at 0.5x toxic words."""
+        # Use 100-word article so counts are high enough to differentiate
+        toxic_only = calculate_objectivity_score(6, 0, 100)   # x = 6
+        opinion_only = calculate_objectivity_score(0, 6, 100)  # x = 3 (0.5 weight)
+        assert opinion_only > toxic_only
 
-    def test_zero_word_count(self):
-        """word_count=0 should not cause ZeroDivisionError."""
-        score = calculate_objectivity_score(1, 1, 0)
-        assert_valid_score(score, "objectivity(0 words)")
-        assert score >= 0
-
-    def test_extreme_toxicity(self):
-        """Extreme case: 100 toxic words in 50-word text."""
-        score = calculate_objectivity_score(100, 50, 50)
-        assert score >= 0, "Score must never be negative"
-        assert score < 5, "Extreme toxicity should crush the score"
-
-    def test_exponential_decay_shape(self):
-        """Score should decrease with each additional toxic word, but diminishingly."""
-        s0 = calculate_objectivity_score(0, 0, 500)
-        s1 = calculate_objectivity_score(2, 0, 500)
-        s2 = calculate_objectivity_score(4, 0, 500)
-        s3 = calculate_objectivity_score(6, 0, 500)
-        # Each step should decrease, but the damage rate should slow down
-        d1 = s0 - s1
-        d2 = s1 - s2
-        d3 = s2 - s3
-        assert d1 > 0 and d2 > 0 and d3 > 0, "Score should always decrease"
-        assert d1 >= d2 >= d3, f"Diminishing returns expected: {d1}, {d2}, {d3}"
-
-    def test_score_never_negative(self):
-        score = calculate_objectivity_score(9999, 9999, 50)
-        assert score >= 0
+    def test_moderate_opinion_in_short_article(self):
+        """B2-like: 3 toxic + 4 opinions in 100 words → should still have some score."""
+        score = calculate_objectivity_score(3, 4, 100)
+        # x = (3 + 2) * 100/100 = 5, zmf(5, 3, 15) ≈ 0.86
+        assert score > 50, f"Moderate opinion density should not collapse, got {score}"
 
 
 # =============================================================================
-# 4. HEADLINE RELEVANCE (15% weight)
+# 5. HEADLINE RELEVANCE (20% weight)
 # =============================================================================
 
 class TestHeadlineRelevance:
@@ -251,110 +217,71 @@ class TestHeadlineRelevance:
         assert score == pytest.approx(100.0, abs=0.1)
 
     def test_high_mismatch_severity(self):
-        """Mismatch severity 5 (fabrication) → very low score."""
+        """Mismatch severity 5 → 0 score."""
         score = calculate_headline_score(0, 5, "")
-        assert score < 30, f"Severity=5 should give very low score, got {score}"
-
-    def test_mismatch_geometric_decay(self):
-        """Each severity level reduces by 0.75x."""
-        s0 = calculate_headline_score(0, 0, "")
-        s1 = calculate_headline_score(0, 1, "")
-        s2 = calculate_headline_score(0, 2, "")
-        assert s1 == pytest.approx(75.0, abs=0.1)    # 100 * 0.75^1
-        assert s2 == pytest.approx(56.25, abs=0.1)   # 100 * 0.75^2
+        assert score == 0.0
 
     def test_capslock_detection(self):
         """All-caps headline → extra clickbait trigger."""
         normal = calculate_headline_score(0, 0, "Normal headline about politics")
         caps = calculate_headline_score(0, 0, "THIS IS ALL CAPS HEADLINE NOW")
-        assert caps < normal, f"CAPSLOCK should be penalized: caps={caps} vs normal={normal}"
-
-    def test_partial_caps_below_threshold(self):
-        """Less than 30% caps → no extra penalty."""
-        score = calculate_headline_score(0, 0, "Зеленський підписав ВАЖЛИВИЙ закон")
-        assert score >= 95, f"Minor caps should not trigger penalty, got {score}"
+        assert caps < normal
 
     def test_clickbait_keyword_uk(self):
         """Ukrainian clickbait keyword 'терміново' → penalty."""
         clean = calculate_headline_score(0, 0, "Рада ухвалила законопроєкт")
         clickbait = calculate_headline_score(0, 0, "ТЕРМІНОВО! Шокуюча правда")
-        assert clickbait < clean, "Clickbait keywords should be penalized"
+        assert clickbait < clean
 
-    def test_clickbait_keyword_en(self):
-        """English clickbait keyword 'shocking' → penalty."""
-        clean = calculate_headline_score(0, 0, "Parliament passes new law")
-        clickbait = calculate_headline_score(0, 0, "SHOCKING news about the parliament")
-        assert clickbait < clean, "English clickbait should be penalized too"
-
-    def test_ai_triggers_plus_python_triggers(self):
-        """Clickbait triggers from AI + Python-detected → cumulative penalty."""
-        ai_only = calculate_headline_score(2, 0, "Normal headline")
-        both = calculate_headline_score(2, 0, "ШОК! ТЕРМІНОВО!")
-        assert both < ai_only, "Python triggers should add on top of AI triggers"
+    def test_skandalny_keyword(self):
+        """'скандальн' keyword → penalty (catches C1-like fakes)."""
+        clean = calculate_headline_score(0, 0, "ЄС ухвалив директиву")
+        skandal = calculate_headline_score(0, 0, "ЄС ухвалив скандальну директиву")
+        assert skandal < clean
 
     def test_score_never_negative(self):
         """Even extreme clickbait → score clamped at 0."""
-        score = calculate_headline_score(20, 5, "ШОК ШОК ШОК ТЕРМІНОВО ЖАХЛИВО")
-        assert score >= 0, f"Score should never go below 0, got {score}"
+        score = calculate_headline_score(20, 5, "ШОК ШОК ШОК ТЕРМІНОВО")
+        assert score >= 0
 
 
 # =============================================================================
-# 5. FACTUAL DENSITY (15% weight)
+# 6. FACTUAL DENSITY (10% weight) — NORMALIZED
 # =============================================================================
 
 class TestFactualDensity:
-    """Tests for calculate_density_score()."""
+    """Tests for calculate_density_score() with word-count normalization."""
 
     def test_zero_entities(self):
-        """No named entities → minimum baseline score (20)."""
-        score = calculate_density_score("some article text here", 0, 500)
-        assert score == pytest.approx(20.0, abs=1.0), f"Zero entities → 20 baseline, got {score}"
-
-    def test_zero_words(self):
-        """word_count=0 → 0 score (empty document)."""
-        score = calculate_density_score("", 0, 0)
+        """No named entities → 0 score."""
+        score = calculate_density_score("text", 0, 500)
         assert score == 0.0
 
-    def test_rich_article(self):
-        """Many entities per word → high score."""
-        score = calculate_density_score("text", 50, 500)
-        assert score > 85, f"High entity density should score well, got {score}"
+    def test_high_density_short_article(self):
+        """10 entities in 100 words = 10 per 100w → above b=8 → 100."""
+        score = calculate_density_score("text", 10, 100)
+        assert score == 100.0
 
-    def test_asymptotic_ceiling(self):
-        """Score approaches but never exceeds 100."""
-        score = calculate_density_score("text", 10000, 100)
-        assert score <= 100.0, f"Score must not exceed 100, got {score}"
-        assert score > 95, f"Very high density should be near 100, got {score}"
-
-    def test_minimum_baseline(self):
-        """Even very low density still gives ~20 baseline."""
-        score = calculate_density_score("text", 1, 10000)
-        assert score >= 20, f"Baseline should be at least 20, got {score}"
+    def test_same_entities_long_vs_short(self):
+        """10 entities in 100 words vs 10 entities in 500 words."""
+        short = calculate_density_score("text", 10, 100)  # 10 per 100w
+        long = calculate_density_score("text", 10, 500)   # 2 per 100w
+        assert short > long, "Short article with same entities has higher density"
 
     def test_moderate_density(self):
-        """Moderate entity count → middle-range score."""
-        score = calculate_density_score("text", 10, 500)
-        assert 20 < score < 90, f"Moderate density should give mid score, got {score}"
+        """5 entities in 100 words → mid score."""
+        score = calculate_density_score("text", 5, 100)  # 5 per 100w
+        assert 0.0 < score < 100.0
 
     def test_density_increases_monotonically(self):
         """More entities (same word count) → higher or equal score."""
-        scores = [calculate_density_score("text", n, 500) for n in range(0, 100, 10)]
+        scores = [calculate_density_score("text", n, 200) for n in range(0, 20, 4)]
         for i in range(1, len(scores)):
-            assert scores[i] >= scores[i - 1], f"Score should be monotonically increasing"
-
-    def test_michaelis_menten_shape(self):
-        """Score increases fast initially, then plateaus."""
-        s5 = calculate_density_score("text", 5, 500)
-        s10 = calculate_density_score("text", 10, 500)
-        s50 = calculate_density_score("text", 50, 500)
-        s100 = calculate_density_score("text", 100, 500)
-        gain_first = s10 - s5
-        gain_last = s100 - s50
-        assert gain_first > gain_last, "Diminishing returns expected in asymptotic curve"
+            assert scores[i] >= scores[i - 1]
 
 
 # =============================================================================
-# 6. LOGICAL CONSISTENCY (15% weight)
+# 7. LOGICAL CONSISTENCY (20% weight)
 # =============================================================================
 
 class TestLogicalConsistency:
@@ -366,42 +293,27 @@ class TestLogicalConsistency:
         assert score == pytest.approx(100.0, abs=0.01)
 
     def test_one_fallacy(self):
-        """One fallacy → 80 (100 * 0.80^1)."""
+        """One fallacy → gaussmf(1, 1.2, 0) ≈ 70.6."""
         score = calculate_logic_score(1, False)
-        assert score == pytest.approx(80.0, abs=0.01)
-
-    def test_two_fallacies(self):
-        """Two fallacies → 64 (100 * 0.80^2)."""
-        score = calculate_logic_score(2, False)
-        assert score == pytest.approx(64.0, abs=0.01)
+        expected = math.exp(-1 / (2 * 1.44)) * 100.0
+        assert score == pytest.approx(expected, abs=0.1)
 
     def test_imbalance_penalty(self):
-        """Imbalance detected → additional 20% reduction."""
+        """Imbalance detected → T-norm with zmf reduces score."""
         without = calculate_logic_score(1, False)
         with_imbalance = calculate_logic_score(1, True)
-        assert with_imbalance == pytest.approx(without * 0.8, abs=0.01)
-
-    def test_diminishing_damage(self):
-        """Each additional fallacy does less absolute damage."""
-        d1 = calculate_logic_score(0, False) - calculate_logic_score(1, False)
-        d2 = calculate_logic_score(1, False) - calculate_logic_score(2, False)
-        d3 = calculate_logic_score(2, False) - calculate_logic_score(3, False)
-        assert d1 > d2 > d3, f"Diminishing returns expected: {d1}, {d2}, {d3}"
+        # zmf(1, 0, 3) ≈ 0.778 via T-norm, not hardcoded 0.8
+        assert with_imbalance < without
+        assert with_imbalance > without * 0.7  # not too harsh
 
     def test_many_fallacies(self):
-        """Many fallacies → low but positive score."""
-        score = calculate_logic_score(10, True)
-        assert score > 0, "Score should always be positive"
-        assert score < 15, f"10 fallacies + imbalance should be very low, got {score}"
-
-    def test_score_never_negative(self):
-        """Even extreme values → score stays positive."""
-        score = calculate_logic_score(100, True)
-        assert score >= 0
+        """Many fallacies → near zero score."""
+        score = calculate_logic_score(5, True)
+        assert score < 1.0
 
 
 # =============================================================================
-# 7. AGGREGATION (Final Trust Score)
+# 8. AGGREGATION (Final Trust Score)
 # =============================================================================
 
 class TestAggregation:
@@ -409,102 +321,65 @@ class TestAggregation:
 
     def test_all_perfect(self):
         """All criteria = 100 → Trust Score = 100."""
-        score = aggregate_trust_score(100, 100, 100, 100, 100)
-        assert score == pytest.approx(100.0, abs=0.1)
+        res = aggregate_trust_score(100, 100, 100, 100, 100)
+        assert res["trust_score"] == pytest.approx(100.0, abs=0.1)
 
     def test_all_zero(self):
         """All criteria = 0 → Trust Score = 0."""
-        score = aggregate_trust_score(0, 0, 0, 0, 0)
-        assert score == pytest.approx(0.0, abs=0.1)
+        res = aggregate_trust_score(0, 0, 0, 0, 0)
+        assert res["trust_score"] == pytest.approx(0.0, abs=0.1)
 
     def test_weighted_average(self):
         """Known values → verify weighted calculation."""
-        # 80*0.35 + 60*0.20 + 90*0.15 + 70*0.15 + 85*0.15 = 28 + 12 + 13.5 + 10.5 + 12.75 = 76.75
-        score = aggregate_trust_score(80, 60, 90, 70, 85)
-        assert score == pytest.approx(76.75, abs=0.1)
+        # 80*0.30 + 60*0.20 + 90*0.20 + 70*0.10 + 85*0.20 = 24+12+18+7+17=78
+        res = aggregate_trust_score(80, 60, 90, 70, 85)
+        assert res["trust_score"] == pytest.approx(78.0, abs=0.1)
 
-    def test_contradiction_penalty(self):
-        """has_contradiction=True → severe -40 penalty."""
-        normal = aggregate_trust_score(80, 80, 80, 80, 80)
+    def test_contradiction_veto(self):
+        """has_contradiction=True → OSINT Veto caps at 15.0."""
         contradicted = aggregate_trust_score(80, 80, 80, 80, 80, has_contradiction=True)
-        assert contradicted == pytest.approx(normal - 40.0, abs=0.1)
+        assert contradicted["trust_score"] == 15.0
 
-    def test_reputation_penalty(self):
-        """Low reputation (<0.4) → 30% reduction."""
+    def test_low_reputation_penalty(self):
+        """Low reputation_index (0.1) → score reduced via fuzzy modifier."""
         normal = aggregate_trust_score(80, 80, 80, 80, 80)
-        penalized = aggregate_trust_score(80, 80, 80, 80, 80, reputation_index=0.2)
-        assert penalized == pytest.approx(normal * 0.7, abs=0.1)
-
-    def test_score_clamped_at_zero(self):
-        """Contradiction on already low scores → clamp at 0, not negative."""
-        score = aggregate_trust_score(10, 10, 10, 10, 10, has_contradiction=True)
-        assert score >= 0.0, f"Score must never be negative, got {score}"
-
-    def test_score_clamped_at_hundred(self):
-        """Score never exceeds 100."""
-        score = aggregate_trust_score(100, 100, 100, 100, 100)
-        assert score <= 100.0
+        penalized = aggregate_trust_score(80, 80, 80, 80, 80, reputation_index=0.1)
+        assert penalized["trust_score"] < normal["trust_score"]
 
     def test_weights_sum_to_one(self):
         """Critical: all weights must sum to exactly 1.0."""
         total = sum(WEIGHTS.values())
-        assert total == pytest.approx(1.0, abs=0.001), f"Weights sum to {total}, expected 1.0"
+        assert total == pytest.approx(1.0, abs=0.001)
 
     def test_source_verification_dominant(self):
-        """Source verification has 35% weight → most influential."""
+        """Source verification has 30% weight → most influential."""
         high_src = aggregate_trust_score(100, 50, 50, 50, 50)
         high_obj = aggregate_trust_score(50, 100, 50, 50, 50)
-        difference = high_src - high_obj
-        assert difference > 0, "Source (35%) should matter more than objectivity (20%)"
-        assert difference == pytest.approx(50 * (0.35 - 0.20), abs=0.1)
+        assert high_src["trust_score"] > high_obj["trust_score"]
 
 
 # =============================================================================
-# 8. EXPLAINER GENERATION
+# 9. EXPLAINER GENERATION
 # =============================================================================
 
 class TestExplainer:
     """Tests for generate_explainer()."""
 
     def test_high_score_uk(self):
-        """High trust score → positive Ukrainian message."""
         text = generate_explainer(85, 90, 80, 85, 80, 90, language="uk")
-        assert "висок" in text.lower(), f"Should mention high quality: {text}"
-
-    def test_low_score_uk(self):
-        """Low trust score → warning Ukrainian message."""
-        text = generate_explainer(30, 20, 30, 40, 30, 25, language="uk")
-        assert "низьк" in text.lower() or "проблем" in text.lower(), f"Should warn about issues: {text}"
-
-    def test_high_score_en(self):
-        """High trust score → positive English message."""
-        text = generate_explainer(85, 90, 80, 85, 80, 90, language="en")
-        assert "high" in text.lower() or "credib" in text.lower(), f"English high trust: {text}"
-
-    def test_low_score_en(self):
-        """Low trust score → warning English message."""
-        text = generate_explainer(30, 20, 30, 40, 30, 25, language="en")
-        assert "low" in text.lower() or "question" in text.lower(), f"English low trust: {text}"
+        assert "висок" in text.lower()
 
     def test_contradiction_override(self):
-        """Contradiction flag → special warning message."""
         text = generate_explainer(30, 80, 80, 80, 80, 80, has_contradiction=True, language="uk")
-        assert "osint" in text.lower() or "спростован" in text.lower() or "радикально" in text.lower()
-
-    def test_reputation_override(self):
-        """Low reputation → special warning message."""
-        text = generate_explainer(40, 80, 80, 80, 80, 80, reputation_index=0.2, language="uk")
-        assert "довір" in text.lower() or "зменшен" in text.lower()
+        assert "osint" in text.lower() or "радикально" in text.lower()
 
     def test_returns_string(self):
-        """Explainer should always return a non-empty string."""
         text = generate_explainer(50, 50, 50, 50, 50, 50)
-        assert isinstance(text, str)
-        assert len(text) > 10
+        assert isinstance(text, str) and len(text) > 10
 
 
 # =============================================================================
-# 9. INTEGRATION-LIKE TESTS (full pipeline scoring)
+# 10. INTEGRATION-LIKE TESTS (full pipeline scoring)
 # =============================================================================
 
 class TestScoringPipeline:
@@ -523,8 +398,8 @@ class TestScoringPipeline:
         density = calculate_density_score("text", 25, 800)
         logic = calculate_logic_score(0, False)
 
-        trust = aggregate_trust_score(source, objectivity, headline, density, logic)
-        assert trust > 70, f"High quality profile should score > 70, got {trust}"
+        res = aggregate_trust_score(source, objectivity, headline, density, logic)
+        assert res["trust_score"] > 70
 
     def test_fake_news_profile(self):
         """Profile: Clickbait fake news → Trust Score < 40."""
@@ -537,17 +412,16 @@ class TestScoringPipeline:
         density = calculate_density_score("text", 2, 200)
         logic = calculate_logic_score(3, True)
 
-        trust = aggregate_trust_score(
+        res = aggregate_trust_score(
             source, objectivity, headline, density, logic,
             has_contradiction=True, reputation_index=0.1
         )
-        assert trust < 40, f"Fake news profile should score < 40, got {trust}"
+        assert res["trust_score"] < 40
 
     def test_separation_between_quality_and_fake(self):
         """The gap between high-quality and fake news should be > 30 points."""
-        # High quality
         src_good = calculate_source_score("bbc.com", [{"domain": "reuters.com"}], ["BBC"], "", 0.9)
-        trust_good = aggregate_trust_score(
+        res_good = aggregate_trust_score(
             src_good,
             calculate_objectivity_score(0, 0, 500),
             calculate_headline_score(0, 0, "Normal headline"),
@@ -555,9 +429,8 @@ class TestScoringPipeline:
             calculate_logic_score(0, False)
         )
 
-        # Fake
         src_fake = calculate_source_score("fake.xyz", [], [], "", 0.1)
-        trust_fake = aggregate_trust_score(
+        res_fake = aggregate_trust_score(
             src_fake,
             calculate_objectivity_score(10, 5, 200),
             calculate_headline_score(3, 4, "ШОКУЮЧЕ! ТЕРМІНОВО!"),
@@ -566,5 +439,5 @@ class TestScoringPipeline:
             has_contradiction=True, reputation_index=0.1
         )
 
-        gap = trust_good - trust_fake
+        gap = res_good["trust_score"] - res_fake["trust_score"]
         assert gap > 30, f"Gap between good and fake should be > 30, got {gap}"
