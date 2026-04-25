@@ -6,3 +6,7 @@ google-genai
 python-dotenv
 pydantic
 duckduckgo-search
+instructor
+jsonref
+transformers
+torch

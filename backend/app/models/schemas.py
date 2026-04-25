@@ -46,41 +46,33 @@ class VerifiableClaim(BaseModel):
 
 class BiasExtraction(BaseModel):
     """Output for ObjectivityAndBiasAgent"""
-    toxic_words_count: int = Field(default=0, description="Count of emotional, inflammatory, derogatory words")
-    opinion_sentences_count: int = Field(default=0, description="Count of sentences where the journalist embeds subjective judgments")
-    imbalance_detected: bool = Field(default=False, description="True ONLY IF the article discusses a highly controversial topic without giving perspective of a main side")
     highlights: List[GeminiHighlight] = Field(default_factory=list, description="Extract 0 to 3 EXACT locations indicating bias or toxicity")
     raw_thoughts: Optional[str] = Field(default=None, description="The reasoning process")
 
 class LogicExtraction(BaseModel):
     """Output for LogicalAnalysisAgent"""
-    clickbait_triggers_count: int = Field(default=0, description="Count of clickbait manipulative tactics in the HEADLINE ONLY")
-    headline_mismatch_severity: int = Field(default=0, description="Score 0-5 of how much headline misleads. 5=fabrication")
-    logical_fallacies_count: int = Field(default=0, description="Count of logical errors like whataboutism, false dilemmas")
-    analysis_summary: str = Field(default="", description="A clinical, highly objective 2-sentence OSINT-style summary of the article's overall credibility. Same language as article.")
     highlights: List[GeminiHighlight] = Field(default_factory=list, description="Extract 0 to 3 EXACT locations indicating logical fallacies or blatant clickbait mismatch")
     raw_thoughts: Optional[str] = Field(default=None, description="The reasoning process")
 
 class FactExtraction(BaseModel):
     """Output for FactExtractionAgent"""
-    text_citations: List[str] = Field(default_factory=list, description="Array of named entities acting as sources, data, or quotes")
-    named_entities_count: int = Field(default=0, description="Count of unique, verifiable real-world proper nouns")
     verifiable_claims: List[VerifiableClaim] = Field(default_factory=list, description="List of hard, concrete facts and claims extracted from the article")
     raw_thoughts: Optional[str] = Field(default=None, description="The reasoning process")
 
-class AnalyzedArticleData(BaseModel):
-    """Aggregated output from all agents"""
-    toxic_words_count: int = 0
-    opinion_sentences_count: int = 0
-    imbalance_detected: bool = False
-    clickbait_triggers_count: int = 0
-    headline_mismatch_severity: int = 0
-    logical_fallacies_count: int = 0
-    analysis_summary: str = ""
-    text_citations: List[str] = Field(default_factory=list)
-    named_entities_count: int = 0
-    verifiable_claims: List[VerifiableClaim] = Field(default_factory=list)
-    highlights: List[GeminiHighlight] = Field(default_factory=list)
+class CriteriaScore(BaseModel):
+    """Individual scores for each analysis criterion."""
+    source_verification: float = Field(..., ge=0, le=100, description="Source verification score (35% weight)")
+    objectivity: float = Field(..., ge=0, le=100, description="Objectivity score (20% weight)")
+    headline_relevance: float = Field(..., ge=0, le=100, description="Headline relevance score (15% weight)")
+    factual_density: float = Field(..., ge=0, le=100, description="Factual density score (15% weight)")
+    logical_consistency: float = Field(..., ge=0, le=100, description="Logical consistency score (15% weight)")
+
+class FinalVerdictSchema(BaseModel):
+    """Output for the Judge Agent (Final Verdict)"""
+    trust_score: float = Field(..., ge=0, le=100, description="Final weighted trust score")
+    criteria: CriteriaScore = Field(..., description="Individual criterion scores evaluated by the Judge")
+    explainer: str = Field(..., description="Narrative editorial feedback analyzing the article's reliability.")
+    raw_thoughts: Optional[str] = Field(default=None, description="The reasoning process")
 
 
 # ---------------------------------------------------------
@@ -100,14 +92,6 @@ class AnalysisRequest(BaseModel):
     paragraphs: List[ParagraphModel] = Field(..., description="Array of paragraphs parsed from the article with unique IDs")
     language: str = Field(default="uk", description="Target language to respond in (e.g., 'uk' or 'en')")
 
-class CriteriaScore(BaseModel):
-    """Individual scores for each analysis criterion."""
-    source_verification: float = Field(..., ge=0, le=100, description="Source verification score (35% weight)")
-    objectivity: float = Field(..., ge=0, le=100, description="Objectivity score (20% weight)")
-    headline_relevance: float = Field(..., ge=0, le=100, description="Headline relevance score (15% weight)")
-    factual_density: float = Field(..., ge=0, le=100, description="Factual density score (15% weight)")
-    logical_consistency: float = Field(..., ge=0, le=100, description="Logical consistency score (15% weight)")
-
 class Highlight(BaseModel):
     """Text highlight for marking problematic issues on the webpage."""
     paragraph_id: int = Field(..., description="ID of the paragraph to highlight")
@@ -121,4 +105,5 @@ class AnalysisResponse(BaseModel):
     criteria: CriteriaScore = Field(..., description="Individual criterion scores")
     explainer: str = Field(default="", description="Human-readable explanation of the analysis")
     highlights: List[Highlight] = Field(default=[], description="List of problematic text segments to highlight on the page")
+    ml_metrics: dict = Field(default_factory=dict, description="Raw probabilities from local ML models (Fake News, Sentiment, Clickbait)")
 
