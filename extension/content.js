@@ -525,6 +525,24 @@ if (window.__VERITAS_LOADED__) {
                 case 'getHighlightCounts':
                     sendResponse(getHighlightCounts());
                     break;
+                case 'toggleHighlights':
+                    if (request.enabled) {
+                        // Re-apply stored highlights
+                        const stored = window.__VERITAS_HIGHLIGHTS__ || [];
+                        if (stored.length > 0) {
+                            const toggleResult = applyHighlights(stored);
+                            injectTooltipStyles();
+                            setupHighlightClicks();
+                            sendResponse(toggleResult);
+                        } else {
+                            sendResponse({ applied: 0 });
+                        }
+                    } else {
+                        // Remove highlights but keep data in memory
+                        removeHighlights();
+                        sendResponse({ removed: true });
+                    }
+                    break;
                 default:
                     sendResponse({ error: 'Unknown action' });
             }

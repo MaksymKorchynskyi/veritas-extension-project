@@ -1,8 +1,186 @@
 /**
- * VERITAS — Parsed Text & Test Dashboard
- * Handles tab switching, parsed text display, and benchmark test runner.
+ * VERITAS — Parsed Text & Test Dashboard & Write & Analyze
+ * Handles tab switching, parsed text display, i18n, and benchmark test runner.
  * Extracted from inline script for Manifest V3 CSP compliance.
  */
+
+// ═══════════════════════════════════════════════════════════════
+// i18n — TRANSLATIONS
+// ═══════════════════════════════════════════════════════════════
+const ptTranslations = {
+  "uk": {
+    "brand_sub": "Аналіз Статей",
+    "back_to_article": "Назад до Статті",
+    "tab_reader": "📄 Читач Статей",
+    "tab_tests": "🧪 Тест Дашборд",
+    "tab_write": "✍️ Написати & Аналіз",
+    "stat_paragraphs": "Абзаци",
+    "stat_words": "Слова",
+    "stat_characters": "Символи",
+    "trust_score": "Рейтинг Довіри",
+    "criteria_breakdown": "Розбивка Критеріїв",
+    "found_issues": "Знайдені Проблеми",
+    "ai_summary": "AI Підсумок",
+    "run_all_tests": "▶ Запустити Всі Тести",
+    "export_csv": "💾 Експорт CSV",
+    "accuracy": "Точність",
+    "avg_time": "Сер. Час",
+    "total": "Всього",
+    "loading_article": "Завантаження статті…",
+    "loading_parsed": "Завантаження тексту…",
+    "no_tab_id": "Немає Tab ID",
+    "no_tab_id_msg": "Відкрийте цю сторінку з попапа VERITAS натиснувши іконку документа.",
+    "no_analysis_data": "Немає Даних Аналізу",
+    "no_analysis_data_msg": "Спершу запустіть аналіз натиснувши \"Аналізувати Цю Статтю\" в попапі.",
+    "load_failed": "Помилка Завантаження",
+    "no_analysis_msg": "Дані аналізу з'являться тут після запуску аналізу.",
+    // Criteria names
+    "cr_source": "Перевірка Джерел",
+    "cr_objectivity": "Об'єктивність",
+    "cr_headline": "Релевантність Заголовка",
+    "cr_density": "Фактологічна Щільність",
+    "cr_logic": "Логічна Послідовність",
+    // Write & Analyze
+    "write_title_label": "Заголовок Статті",
+    "write_title_placeholder": "Введіть заголовок статті...",
+    "write_url_label": "URL Статті",
+    "write_url_placeholder": "https://example.com/article",
+    "write_text_label": "Текст Статті",
+    "write_text_placeholder": "Вставте або напишіть текст статті тут...\nРозділяйте абзаци порожніми рядками.",
+    "write_text_hint": "Розділяйте абзаци порожніми рядками. Кожен абзац буде проаналізовано окремо.",
+    "write_refs_label": "Посилання",
+    "write_refs_placeholder": "https://source1.com\nhttps://source2.com",
+    "write_refs_hint": "По одному URL на рядок. Посилання, на які посилається ця стаття.",
+    "optional": "(необов'язково)",
+    "write_analyze_btn": "🔍 Аналізувати Статтю",
+    "write_analyzing": "Аналізуємо вашу статтю...",
+    "write_error_title": "Вкажіть заголовок статті.",
+    "write_error_text": "Вкажіть текст статті.",
+    "write_error_api": "Помилка аналізу",
+    "hl_risk": "🔴 Ризик",
+    "hl_warning": "🟡 Попередження",
+    "high_risk_label": "Високий Ризик",
+    "warning_label": "Попередження",
+  },
+  "en": {
+    "brand_sub": "Article Analysis Reader",
+    "back_to_article": "Back to Article",
+    "tab_reader": "📄 Article Reader",
+    "tab_tests": "🧪 Test Dashboard",
+    "tab_write": "✍️ Write & Analyze",
+    "stat_paragraphs": "Paragraphs",
+    "stat_words": "Words",
+    "stat_characters": "Characters",
+    "trust_score": "Trust Score",
+    "criteria_breakdown": "Criteria Breakdown",
+    "found_issues": "Found Issues",
+    "ai_summary": "AI Summary",
+    "run_all_tests": "▶ Run All Tests",
+    "export_csv": "💾 Export CSV",
+    "accuracy": "Accuracy",
+    "avg_time": "Avg Time",
+    "total": "Total",
+    "loading_article": "Loading article…",
+    "loading_parsed": "Fetching parsed text…",
+    "no_tab_id": "No Tab ID",
+    "no_tab_id_msg": "Open this page from the VERITAS popup by clicking the document icon.",
+    "no_analysis_data": "No Analysis Data",
+    "no_analysis_data_msg": "Run an analysis first by clicking \"Analyze This Article\" in the popup.",
+    "load_failed": "Load Failed",
+    "no_analysis_msg": "Analysis data will appear here after running an analysis.",
+    // Criteria names
+    "cr_source": "Source Verification",
+    "cr_objectivity": "Objectivity",
+    "cr_headline": "Headline Relevance",
+    "cr_density": "Factual Density",
+    "cr_logic": "Logical Consistency",
+    // Write & Analyze
+    "write_title_label": "Article Title",
+    "write_title_placeholder": "Enter article title...",
+    "write_url_label": "Article URL",
+    "write_url_placeholder": "https://example.com/article",
+    "write_text_label": "Article Text",
+    "write_text_placeholder": "Paste or write your article text here...\nSeparate paragraphs with blank lines.",
+    "write_text_hint": "Separate paragraphs with blank lines. Each paragraph will be analyzed individually.",
+    "write_refs_label": "Reference Links",
+    "write_refs_placeholder": "https://source1.com\nhttps://source2.com",
+    "write_refs_hint": "One URL per line. Links that this article references.",
+    "optional": "(optional)",
+    "write_analyze_btn": "🔍 Analyze Article",
+    "write_analyzing": "Analyzing your article...",
+    "write_error_title": "Please enter an article title.",
+    "write_error_text": "Please enter article text.",
+    "write_error_api": "Analysis error",
+    "hl_risk": "🔴 Risk",
+    "hl_warning": "🟡 Warning",
+    "high_risk_label": "High Risk",
+    "warning_label": "Warning",
+  }
+};
+
+let ptCurrentLanguage = 'uk';
+
+function t(key) {
+  const dict = ptTranslations[ptCurrentLanguage] || ptTranslations["uk"];
+  return dict[key] || ptTranslations["en"][key] || key;
+}
+
+function applyPageTranslations() {
+  const dict = ptTranslations[ptCurrentLanguage] || ptTranslations["uk"];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (dict[key]) el.textContent = dict[key];
+  });
+  // Translate placeholders
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (dict[key]) el.placeholder = dict[key];
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LANGUAGE INIT & BACK BUTTON
+// ═══════════════════════════════════════════════════════════════
+(async () => {
+  // Load saved language
+  try {
+    const storage = await chrome.storage.local.get(['appLanguage']);
+    if (storage.appLanguage) {
+      ptCurrentLanguage = storage.appLanguage;
+    }
+  } catch (e) { /* Not in extension context, use default */ }
+
+  const langSelect = document.getElementById('pageLangSelect');
+  if (langSelect) {
+    langSelect.value = ptCurrentLanguage;
+    applyPageTranslations();
+    langSelect.addEventListener('change', async (e) => {
+      ptCurrentLanguage = e.target.value;
+      try {
+        await chrome.storage.local.set({ appLanguage: ptCurrentLanguage });
+      } catch (ex) { /* ignore */ }
+      applyPageTranslations();
+    });
+  }
+
+  // Back to Article button
+  const urlParams = new URLSearchParams(window.location.search);
+  const articleUrl = urlParams.get('articleUrl') ? decodeURIComponent(urlParams.get('articleUrl')) : null;
+  const backBtn = document.getElementById('backToArticleBtn');
+  if (backBtn) {
+    if (articleUrl) {
+      backBtn.href = articleUrl;
+      backBtn.addEventListener('click', (e) => {
+        // Navigate current tab to article URL
+        e.preventDefault();
+        window.location.href = articleUrl;
+      });
+    } else {
+      backBtn.style.display = 'none';
+    }
+  }
+})();
+
 
 // ═══════════════════════════════════════════════════════════════
 // TAB SWITCHING
@@ -23,6 +201,11 @@ if (urlParams.get('tab') === 'tests') {
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.querySelector('[data-tab="tests"]').classList.add('active');
   document.getElementById('tab-tests').classList.add('active');
+} else if (urlParams.get('tab') === 'write') {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('[data-tab="write"]').classList.add('active');
+  document.getElementById('tab-write').classList.add('active');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -48,7 +231,7 @@ if (urlParams.get('tab') === 'tests') {
   }
 
   if (!tabId && !articleUrl) {
-    showError('📄', 'No Tab ID', 'Open this page from the VERITAS popup by clicking the document icon.');
+    showError('📄', t('no_tab_id'), t('no_tab_id_msg'));
     return;
   }
 
@@ -96,7 +279,7 @@ if (urlParams.get('tab') === 'tests') {
   }
 
   if (!state || (!state.extractedParagraphs && !state.extractedText)) {
-    showError('⚠️', 'No Analysis Data', 'Run an analysis first by clicking "Analyze This Article" in the popup.');
+    showError('⚠️', t('no_analysis_data'), t('no_analysis_data_msg'));
     return;
   }
 
@@ -145,7 +328,7 @@ if (urlParams.get('tab') === 'tests') {
         h += `<p class="para-text">${esc(p.text)}</p>`;
 
         if (hl) {
-          const sevLabel = hl.severity === 'risk' ? '🔴 Risk' : '🟡 Warning';
+          const sevLabel = hl.severity === 'risk' ? t('hl_risk') : t('hl_warning');
           h += `<div class="hl-badge ${hl.severity}" data-tooltip="${tooltipId}">`;
           h += `${sevLabel} — ${esc(hl.category || '')}`;
           h += `</div>`;
@@ -191,82 +374,98 @@ if (urlParams.get('tab') === 'tests') {
     const sidebar = document.getElementById('pt-sidebar');
 
     if (analysisResult) {
-      // Trust Score
-      const score = analysisResult.trust_score || 0;
-      const scoreEl = document.getElementById('sb-score');
-      scoreEl.textContent = Math.round(score);
-      scoreEl.classList.remove('score-high', 'score-mid', 'score-low');
-      scoreEl.classList.add(score >= 70 ? 'score-high' : score >= 40 ? 'score-mid' : 'score-low');
-
-      // Criteria
-      const c = analysisResult.criteria || {};
-      const criteriaData = [
-        { name: 'Source Verification', value: c.source_verification, weight: '35%' },
-        { name: 'Objectivity', value: c.objectivity, weight: '20%' },
-        { name: 'Headline Relevance', value: c.headline_relevance, weight: '15%' },
-        { name: 'Factual Density', value: c.factual_density, weight: '15%' },
-        { name: 'Logical Consistency', value: c.logical_consistency, weight: '15%' },
-      ];
-      const criteriaList = document.getElementById('sb-criteria');
-      criteriaList.innerHTML = criteriaData.map(cr => {
-        const val = cr.value ?? 0;
-        const color = val >= 70 ? 'var(--green)' : val >= 40 ? 'var(--yellow)' : 'var(--red)';
-        return `<li class="criteria-item">
-          <span class="criteria-name">${cr.name}</span>
-          <div class="criteria-bar-wrap"><div class="criteria-bar" style="width:${val}%;background:${color}"></div></div>
-          <span class="criteria-score" style="color:${color}">${Math.round(val)}</span>
-        </li>`;
-      }).join('');
-
-      // Highlights in sidebar (only actual highlights that exist)
-      const hlList = document.getElementById('sb-highlights');
-      if (actualHighlights.length > 0) {
-        hlList.innerHTML = actualHighlights.map(h => {
-          return `<li class="hl-summary-item" data-target-para="${h.paragraph_id}">
-            <span class="hl-severity-dot ${h.severity}"></span>
-            <div class="hl-summary-text">
-              <span class="hl-summary-cat">${esc(h.category || (h.severity === 'risk' ? 'High Risk' : 'Warning'))}</span>
-              ${esc(h.reason || '')}
-            </div>
-          </li>`;
-        }).join('');
-
-        // Click to scroll to paragraph
-        hlList.querySelectorAll('.hl-summary-item').forEach(item => {
-          item.addEventListener('click', () => {
-            const paraId = item.dataset.targetPara;
-            const target = contentEl.querySelector(`[data-para-id="${paraId}"]`);
-            if (target) {
-              target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              target.style.transition = 'box-shadow 0.3s';
-              target.style.boxShadow = '0 0 0 3px rgba(93,64,55,0.3)';
-              setTimeout(() => { target.style.boxShadow = 'none'; }, 2000);
-            }
-          });
-        });
-      } else {
-        document.getElementById('sb-highlights-card').style.display = 'none';
-      }
-
-      // Explainer
-      if (analysisResult.explainer) {
-        document.getElementById('sb-explainer').textContent = analysisResult.explainer;
-      } else {
-        document.getElementById('sb-explainer-card').style.display = 'none';
-      }
-
+      renderAnalysisSidebar(analysisResult, actualHighlights, 'sb', contentEl);
     } else {
       // No analysis result — hide sidebar cards except a notice
-      sidebar.innerHTML = `<div class="sidebar-card"><p class="no-highlights-msg">Analysis data will appear here after running an analysis.</p></div>`;
+      sidebar.innerHTML = `<div class="sidebar-card"><p class="no-highlights-msg">${t('no_analysis_msg')}</p></div>`;
     }
 
   } catch(e) {
     console.error('[VERITAS PT] Render error:', e);
-    showError('❌', 'Load Failed', esc(e.message));
+    showError('❌', t('load_failed'), esc(e.message));
   }
 })();
 
 function esc(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+// ═══════════════════════════════════════════════════════════════
+// SHARED: Render analysis sidebar (used by both parsed text & write tab)
+// ═══════════════════════════════════════════════════════════════
+function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, contentEl) {
+  // Trust Score
+  const score = analysisResult.trust_score || 0;
+  const scoreEl = document.getElementById(prefix + '-score');
+  if (scoreEl) {
+    scoreEl.textContent = Math.round(score);
+    scoreEl.classList.remove('score-high', 'score-mid', 'score-low');
+    scoreEl.classList.add(score >= 70 ? 'score-high' : score >= 40 ? 'score-mid' : 'score-low');
+  }
+
+  // Criteria
+  const c = analysisResult.criteria || {};
+  const criteriaData = [
+    { name: t('cr_source'), value: c.source_verification, weight: '35%' },
+    { name: t('cr_objectivity'), value: c.objectivity, weight: '20%' },
+    { name: t('cr_headline'), value: c.headline_relevance, weight: '15%' },
+    { name: t('cr_density'), value: c.factual_density, weight: '15%' },
+    { name: t('cr_logic'), value: c.logical_consistency, weight: '15%' },
+  ];
+  const criteriaList = document.getElementById(prefix + '-criteria');
+  if (criteriaList) {
+    criteriaList.innerHTML = criteriaData.map(cr => {
+      const val = cr.value ?? 0;
+      const color = val >= 70 ? 'var(--green)' : val >= 40 ? 'var(--yellow)' : 'var(--red)';
+      return `<li class="criteria-item">
+        <span class="criteria-name">${cr.name}</span>
+        <div class="criteria-bar-wrap"><div class="criteria-bar" style="width:${val}%;background:${color}"></div></div>
+        <span class="criteria-score" style="color:${color}">${Math.round(val)}</span>
+      </li>`;
+    }).join('');
+  }
+
+  // Highlights in sidebar (only actual highlights that exist)
+  const hlList = document.getElementById(prefix + '-highlights');
+  const hlCard = document.getElementById(prefix + '-highlights-card');
+  if (hlList && actualHighlights.length > 0) {
+    hlList.innerHTML = actualHighlights.map(h => {
+      return `<li class="hl-summary-item" data-target-para="${h.paragraph_id}">
+        <span class="hl-severity-dot ${h.severity}"></span>
+        <div class="hl-summary-text">
+          <span class="hl-summary-cat">${esc(h.category || (h.severity === 'risk' ? t('high_risk_label') : t('warning_label')))}</span>
+          ${esc(h.reason || '')}
+        </div>
+      </li>`;
+    }).join('');
+
+    // Click to scroll to paragraph
+    if (contentEl) {
+      hlList.querySelectorAll('.hl-summary-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const paraId = item.dataset.targetPara;
+          const target = contentEl.querySelector(`[data-para-id="${paraId}"]`);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.style.transition = 'box-shadow 0.3s';
+            target.style.boxShadow = '0 0 0 3px rgba(93,64,55,0.3)';
+            setTimeout(() => { target.style.boxShadow = 'none'; }, 2000);
+          }
+        });
+      });
+    }
+  } else if (hlCard) {
+    hlCard.style.display = 'none';
+  }
+
+  // Explainer
+  const explainerEl = document.getElementById(prefix + '-explainer');
+  const explainerCard = document.getElementById(prefix + '-explainer-card');
+  if (analysisResult.explainer && explainerEl) {
+    explainerEl.textContent = analysisResult.explainer;
+  } else if (explainerCard) {
+    explainerCard.style.display = 'none';
+  }
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // TAB 2: TEST DASHBOARD — Real Articles Dataset
@@ -524,7 +723,7 @@ async function runAllTests() {
   document.getElementById('progressFill').style.width = '100%';
   document.getElementById('progressText').textContent = 'Done — ' + ARTICLES.length + ' / ' + ARTICLES.length;
   btn.disabled = false;
-  btn.textContent = '▶ Run All Tests';
+  btn.textContent = t('run_all_tests');
 
   showSummary();
 }
@@ -564,4 +763,203 @@ function exportCSV() {
   a.href = URL.createObjectURL(blob);
   a.download = 'veritas_test_' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// TAB 3: WRITE & ANALYZE — Custom Article Input
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('writeAnalyzeBtn').addEventListener('click', analyzeCustomArticle);
+
+async function analyzeCustomArticle() {
+  const titleInput = document.getElementById('writeTitle');
+  const urlInput = document.getElementById('writeUrl');
+  const textInput = document.getElementById('writeText');
+  const refsInput = document.getElementById('writeRefs');
+  const btn = document.getElementById('writeAnalyzeBtn');
+  const loadingEl = document.getElementById('writeLoading');
+  const resultsEl = document.getElementById('writeResults');
+  const formEl = document.querySelector('.write-form');
+
+  const title = titleInput.value.trim();
+  const url = urlInput.value.trim() || 'custom://user-article';
+  const text = textInput.value.trim();
+  const refs = refsInput.value.trim();
+
+  // Validation
+  if (!title) {
+    alert(t('write_error_title'));
+    titleInput.focus();
+    return;
+  }
+  if (!text) {
+    alert(t('write_error_text'));
+    textInput.focus();
+    return;
+  }
+
+  // Split text into paragraphs (blank lines)
+  const rawParagraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
+  const paragraphs = rawParagraphs.map((p, idx) => ({ id: idx + 1, text: p }));
+  const html_content = rawParagraphs.map(p => '<p>' + p + '</p>').join('');
+
+  // Build payload
+  const payload = {
+    url: url,
+    title: title,
+    html_content: html_content,
+    paragraphs: paragraphs,
+    language: ptCurrentLanguage
+  };
+
+  // If user provided reference links, append them to html_content context
+  if (refs) {
+    const refLinks = refs.split('\n').map(r => r.trim()).filter(r => r.length > 0);
+    if (refLinks.length > 0) {
+      payload.html_content += '\n<div class="references">' + refLinks.map(r => `<a href="${r}">${r}</a>`).join('<br>') + '</div>';
+    }
+  }
+
+  // Show loading
+  btn.disabled = true;
+  formEl.style.display = 'none';
+  resultsEl.classList.remove('visible');
+  loadingEl.style.display = 'block';
+
+  try {
+    const resp = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      let errMsg = err.detail || `HTTP ${resp.status}`;
+      if (typeof errMsg === 'object') errMsg = JSON.stringify(errMsg);
+      throw new Error(errMsg);
+    }
+
+    const data = await resp.json();
+    console.log('[VERITAS Write] Analysis complete, score:', data.trust_score);
+
+    // Hide loading
+    loadingEl.style.display = 'none';
+
+    // Render results
+    renderWriteResults(data, paragraphs, title, url);
+
+  } catch (e) {
+    console.error('[VERITAS Write] Error:', e);
+    loadingEl.style.display = 'none';
+    formEl.style.display = 'block';
+    btn.disabled = false;
+    alert(t('write_error_api') + ': ' + e.message);
+  }
+}
+
+function renderWriteResults(analysisResult, paragraphs, title, url) {
+  const resultsEl = document.getElementById('writeResults');
+  const previewEl = document.getElementById('writePreviewContent');
+  const sidebarEl = document.getElementById('writeSidebar');
+  const statsEl = document.getElementById('writeStats');
+  const formEl = document.querySelector('.write-form');
+  const btn = document.getElementById('writeAnalyzeBtn');
+
+  // Build highlight map
+  const highlightMap = {};
+  const actualHighlights = [];
+  if (analysisResult?.highlights?.length) {
+    for (const h of analysisResult.highlights) {
+      if (h.paragraph_id !== undefined && h.paragraph_id !== null) {
+        highlightMap[h.paragraph_id] = h;
+        actualHighlights.push(h);
+      }
+    }
+  }
+
+  // Render article preview with highlights
+  let previewHTML = `<h2 class="preview-title">${esc(title)}</h2>`;
+  let fullText = '';
+
+  paragraphs.forEach((p) => {
+    const hl = highlightMap[p.id];
+    const hlClass = hl ? (hl.severity === 'risk' ? 'hl-risk' : 'hl-warning') : '';
+    const tooltipId = `write-tooltip-${p.id}`;
+
+    previewHTML += `<div class="para ${hlClass}" data-para-id="${p.id}">`;
+    previewHTML += `<span class="para-id">#${p.id}</span>`;
+    previewHTML += `<p class="para-text">${esc(p.text)}</p>`;
+
+    if (hl) {
+      const sevLabel = hl.severity === 'risk' ? t('hl_risk') : t('hl_warning');
+      previewHTML += `<div class="hl-badge ${hl.severity}" data-tooltip="${tooltipId}">`;
+      previewHTML += `${sevLabel} — ${esc(hl.category || '')}`;
+      previewHTML += `</div>`;
+      previewHTML += `<div class="hl-tooltip ${hl.severity === 'risk' ? 'risk-bg' : 'warning-bg'}" id="${tooltipId}">`;
+      previewHTML += `${esc(hl.reason || '')}`;
+      previewHTML += `</div>`;
+    }
+
+    previewHTML += `</div>`;
+    fullText += p.text + ' ';
+  });
+
+  previewEl.innerHTML = previewHTML;
+
+  // Stats
+  document.getElementById('writeStatParas').textContent = paragraphs.length;
+  document.getElementById('writeStatWords').textContent = fullText.trim().split(/\s+/).filter(w => w).length.toLocaleString();
+  document.getElementById('writeStatChars').textContent = fullText.length.toLocaleString();
+  statsEl.style.display = 'flex';
+
+  // Build sidebar HTML dynamically (like the parsed text sidebar)
+  const score = analysisResult.trust_score || 0;
+  const scoreClass = score >= 70 ? 'score-high' : score >= 40 ? 'score-mid' : 'score-low';
+
+  let sidebarHTML = `
+    <div class="sidebar-card">
+      <div class="trust-score-hero">
+        <p class="trust-label">${t('trust_score')}</p>
+        <span class="trust-value ${scoreClass}" id="write-score">${Math.round(score)}</span>
+        <span class="trust-max">/100</span>
+      </div>
+    </div>
+    <div class="sidebar-card" id="write-criteria-card">
+      <p class="sidebar-title">${t('criteria_breakdown')}</p>
+      <ul class="criteria-list" id="write-criteria"></ul>
+    </div>
+    <div class="sidebar-card" id="write-highlights-card">
+      <p class="sidebar-title">${t('found_issues')}</p>
+      <ul class="hl-summary-list" id="write-highlights"></ul>
+    </div>
+    <div class="sidebar-card" id="write-explainer-card">
+      <p class="sidebar-title">${t('ai_summary')}</p>
+      <p class="explainer-text" id="write-explainer"></p>
+    </div>
+  `;
+  sidebarEl.innerHTML = sidebarHTML;
+
+  // Populate using shared function
+  renderAnalysisSidebar(analysisResult, actualHighlights, 'write', previewEl);
+
+  // Bind tooltip clicks in preview
+  previewEl.querySelectorAll('.hl-badge').forEach(badge => {
+    badge.addEventListener('click', () => {
+      const tooltipId = badge.dataset.tooltip;
+      const tooltip = document.getElementById(tooltipId);
+      if (tooltip) {
+        const isVisible = tooltip.classList.contains('visible');
+        previewEl.querySelectorAll('.hl-tooltip.visible').forEach(t => t.classList.remove('visible'));
+        if (!isVisible) tooltip.classList.add('visible');
+      }
+    });
+  });
+
+  // Show results, add "Analyze Again" button at top
+  resultsEl.classList.add('visible');
+
+  // Re-show form and re-enable button so user can analyze again
+  formEl.style.display = 'block';
+  btn.disabled = false;
 }

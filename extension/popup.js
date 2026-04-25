@@ -18,6 +18,7 @@ const el = {
     settingsBtn: document.getElementById('settingsBtn'),
     backToAnalysisBtn: document.getElementById('backToAnalysisBtn'),
     languageSelect: document.getElementById('languageSelect'),
+    highlightsToggle: document.getElementById('highlightsToggle'),
     
     // States
     stateInitial: document.getElementById('stateInitial'),
@@ -99,6 +100,7 @@ const translations = {
         "checking": "Перевірка...",
         "settings_title": "Налаштування",
         "language_label": "Мова Додатку",
+        "highlights_label": "Підсвічування Статей",
         "back_to_analysis": "Повернутись до Аналізу"
     },
     "en": {
@@ -123,6 +125,7 @@ const translations = {
         "checking": "Checking...",
         "settings_title": "Settings",
         "language_label": "App Language",
+        "highlights_label": "Article Highlights",
         "back_to_analysis": "Back to Analysis"
     }
 };
@@ -424,10 +427,14 @@ async function init() {
     console.log('[VERITAS Popup] Initializing...');
 
     // Load language preferences
-    const storage = await chrome.storage.local.get(['appLanguage']);
+    const storage = await chrome.storage.local.get(['appLanguage', 'highlightsEnabled']);
     if (storage.appLanguage) {
         currentLanguage = storage.appLanguage;
         if (el.languageSelect) el.languageSelect.value = currentLanguage;
+    }
+    // Load highlights toggle (default ON)
+    if (el.highlightsToggle) {
+        el.highlightsToggle.checked = storage.highlightsEnabled !== false;
     }
     applyTranslations();
 
@@ -456,6 +463,23 @@ async function init() {
         currentLanguage = e.target.value;
         await chrome.storage.local.set({ appLanguage: currentLanguage });
         applyTranslations();
+    });
+
+    // Highlights toggle
+    el.highlightsToggle?.addEventListener('change', async (e) => {
+        const enabled = e.target.checked;
+        await chrome.storage.local.set({ highlightsEnabled: enabled });
+        // Tell content script to toggle highlights on/off
+        if (currentTabId) {
+            try {
+                await chrome.tabs.sendMessage(currentTabId, {
+                    action: 'toggleHighlights',
+                    enabled: enabled
+                });
+            } catch (err) {
+                console.log('[VERITAS Popup] Could not toggle highlights:', err.message);
+            }
+        }
     });
     
     // Bind new View Parsed Text button

@@ -11,26 +11,66 @@ from urllib.parse import urlparse
 import math
 
 AUTHORITATIVE_ENTITIES = {
-    "reuters", "ap", "ap news", "nyt", "bloomberg", "bbc", 
-    "washington post", "isw", "генштаб", "мін", "міністерств"
+    # Світові та англомовні організації
+    "reuters", "ap", "associated press", "nyt", "new york times", 
+    "bloomberg", "bbc", "washington post", "wsj", "wall street journal", 
+    "ft", "financial times", "the guardian", "economist",
+    "isw", "amnesty international", "human rights watch", "un", "united nations", 
+    "who", "world health organization", "nato", "pentagon", "white house", "osce",
+    "bellingcat", "cia", "fbi", "interpol", "imf", "world bank", "світовий банк", "мвф",
+    
+    # Регіональні та українські офіційні установи
+    "генштаб", "мін", "міністерств", "офіс президента", "оп", "гур", "сбу", 
+    "нацполіція", "дбс", "дбр", "набу", "сап", "кабмін", "уряд", "верховна рада", 
+    "парламент", "оон", "вооз", "нато", "обсє", "єс", "європарламент",
+    "нбу", "нацбанк", "national bank", "цвк", "рнбо"
 }
 
 # 🛡️ РОЗШИРЕНИЙ СПИСОК ДОВІРЕНИХ ДОМЕНІВ (Світ + Україна)
 TRUSTED_DOMAINS = {
-    # Урядові та офіційні
-    ".gov", ".gov.ua", ".mil", "mil.gov.ua", ".edu",
+    # Урядові та офіційні (універсальні)
+    ".gov", ".gov.ua", ".mil", ".mil.gov.ua", ".edu", ".int", "europa.eu",
     "president.gov.ua", "rada.gov.ua", "mfa.gov.ua", "mon.gov.ua", "armyinform.com.ua",
+    "spravdi.gov.ua", "nsdc.gov.ua", "nbu.gov.ua", "court.gov.ua", 
+    "defense.gov", "state.gov", "nato.int", "who.int", "un.org",
     
-    # Світові агенції та гіганти
+    # Наукові ресурси
+    "nature.com", "sciencemag.org", "nasa.gov", "esa.int", "cern.ch", 
+    "ieee.org", "mit.edu", "stanford.edu", "harvard.edu", "ox.ac.uk", "cam.ac.uk",
+    
+    # Світові агенції та елітні медіа
     "reuters.com", "apnews.com", "afp.com", "bloomberg.com", 
     "bbc.com", "bbc.co.uk", "npr.org", "pbs.org", "dw.com",
     "wsj.com", "ft.com", "nytimes.com", "washingtonpost.com",
+    "theguardian.com", "economist.com", "theatlantic.com", 
+    "politico.com", "politico.eu", "foreignpolicy.com", "foreignaffairs.com",
+    "aljazeera.com", "cnn.com", "nbcnews.com", "cbsnews.com", "abcnews.go.com", 
+    "time.com", "spiegel.de", "lemonde.fr", "elpais.com", "bellingcat.com",
+    "forbes.com", "businessinsider.com", "cnbc.com", "snopes.com", "politifact.com",
     
-    # "Білий список" якісних українських медіа (ІМІ)
+    # Якісні українські медіа (White List)
     "pravda.com.ua", "eurointegration.com.ua", "nv.ua", "liga.net",
     "suspilne.media", "radiosvoboda.org", "zn.ua", "ukrinform.ua",
     "hromadske.ua", "lb.ua", "texty.org.ua", "delo.ua", "forbes.ua",
-    "babel.ua", "mind.ua"
+    "babel.ua", "mind.ua", "slidstvo.info", "bbc.com/ukrainian",
+    "rubryka.com", "hromadske.radio", "zaxid.net", "novynarnia.com",
+    "epravda.com.ua", "tyzhden.ua", "thebabel.com.ua", "detector.media", "imi.org.ua"
+}
+
+# ⚠️ СІРИЙ СПИСОК ДОМЕНІВ (Соцмережі, блоги, агрегатори)
+GRAY_DOMAINS = {
+    # Соцмережі та UGC
+    "t.me", "tiktok.com", "x.com", "twitter.com", "facebook.com", 
+    "instagram.com", "youtube.com", "reddit.com", "pinterest.com", 
+    "linkedin.com", "discord.gg", "snapchat.com", "threads.net", "quora.com",
+    
+    # Блоги та публікатори
+    "medium.com", "wordpress.com", "blogspot.com", "tumblr.com", 
+    "wixsite.com", "weebly.com", "substack.com", "livejournal.com",
+    "telegra.ph", "github.io", "notion.site", "ghost.io",
+    
+    # Файлообмінники та неперевірені вікі
+    "pastebin.com", "imgur.com", "wikia.com", "fandom.com"
 }
 
 
@@ -47,6 +87,13 @@ def is_trusted_domain(domain: str) -> bool:
     """Check if domain is in trusted sources list."""
     for trusted in TRUSTED_DOMAINS:
         if trusted in domain:
+            return True
+    return False
+
+def is_gray_domain(domain: str) -> bool:
+    """Check if domain is in the gray list (social media, blogs)."""
+    for gray in GRAY_DOMAINS:
+        if gray in domain:
             return True
     return False
 
@@ -93,8 +140,10 @@ def calculate_source_score(
             
         if is_trusted_domain(domain):
             link_score += 25.0  # Великий бонус за посилання на трастові сайти
+        elif is_gray_domain(domain):
+            link_score += 0.0   # Соцмережі та блоги не дають експертних балів
         else:
-            link_score += 10.0  # Стандартний бонус за будь-яке зовнішнє джерело
+            link_score += 5.0   # Невеликий бонус за звичайні зовнішні джерела (раніше було 10)
             
     link_score = min(50.0, link_score)
     
@@ -257,7 +306,7 @@ def aggregate_trust_score(
     logic_score: float,
     has_contradiction: bool = False,
     reputation_index: float | None = None
-) -> float:
+) -> dict:
     """Calculate final Trust Score using WMFA v5.1 weighted average with OSINT Critical Penalties and Harmonic Drag."""
     final = (
         source_score * WEIGHTS["source_verification"] +
@@ -267,17 +316,30 @@ def aggregate_trust_score(
         logic_score * WEIGHTS["logical_consistency"]
     )
     
-    # 1. Critical Penalty: Do we have a PROVEN fake fact?
-    if has_contradiction:
-        final -= 40.0
-        
-    # 2. Harmonic Drag: Penalize if any single criterion is exceptionally weak
+    # Drag computation before manual penalty to represent the natural unscaled drag
     min_score = min(source_score, objectivity_score, headline_score, density_score, logic_score)
     if min_score < 25.0:
         drag = (25.0 - min_score) * 0.15 # Max drag = 3.75 pts
         final -= drag
+
+    # 1. Critical Penalty: Do we have a PROVEN fake fact?
+    if has_contradiction:
+        final -= 40.0
+        # Scale down individual criteria so UI doesn't show "Perfect objectivity" on a fake article
+        objectivity_score = min(objectivity_score, 60.0)
+        headline_score = min(headline_score, 60.0)
+        density_score = min(density_score, 45.0)
+        logic_score = min(logic_score, 50.0)
+        source_score = min(source_score, 50.0)
         
-    return round(max(0.0, min(100.0, final)), 2)
+    return {
+        "trust_score": round(max(0.0, min(100.0, final)), 2),
+        "source_score": source_score,
+        "objectivity_score": objectivity_score,
+        "headline_score": headline_score,
+        "density_score": density_score,
+        "logic_score": logic_score
+    }
 
 
 def generate_explainer(

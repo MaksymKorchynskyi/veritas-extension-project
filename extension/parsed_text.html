@@ -68,6 +68,44 @@
       color: var(--text-muted);
       margin-top: 4px;
     }
+    .header-controls {
+      position: absolute;
+      top: 40px;
+      right: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .lang-select {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card-solid);
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lang-select:hover { border-color: var(--accent); }
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card-solid);
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-sec);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-back:hover { border-color: var(--accent); color: var(--text); background: rgba(93,64,55,0.06); }
 
     /* ─── Tabs ─── */
     .tabs { display: flex; gap: 0; margin: 28px 0 0; border-bottom: 1px solid var(--border); }
@@ -513,6 +551,130 @@
       border-top: 1px solid var(--border-light);
       margin-top: auto;
     }
+
+    /* ═══════════════════════════════════════════════
+       WRITE & ANALYZE TAB
+       ═══════════════════════════════════════════════ */
+    .write-form { max-width: 800px; margin: 0 auto; }
+    .form-group { margin-bottom: 20px; }
+    .form-label {
+      display: block;
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-sec);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .form-label .optional {
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+    }
+    .form-input, .form-textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card-solid);
+      font-family: var(--font-ui);
+      font-size: 0.9rem;
+      color: var(--text);
+      transition: all 0.2s;
+    }
+    .form-input:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(93,64,55,0.1);
+    }
+    .form-input::placeholder, .form-textarea::placeholder {
+      color: var(--text-muted);
+    }
+    .form-textarea {
+      min-height: 200px;
+      resize: vertical;
+      line-height: 1.7;
+      font-family: var(--font-body);
+    }
+    .form-textarea.small { min-height: 80px; }
+    .form-hint {
+      font-family: var(--font-ui);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+    .btn-analyze {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 36px;
+      border: none;
+      border-radius: 12px;
+      background: var(--text);
+      color: var(--bg);
+      font-family: var(--font-ui);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .btn-analyze:hover { background: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .write-results { margin-top: 32px; display: none; }
+    .write-results.visible { display: block; }
+
+    .write-result-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 40px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .write-result-layout { grid-template-columns: 1fr; }
+    }
+
+    .write-article-preview {
+      background: var(--card-solid);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 32px 36px;
+      box-shadow: var(--shadow-md);
+    }
+    .write-article-preview .preview-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.8rem;
+      line-height: 1.3;
+      color: var(--text);
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .write-loading {
+      text-align: center;
+      padding: 48px 20px;
+    }
+    .write-loading .spinner-lg {
+      width: 48px; height: 48px;
+      border: 4px solid var(--border-light);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .write-loading-text {
+      font-family: var(--font-ui);
+      font-size: 0.9rem;
+      color: var(--text-sec);
+    }
   </style>
 </head>
 <body>
@@ -521,13 +683,24 @@
   <!-- ─── Header ─── -->
   <div class="header">
     <h1 class="brand">Veritas</h1>
-    <p class="brand-sub">Article Analysis Reader</p>
+    <p class="brand-sub" data-i18n="brand_sub">Article Analysis Reader</p>
+    <div class="header-controls">
+      <a class="btn-back" id="backToArticleBtn" href="#" title="Back to article">
+        <span>←</span>
+        <span data-i18n="back_to_article">Back to Article</span>
+      </a>
+      <select class="lang-select" id="pageLangSelect">
+        <option value="uk">🇺🇦 Укр</option>
+        <option value="en">🇬🇧 Eng</option>
+      </select>
+    </div>
   </div>
 
   <!-- ─── Tabs ─── -->
   <div class="tabs">
-    <button class="tab-btn active" data-tab="parsed">📄 Article Reader</button>
-    <button class="tab-btn" data-tab="tests">🧪 Test Dashboard</button>
+    <button class="tab-btn active" data-tab="parsed" data-i18n="tab_reader">📄 Article Reader</button>
+    <button class="tab-btn" data-tab="tests" data-i18n="tab_tests">🧪 Test Dashboard</button>
+    <button class="tab-btn" data-tab="write" data-i18n="tab_write">✍️ Write & Analyze</button>
   </div>
 
   <!-- ═══════════════════════════════════════════════
@@ -555,9 +728,9 @@
 
         <!-- Stats Footer (moved to bottom) -->
         <div class="stats-footer" id="pt-stats" style="display:none;">
-          <div class="stat-pill"><span class="stat-pill-num" id="pt-paras">0</span><span class="stat-pill-lbl">Paragraphs</span></div>
-          <div class="stat-pill"><span class="stat-pill-num" id="pt-words">0</span><span class="stat-pill-lbl">Words</span></div>
-          <div class="stat-pill"><span class="stat-pill-num" id="pt-chars">0</span><span class="stat-pill-lbl">Characters</span></div>
+          <div class="stat-pill"><span class="stat-pill-num" id="pt-paras">0</span><span class="stat-pill-lbl" data-i18n="stat_paragraphs">Paragraphs</span></div>
+          <div class="stat-pill"><span class="stat-pill-num" id="pt-words">0</span><span class="stat-pill-lbl" data-i18n="stat_words">Words</span></div>
+          <div class="stat-pill"><span class="stat-pill-num" id="pt-chars">0</span><span class="stat-pill-lbl" data-i18n="stat_characters">Characters</span></div>
         </div>
       </div>
 
@@ -567,7 +740,7 @@
         <!-- Trust Score -->
         <div class="sidebar-card">
           <div class="trust-score-hero">
-            <p class="trust-label">Trust Score</p>
+            <p class="trust-label" data-i18n="trust_score">Trust Score</p>
             <span class="trust-value" id="sb-score">—</span>
             <span class="trust-max">/100</span>
           </div>
@@ -575,19 +748,19 @@
 
         <!-- Criteria Breakdown -->
         <div class="sidebar-card" id="sb-criteria-card">
-          <p class="sidebar-title">Criteria Breakdown</p>
+          <p class="sidebar-title" data-i18n="criteria_breakdown">Criteria Breakdown</p>
           <ul class="criteria-list" id="sb-criteria"></ul>
         </div>
 
         <!-- Highlights / Issues -->
         <div class="sidebar-card" id="sb-highlights-card">
-          <p class="sidebar-title">Found Issues</p>
+          <p class="sidebar-title" data-i18n="found_issues">Found Issues</p>
           <ul class="hl-summary-list" id="sb-highlights"></ul>
         </div>
 
         <!-- Explainer -->
         <div class="sidebar-card" id="sb-explainer-card">
-          <p class="sidebar-title">AI Summary</p>
+          <p class="sidebar-title" data-i18n="ai_summary">AI Summary</p>
           <p class="explainer-text" id="sb-explainer"></p>
         </div>
 
@@ -605,25 +778,85 @@
   <div class="tab-content" id="tab-tests">
 
     <div class="dash-controls">
-      <button class="btn-run" id="runAllBtn">▶ Run All Tests</button>
+      <button class="btn-run" id="runAllBtn" data-i18n="run_all_tests">▶ Run All Tests</button>
       <div class="progress-bar-wrap" id="progressWrap" style="display:none">
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         <div class="progress-text" id="progressText">0 / 0</div>
       </div>
-      <button class="btn-export" id="exportBtn">💾 Export CSV</button>
+      <button class="btn-export" id="exportBtn" data-i18n="export_csv">💾 Export CSV</button>
     </div>
 
     <!-- Summary (appears after run) -->
     <div id="summarySection" style="display:none">
       <div class="summary-grid">
-        <div class="summary-item"><span class="summary-val color-green" id="sumAccuracy">—</span><span class="summary-lbl">Accuracy</span></div>
+        <div class="summary-item"><span class="summary-val color-green" id="sumAccuracy">—</span><span class="summary-lbl" data-i18n="accuracy">Accuracy</span></div>
         <div class="summary-item"><span class="summary-val" id="sumSeparation">—</span><span class="summary-lbl">A–C Gap</span></div>
-        <div class="summary-item"><span class="summary-val" id="sumAvgTime">—</span><span class="summary-lbl">Avg Time</span></div>
-        <div class="summary-item"><span class="summary-val" id="sumTotal">—</span><span class="summary-lbl">Total</span></div>
+        <div class="summary-item"><span class="summary-val" id="sumAvgTime">—</span><span class="summary-lbl" data-i18n="avg_time">Avg Time</span></div>
+        <div class="summary-item"><span class="summary-val" id="sumTotal">—</span><span class="summary-lbl" data-i18n="total">Total</span></div>
       </div>
     </div>
 
     <div id="testArticlesContainer"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       TAB 3: WRITE & ANALYZE
+       ═══════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-write">
+    <div class="write-form">
+
+      <div class="form-group">
+        <label class="form-label" data-i18n="write_title_label">Article Title</label>
+        <input class="form-input" type="text" id="writeTitle" placeholder="Enter article title..." data-i18n-placeholder="write_title_placeholder">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label"><span data-i18n="write_url_label">Article URL</span> <span class="optional" data-i18n="optional">(optional)</span></label>
+        <input class="form-input" type="url" id="writeUrl" placeholder="https://example.com/article" data-i18n-placeholder="write_url_placeholder">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" data-i18n="write_text_label">Article Text</label>
+        <textarea class="form-textarea" id="writeText" placeholder="Paste or write your article text here...
+Separate paragraphs with blank lines." data-i18n-placeholder="write_text_placeholder"></textarea>
+        <p class="form-hint" data-i18n="write_text_hint">Separate paragraphs with blank lines. Each paragraph will be analyzed individually.</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label"><span data-i18n="write_refs_label">Reference Links</span> <span class="optional" data-i18n="optional">(optional)</span></label>
+        <textarea class="form-textarea small" id="writeRefs" placeholder="https://source1.com
+https://source2.com" data-i18n-placeholder="write_refs_placeholder"></textarea>
+        <p class="form-hint" data-i18n="write_refs_hint">One URL per line. Links that this article references.</p>
+      </div>
+
+      <div style="text-align: center; margin-top: 8px;">
+        <button class="btn-analyze" id="writeAnalyzeBtn" data-i18n="write_analyze_btn">🔍 Analyze Article</button>
+      </div>
+
+    </div>
+
+    <!-- Loading state -->
+    <div class="write-loading" id="writeLoading" style="display:none;">
+      <div class="spinner-lg"></div>
+      <p class="write-loading-text" data-i18n="write_analyzing">Analyzing your article...</p>
+    </div>
+
+    <!-- Results -->
+    <div class="write-results" id="writeResults">
+      <div class="write-result-layout">
+        <!-- Left: Article preview with highlights -->
+        <div>
+          <div class="write-article-preview" id="writePreviewContent"></div>
+          <div class="stats-footer" id="writeStats" style="display:none;">
+            <div class="stat-pill"><span class="stat-pill-num" id="writeStatParas">0</span><span class="stat-pill-lbl" data-i18n="stat_paragraphs">Paragraphs</span></div>
+            <div class="stat-pill"><span class="stat-pill-num" id="writeStatWords">0</span><span class="stat-pill-lbl" data-i18n="stat_words">Words</span></div>
+            <div class="stat-pill"><span class="stat-pill-num" id="writeStatChars">0</span><span class="stat-pill-lbl" data-i18n="stat_characters">Characters</span></div>
+          </div>
+        </div>
+        <!-- Right: Analysis sidebar -->
+        <div class="analysis-sidebar" id="writeSidebar"></div>
+      </div>
+    </div>
   </div>
 
   <div class="footer">Veritas • Coffee Edition • ЛНУ ім. Франка, ПМІ</div>

@@ -191,14 +191,20 @@ async function performAnalysis(tabId, tabUrl) {
             articleTitle: extractedData.title
         });
 
-        // Apply highlights if any
+        // Apply highlights if any (respecting user setting)
         if (analysisResult.highlights?.length > 0) {
             try {
-                await chrome.tabs.sendMessage(tabId, {
-                    action: 'applyHighlights',
-                    highlights: analysisResult.highlights
-                });
-                console.log('[VERITAS BG] Highlights applied:', analysisResult.highlights.length);
+                const hlSetting = await chrome.storage.local.get(['highlightsEnabled']);
+                const hlEnabled = hlSetting.highlightsEnabled !== false; // default ON
+                if (hlEnabled) {
+                    await chrome.tabs.sendMessage(tabId, {
+                        action: 'applyHighlights',
+                        highlights: analysisResult.highlights
+                    });
+                    console.log('[VERITAS BG] Highlights applied:', analysisResult.highlights.length);
+                } else {
+                    console.log('[VERITAS BG] Highlights disabled by user, skipping DOM injection');
+                }
             } catch (e) {
                 console.warn('[VERITAS BG] Could not apply highlights:', e.message);
             }

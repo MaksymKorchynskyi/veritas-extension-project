@@ -114,10 +114,14 @@ async def analyze_article(request: AnalysisRequest):
     
     # 🧨 WMFA v5.1 CRITICAL PENALTY CHECK
     # Штраф -40 застосовується ТІЛЬКИ для доведених фейків (OSINT), а не для токсичності
-    has_contradiction = any("спростовано" in str(h.category).lower() or "contradict" in str(h.category).lower() or "fake" in str(h.category).lower() for h in final_highlights)
+    critical_penalty_tags = ["спростовано", "contradict", "fake", "непідтверджен", "вигадк", "unverified", "unsubstantiated"]
+    has_contradiction = any(
+        any(tag in str(h.category).lower() for tag in critical_penalty_tags)
+        for h in final_highlights
+    )
     
-    # Step 3: Агрегація
-    trust_score = aggregate_trust_score(
+    # Step 3: Агрегація та Динамічне Масштабування
+    aggregated_results = aggregate_trust_score(
         source_score=source_score,
         objectivity_score=objectivity_score,
         headline_score=headline_score,
@@ -126,6 +130,13 @@ async def analyze_article(request: AnalysisRequest):
         has_contradiction=has_contradiction,
         reputation_index=reputation.trust_index if reputation else None
     )
+    
+    trust_score = aggregated_results["trust_score"]
+    source_score = aggregated_results["source_score"]
+    objectivity_score = aggregated_results["objectivity_score"]
+    headline_score = aggregated_results["headline_score"]
+    density_score = aggregated_results["density_score"]
+    logic_score = aggregated_results["logic_score"]
     
     # Step 4: Фінальний Пояснювач
     python_explainer = generate_explainer(
