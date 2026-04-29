@@ -40,11 +40,9 @@ const el = {
     scoreRingFill: document.getElementById('scoreRingFill'),
     detailsPanel: document.getElementById('detailsPanel'),
     radarChartContainer: document.getElementById('radarChartContainer'),
+    metricAccuracy: document.getElementById('metricAccuracy'),
     metricSource: document.getElementById('metricSource'),
     metricObjectivity: document.getElementById('metricObjectivity'),
-    metricHeadline: document.getElementById('metricHeadline'),
-    metricDensity: document.getElementById('metricDensity'),
-    metricLogic: document.getElementById('metricLogic'),
     explainerText: document.getElementById('explainerText'),
 
     // Highlight Navigator
@@ -90,11 +88,9 @@ const translations = {
         "found_issues": "Знайдені Проблеми",
         "warnings": "Попередження",
         "high_risk": "Ризики",
-        "source_verification": "Перевірка Джерел",
-        "objectivity": "Об'єктивність",
-        "headline_relevance": "Заголовок",
-        "factual_density": "Фактологічність",
-        "logical_consistency": "Логіка",
+        "credibility": "Достовірність",
+        "transparency": "Прозорість",
+        "objectivity": "Об'єктивність Подачі",
         "analyze_again": "Аналізувати Знову",
         "try_again": "Спробувати Знову",
         "checking": "Перевірка...",
@@ -115,11 +111,9 @@ const translations = {
         "found_issues": "Found Issues",
         "warnings": "Warnings",
         "high_risk": "High Risk",
-        "source_verification": "Source Verification",
+        "credibility": "Credibility",
+        "transparency": "Transparency",
         "objectivity": "Objectivity",
-        "headline_relevance": "Headline Relevance",
-        "factual_density": "Factual Density",
-        "logical_consistency": "Logical Consistency",
         "analyze_again": "Analyze Again",
         "try_again": "Try Again",
         "checking": "Checking...",
@@ -265,13 +259,11 @@ function drawRadarChart(scores) {
     const cx = size / 2;
     const cy = size / 2;
     const maxRadius = 80; // max radius for the outermost ring
-    const labels = ['Source', 'Objectivity', 'Headline', 'Density', 'Logic'];
+    const labels = ['Accuracy', 'Authority', 'Objectivity'];
     const values = [
-        Math.max(0, Math.min(scores.source || 0, 100)),
-        Math.max(0, Math.min(scores.objectivity || 0, 100)),
-        Math.max(0, Math.min(scores.headline || 0, 100)),
-        Math.max(0, Math.min(scores.density || 0, 100)),
-        Math.max(0, Math.min(scores.logic || 0, 100))
+        Math.max(0, Math.min(scores.accuracy || 0, 100)),
+        Math.max(0, Math.min(scores.authority || 0, 100)),
+        Math.max(0, Math.min(scores.objectivity || 0, 100))
     ];
 
     const ns = 'http://www.w3.org/2000/svg';
@@ -308,26 +300,26 @@ function drawRadarChart(scores) {
      */
     function getPoint(index, radius) {
         // Start from top (−90° = −π/2), go clockwise
-        const angle = (2 * Math.PI * index) / 5 - Math.PI / 2;
+        const angle = (2 * Math.PI * index) / 3 - Math.PI / 2;
         return {
             x: cx + radius * Math.cos(angle),
             y: cy + radius * Math.sin(angle)
         };
     }
 
-    /** Build a polygon points-string from indices 0..4 at given radius */
-    function pentagonPoints(radius) {
-        return Array.from({ length: 5 }, (_, i) => {
+    /** Build a polygon points-string from indices 0..2 at given radius */
+    function polygonPoints(radius) {
+        return Array.from({ length: 3 }, (_, i) => {
             const p = getPoint(i, radius);
             return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
         }).join(' ');
     }
 
-    // --- Background grid: 4 concentric pentagons ---
+    // --- Background grid: 4 concentric polygons ---
     const rings = [0.25, 0.5, 0.75, 1.0];
     rings.forEach(frac => {
         const polygon = document.createElementNS(ns, 'polygon');
-        polygon.setAttribute('points', pentagonPoints(maxRadius * frac));
+        polygon.setAttribute('points', polygonPoints(maxRadius * frac));
         polygon.setAttribute('fill', 'none');
         polygon.setAttribute('stroke', borderAccent);
         polygon.setAttribute('stroke-opacity', '0.2');
@@ -336,7 +328,7 @@ function drawRadarChart(scores) {
     });
 
     // --- Axes (from center to each vertex) ---
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 3; i++) {
         const p = getPoint(i, maxRadius);
         const line = document.createElementNS(ns, 'line');
         line.setAttribute('x1', cx);
@@ -380,12 +372,10 @@ function drawRadarChart(scores) {
     // --- Labels ---
     const labelOffsets = [
         { dx: 0, dy: -12 },    // top
-        { dx: 14, dy: 2 },     // top-right
-        { dx: 10, dy: 14 },    // bottom-right
-        { dx: -10, dy: 14 },   // bottom-left
-        { dx: -14, dy: 2 }     // top-left
+        { dx: 14, dy: 14 },    // bottom-right
+        { dx: -14, dy: 14 }    // bottom-left
     ];
-    const labelAnchors = ['middle', 'start', 'start', 'end', 'end'];
+    const labelAnchors = ['middle', 'start', 'end'];
 
     labels.forEach((label, i) => {
         const p = getPoint(i, maxRadius);
@@ -702,19 +692,15 @@ function showResults(result) {
 
     // Metrics
     const c = result.criteria || {};
-    setMetric(el.metricSource, c.source_verification);
+    setMetric(el.metricAccuracy, c.credibility);
+    setMetric(el.metricSource, c.transparency);
     setMetric(el.metricObjectivity, c.objectivity);
-    setMetric(el.metricHeadline, c.headline_relevance);
-    setMetric(el.metricDensity, c.factual_density);
-    setMetric(el.metricLogic, c.logical_consistency);
 
     // Draw radar chart with the criteria scores
     drawRadarChart({
-        source: c.source_verification || 0,
-        objectivity: c.objectivity || 0,
-        headline: c.headline_relevance || 0,
-        density: c.factual_density || 0,
-        logic: c.logical_consistency || 0
+        accuracy: c.credibility || 0,
+        authority: c.transparency || 0,
+        objectivity: c.objectivity || 0
     });
 
     // Explainer

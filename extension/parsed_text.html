@@ -675,6 +675,429 @@
       font-size: 0.9rem;
       color: var(--text-sec);
     }
+    /* ═══════════════════════════════════════════════
+       FORMULA EXPANSION PANELS
+       ═══════════════════════════════════════════════ */
+    .criteria-item { cursor: pointer; position: relative; }
+    .criteria-item:hover { background: rgba(93,64,55,0.04); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 8px; }
+    .criteria-expand-icon {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      margin-left: 6px;
+      transition: transform 0.2s;
+    }
+    .criteria-item.expanded .criteria-expand-icon { transform: rotate(90deg); }
+    .formula-panel {
+      display: none;
+      padding: 14px 16px;
+      margin: 4px 0 8px;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      animation: fadeSlideIn 0.25s ease;
+    }
+    .formula-panel.visible { display: block; }
+    .formula-title {
+      font-family: var(--font-ui);
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .formula-equation {
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      line-height: 1.8;
+      color: var(--text);
+      background: var(--card-solid);
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-light);
+      margin-bottom: 8px;
+      overflow-x: auto;
+    }
+    .formula-equation .val { color: var(--accent); font-weight: 700; }
+    .formula-equation .op { color: var(--text-muted); }
+    .formula-result {
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-sec);
+      text-align: right;
+    }
+    .formula-result .result-val { font-weight: 800; color: var(--text); }
+
+    /* ═══════════════════════════════════════════════
+       EXTRACTED CLAIMS & SCORING INPUTS BLOCK
+       ═══════════════════════════════════════════════ */
+    .claims-list { list-style: none; }
+    .claim-item {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .claim-item:last-child { border-bottom: none; }
+    .claim-status {
+      flex-shrink: 0;
+      font-family: var(--font-ui);
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      margin-top: 2px;
+    }
+    .claim-status.confirmed { background: var(--green-bg); color: var(--green); border: 1px solid rgba(46,125,50,0.2); }
+    .claim-status.contradicted { background: var(--red-bg); color: var(--red); border: 1px solid rgba(141,45,36,0.2); }
+    .claim-status.unverified { background: rgba(184,134,11,0.08); color: var(--yellow); border: 1px solid rgba(184,134,11,0.2); }
+    .claim-text {
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      line-height: 1.5;
+      color: var(--text-sec);
+    }
+    .claim-para-id {
+      font-weight: 700;
+      color: var(--text-body);
+      display: block;
+      font-size: 0.65rem;
+      margin-bottom: 2px;
+    }
+
+    .inputs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .input-chip {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 8px;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+    }
+    .input-chip-val {
+      font-family: var(--font-ui);
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: var(--text);
+    }
+    .input-chip-lbl {
+      font-family: var(--font-ui);
+      font-size: 0.55rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      text-align: center;
+    }
+
+    /* ═══════════════════════════════════════════════
+       FULL-WIDTH ANALYTICS DASHBOARD (Bottom Section)
+       ═══════════════════════════════════════════════ */
+    .analytics-dashboard {
+      display: none;
+      margin-top: 48px;
+      padding-top: 32px;
+      border-top: 2px solid var(--border);
+    }
+    .analytics-dashboard.visible { display: block; }
+
+    .analytics-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .analytics-header h2 {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.6rem;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .analytics-header p {
+      font-family: var(--font-ui);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* Formula Cards Grid */
+    .formulas-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    @media (max-width: 900px) { .formulas-grid { grid-template-columns: 1fr; } }
+
+    .formula-card {
+      background: var(--card-solid);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s;
+    }
+    .formula-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .formula-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .formula-card-title {
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .formula-card-score {
+      font-family: var(--font-ui);
+      font-weight: 800;
+      font-size: 1.4rem;
+    }
+    .formula-card-subtitle {
+      font-family: var(--font-ui);
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .formula-card .formula-equation {
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      line-height: 1.9;
+      color: var(--text);
+      background: var(--bg-deep);
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border-light);
+      margin-bottom: 10px;
+    }
+    .formula-card .formula-equation .val { color: var(--accent); font-weight: 700; }
+    .formula-card .formula-equation .op { color: var(--text-muted); }
+    .formula-card .formula-card-result {
+      text-align: right;
+      font-family: var(--font-ui);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-sec);
+    }
+    .formula-card .formula-card-result .result-val { font-weight: 800; }
+
+    /* Evidence Section */
+    .evidence-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    @media (max-width: 900px) { .evidence-section { grid-template-columns: 1fr; } }
+
+    .evidence-card {
+      background: var(--card-solid);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .evidence-card-title {
+      font-family: var(--font-ui);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .evidence-card-title .ev-count {
+      background: var(--bg-deep);
+      border: 1px solid var(--border-light);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 0.65rem;
+      color: var(--text);
+    }
+    .evidence-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .evidence-item:last-child { border-bottom: none; }
+    .evidence-icon {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.55rem;
+      margin-top: 1px;
+    }
+    .evidence-icon.citation { background: var(--green-bg); color: var(--green); border: 1px solid rgba(46,125,50,0.2); }
+    .evidence-icon.emotional { background: var(--red-bg); color: var(--red); border: 1px solid rgba(141,45,36,0.2); }
+    .evidence-text {
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      color: var(--text-sec);
+    }
+    .emotional-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .emotional-tag {
+      display: inline-block;
+      padding: 4px 12px;
+      background: var(--red-bg);
+      border: 1px solid rgba(141,45,36,0.2);
+      border-radius: 20px;
+      font-family: var(--font-ui);
+      font-size: 0.72rem;
+      color: var(--red);
+      font-weight: 600;
+    }
+    .no-evidence {
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 12px 0;
+    }
+
+    /* OSINT Claims Section */
+    .osint-section {
+      background: var(--card-solid);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 32px;
+    }
+    .osint-claim {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .osint-claim:last-child { border-bottom: none; }
+    .osint-badge {
+      flex-shrink: 0;
+      font-family: var(--font-ui);
+      font-size: 0.58rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-top: 2px;
+    }
+    .osint-badge.confirmed { background: var(--green-bg); color: var(--green); border: 1px solid rgba(46,125,50,0.2); }
+    .osint-badge.contradicted { background: var(--red-bg); color: var(--red); border: 1px solid rgba(141,45,36,0.2); }
+    .osint-badge.unverified { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(184,134,11,0.2); }
+    .osint-claim-text {
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      color: var(--text-sec);
+    }
+    .osint-claim-para {
+      font-weight: 700;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    /* Scoring summary strip */
+    .scoring-strip {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .scoring-strip-item {
+      flex: 1;
+      min-width: 100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 10px;
+      background: var(--card-solid);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .scoring-strip-val {
+      font-family: var(--font-ui);
+      font-weight: 800;
+      font-size: 1.3rem;
+    }
+    .scoring-strip-lbl {
+      font-family: var(--font-ui);
+      font-size: 0.55rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    
+    /* Benchmark Detail Panel */
+    .test-detail-panel {
+      background: var(--bg-sec);
+      border-top: 1px solid var(--border);
+      padding: 16px;
+      font-size: 0.85rem;
+    }
+    .test-article.expanded {
+      background: var(--bg-sec);
+    }
+    .td-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 2fr;
+      gap: 16px;
+    }
+    .td-col h4 {
+      margin-bottom: 8px;
+      color: var(--text-pri);
+      font-weight: 500;
+    }
+    .td-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .td-list li {
+      margin-bottom: 4px;
+      color: var(--text-sec);
+    }
+    .td-explainer {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      color: var(--text-sec);
+    }
   </style>
 </head>
 <body>
@@ -758,6 +1181,12 @@
           <ul class="hl-summary-list" id="sb-highlights"></ul>
         </div>
 
+        <!-- ML Metrics -->
+        <div class="sidebar-card" id="sb-ml-card">
+          <p class="sidebar-title" data-i18n="ai_metrics">ШІ Метрики</p>
+          <ul class="criteria-list" id="sb-ml-metrics"></ul>
+        </div>
+
         <!-- Explainer -->
         <div class="sidebar-card" id="sb-explainer-card">
           <p class="sidebar-title" data-i18n="ai_summary">AI Summary</p>
@@ -766,6 +1195,11 @@
 
       </div>
     </div>
+
+    <!-- ═══════════════════════════════════════════════
+         FULL-WIDTH ANALYTICS DASHBOARD
+         ═══════════════════════════════════════════════ -->
+    <div class="analytics-dashboard" id="pt-analytics"></div>
 
     <!-- Error / No Data container (shown if no data) -->
     <div id="pt-error-container"></div>

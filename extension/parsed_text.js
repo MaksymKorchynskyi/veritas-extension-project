@@ -35,11 +35,9 @@ const ptTranslations = {
     "load_failed": "Помилка Завантаження",
     "no_analysis_msg": "Дані аналізу з'являться тут після запуску аналізу.",
     // Criteria names
-    "cr_source": "Перевірка Джерел",
+    "cr_source": "Прозорість",
     "cr_objectivity": "Об'єктивність",
-    "cr_headline": "Релевантність Заголовка",
-    "cr_density": "Фактологічна Щільність",
-    "cr_logic": "Логічна Послідовність",
+    "cr_accuracy": "Достовірність",
     // Write & Analyze
     "write_title_label": "Заголовок Статті",
     "write_title_placeholder": "Введіть заголовок статті...",
@@ -61,6 +59,34 @@ const ptTranslations = {
     "hl_warning": "🟡 Попередження",
     "high_risk_label": "Високий Ризик",
     "warning_label": "Попередження",
+    "ai_metrics": "ШІ Метрики (HuggingFace)",
+    "ml_fake_news": "Ймовірність Фейку (RoBERTa)",
+    "ml_sentiment": "Тональність (DistilBERT)",
+    "ml_clickbait": "Клікбейт (BERT)",
+    "scoring_inputs": "Вхідні Дані Скорингу",
+    "extracted_claims": "Витягнуті Тези (OSINT)",
+    "formula_title": "Формула BRS",
+    "input_confirmed": "Підтв.",
+    "input_contradicted": "Спрост.",
+    "input_unverified": "Не перев.",
+    "input_domain_trust": "Довіра домену",
+    "input_citations": "Цитати",
+    "input_emotional": "Емоц. слова",
+    "input_total_words": "Всього слів",
+    "claim_confirmed": "Підтверджено",
+    "claim_contradicted": "Спростовано",
+    "claim_unverified": "Не перевірено",
+    "click_formula": "натисніть для формули",
+    "analytics_title": "Аналітична Декомпозиція",
+    "analytics_subtitle": "Beta Reputation System (Jøsang & Ismail, 2002)",
+    "analytics_credibility": "Достовірність",
+    "analytics_transparency": "Прозорість",
+    "analytics_objectivity": "Об'єктивність",
+    "analytics_evidence": "Витягнуті Докази",
+    "analytics_citations_found": "Знайдені Цитати",
+    "analytics_emotional_found": "Маніпулятивні Фрази",
+    "analytics_osint_title": "Витягнуті Тези — OSINT Верифікація",
+    "analytics_no_data": "Немає даних",
   },
   "en": {
     "brand_sub": "Article Analysis Reader",
@@ -89,11 +115,9 @@ const ptTranslations = {
     "load_failed": "Load Failed",
     "no_analysis_msg": "Analysis data will appear here after running an analysis.",
     // Criteria names
-    "cr_source": "Source Verification",
+    "cr_source": "Transparency",
     "cr_objectivity": "Objectivity",
-    "cr_headline": "Headline Relevance",
-    "cr_density": "Factual Density",
-    "cr_logic": "Logical Consistency",
+    "cr_accuracy": "Credibility",
     // Write & Analyze
     "write_title_label": "Article Title",
     "write_title_placeholder": "Enter article title...",
@@ -115,6 +139,34 @@ const ptTranslations = {
     "hl_warning": "🟡 Warning",
     "high_risk_label": "High Risk",
     "warning_label": "Warning",
+    "ai_metrics": "AI Metrics (HuggingFace)",
+    "ml_fake_news": "Fake News Prob (RoBERTa)",
+    "ml_sentiment": "Sentiment (DistilBERT)",
+    "ml_clickbait": "Clickbait Prob (BERT)",
+    "scoring_inputs": "Scoring Inputs",
+    "extracted_claims": "Extracted Claims (OSINT)",
+    "formula_title": "BRS Formula",
+    "input_confirmed": "Confirmed",
+    "input_contradicted": "Contradicted",
+    "input_unverified": "Unverified",
+    "input_domain_trust": "Domain Trust",
+    "input_citations": "Citations",
+    "input_emotional": "Emot. Words",
+    "input_total_words": "Total Words",
+    "claim_confirmed": "Confirmed",
+    "claim_contradicted": "Contradicted",
+    "claim_unverified": "Unverified",
+    "click_formula": "click for formula",
+    "analytics_title": "Analytical Decomposition",
+    "analytics_subtitle": "Beta Reputation System (Jøsang & Ismail, 2002)",
+    "analytics_credibility": "Credibility",
+    "analytics_transparency": "Transparency",
+    "analytics_objectivity": "Objectivity",
+    "analytics_evidence": "Extracted Evidence",
+    "analytics_citations_found": "Citations Found",
+    "analytics_emotional_found": "Manipulative Phrases",
+    "analytics_osint_title": "Extracted Claims — OSINT Verification",
+    "analytics_no_data": "No data",
   }
 };
 
@@ -375,6 +427,7 @@ if (urlParams.get('tab') === 'tests') {
 
     if (analysisResult) {
       renderAnalysisSidebar(analysisResult, actualHighlights, 'sb', contentEl);
+      renderAnalyticsDashboard(analysisResult, 'pt-analytics');
     } else {
       // No analysis result — hide sidebar cards except a notice
       sidebar.innerHTML = `<div class="sidebar-card"><p class="no-highlights-msg">${t('no_analysis_msg')}</p></div>`;
@@ -401,26 +454,103 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
     scoreEl.classList.add(score >= 70 ? 'score-high' : score >= 40 ? 'score-mid' : 'score-low');
   }
 
-  // Criteria
+  // Scoring inputs from backend
+  const si = analysisResult.scoring_inputs || {};
+
+  // Criteria with formula panels
   const c = analysisResult.criteria || {};
   const criteriaData = [
-    { name: t('cr_source'), value: c.source_verification, weight: '35%' },
-    { name: t('cr_objectivity'), value: c.objectivity, weight: '20%' },
-    { name: t('cr_headline'), value: c.headline_relevance, weight: '15%' },
-    { name: t('cr_density'), value: c.factual_density, weight: '15%' },
-    { name: t('cr_logic'), value: c.logical_consistency, weight: '15%' },
+    { key: 'credibility', name: t('cr_accuracy'), value: c.credibility, weight: '50%' },
+    { key: 'transparency', name: t('cr_source'), value: c.transparency, weight: '30%' },
+    { key: 'objectivity', name: t('cr_objectivity'), value: c.objectivity, weight: '20%' }
   ];
+
+  // Build formula HTML for each criteria
+  function buildFormulaHTML(key, val) {
+    const nConf = si.n_confirmed || 0;
+    const nContra = si.n_contradicted || 0;
+    const nUnv = si.n_unverified || 0;
+    const dt = si.domain_trust || 0.5;
+    const cit = si.citations_count || 0;
+    const emo = si.emotional_words_count || 0;
+    const tw = si.total_words || 0;
+
+    if (key === 'credibility') {
+      const r = (nConf * 1.0 + cit * 0.2).toFixed(1);
+      const s = (nContra * 1.0 + emo * 0.3 + nUnv * 0.4).toFixed(1);
+      const W = 2;
+      const raw = ((parseFloat(r) + W * dt) / (parseFloat(r) + parseFloat(s) + W) * 100).toFixed(1);
+      return `<div class="formula-title">${t('formula_title')}: E(p) = (r + W·a) / (r + s + W)</div>
+        <div class="formula-equation">
+          r = <span class="val">${nConf}</span>×1.0 + <span class="val">${cit}</span>×0.2 = <span class="val">${r}</span><br>
+          s = <span class="val">${nContra}</span>×1.0 + <span class="val">${emo}</span>×0.3 + <span class="val">${nUnv}</span>×0.4 = <span class="val">${s}</span><br>
+          a = <span class="val">${dt}</span> <span class="op">(domain trust)</span>, W = <span class="val">${W}</span><br>
+          <span class="op">―――――――――――――――――</span><br>
+          E = (<span class="val">${r}</span> + ${W}×<span class="val">${dt}</span>) / (<span class="val">${r}</span> + <span class="val">${s}</span> + ${W}) × 100
+        </div>
+        <div class="formula-result">= <span class="result-val">${raw}</span> → <span class="result-val">${Math.round(val)}</span></div>`;
+    }
+    if (key === 'transparency') {
+      const raw = ((cit + 2 * 0.3) / (cit + 2) * 100).toFixed(1);
+      return `<div class="formula-title">${t('formula_title')}: E(p) = (r + W·a) / (r + s + W)</div>
+        <div class="formula-equation">
+          r = <span class="val">${cit}</span> <span class="op">(citations)</span><br>
+          s = <span class="val">0</span>, a = <span class="val">0.3</span>, W = <span class="val">2</span><br>
+          <span class="op">―――――――――――――――――</span><br>
+          E = (<span class="val">${cit}</span> + 2×<span class="val">0.3</span>) / (<span class="val">${cit}</span> + 0 + 2) × 100
+        </div>
+        <div class="formula-result">= <span class="result-val">${raw}</span> → <span class="result-val">${Math.round(val)}</span></div>`;
+    }
+    if (key === 'objectivity') {
+      const K = Math.max(8, Math.floor(tw / 50));
+      const sVal = Math.min(emo, K);
+      const rVal = K - sVal;
+      const raw = ((rVal + 2 * 0.5) / (rVal + sVal + 2) * 100).toFixed(1);
+      return `<div class="formula-title">${t('formula_title')}: E(p) = (r + W·a) / (r + s + W)</div>
+        <div class="formula-equation">
+          K = max(8, <span class="val">${tw}</span> / 50) = <span class="val">${K}</span> <span class="op">(window)</span><br>
+          s = min(<span class="val">${emo}</span>, <span class="val">${K}</span>) = <span class="val">${sVal}</span><br>
+          r = <span class="val">${K}</span> - <span class="val">${sVal}</span> = <span class="val">${rVal}</span><br>
+          a = <span class="val">0.5</span>, W = <span class="val">2</span><br>
+          <span class="op">―――――――――――――――――</span><br>
+          E = (<span class="val">${rVal}</span> + 2×<span class="val">0.5</span>) / (<span class="val">${rVal}</span> + <span class="val">${sVal}</span> + 2) × 100
+        </div>
+        <div class="formula-result">= <span class="result-val">${raw}</span> → <span class="result-val">${Math.round(val)}</span></div>`;
+    }
+    return '';
+  }
+
   const criteriaList = document.getElementById(prefix + '-criteria');
   if (criteriaList) {
-    criteriaList.innerHTML = criteriaData.map(cr => {
+    criteriaList.innerHTML = criteriaData.map((cr, idx) => {
       const val = cr.value ?? 0;
       const color = val >= 70 ? 'var(--green)' : val >= 40 ? 'var(--yellow)' : 'var(--red)';
-      return `<li class="criteria-item">
-        <span class="criteria-name">${cr.name}</span>
+      const panelId = `${prefix}-formula-${idx}`;
+      const hasInputs = si.total_words !== undefined;
+      return `<li class="criteria-item" data-panel="${panelId}">
+        <span class="criteria-name">${cr.name}${hasInputs ? '<span class="criteria-expand-icon">▶</span>' : ''}</span>
         <div class="criteria-bar-wrap"><div class="criteria-bar" style="width:${val}%;background:${color}"></div></div>
         <span class="criteria-score" style="color:${color}">${Math.round(val)}</span>
-      </li>`;
+      </li>
+      ${hasInputs ? `<div class="formula-panel" id="${panelId}">${buildFormulaHTML(cr.key, val)}</div>` : ''}`;
     }).join('');
+
+    // Bind click events for formula expansion
+    criteriaList.querySelectorAll('.criteria-item[data-panel]').forEach(item => {
+      item.addEventListener('click', () => {
+        const panelId = item.dataset.panel;
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        const isVisible = panel.classList.contains('visible');
+        // Close all panels first
+        criteriaList.querySelectorAll('.formula-panel.visible').forEach(p => p.classList.remove('visible'));
+        criteriaList.querySelectorAll('.criteria-item.expanded').forEach(i => i.classList.remove('expanded'));
+        if (!isVisible) {
+          panel.classList.add('visible');
+          item.classList.add('expanded');
+        }
+      });
+    });
   }
 
   // Highlights in sidebar (only actual highlights that exist)
@@ -456,6 +586,43 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
     hlCard.style.display = 'none';
   }
 
+  // ML Metrics
+  const mlCard = document.getElementById(prefix + '-ml-card');
+  const mlList = document.getElementById(prefix + '-ml-metrics');
+  if (analysisResult.ml_metrics && Object.keys(analysisResult.ml_metrics).length > 0 && mlList) {
+    const ml = analysisResult.ml_metrics;
+    
+    // Format sentiment mapping
+    let sentimentColor = 'var(--text-sec)';
+    let sentimentLabel = ml.sentiment;
+    if (ml.sentiment === 'NEGATIVE') { sentimentColor = 'var(--red)'; sentimentLabel = 'Negative'; }
+    else if (ml.sentiment === 'POSITIVE') { sentimentColor = 'var(--green)'; sentimentLabel = 'Positive'; }
+    else { sentimentLabel = 'Neutral'; }
+
+    const fakeVal = (ml.fake_news_prob * 100).toFixed(1);
+    const fakeColor = fakeVal >= 70 ? 'var(--red)' : fakeVal >= 30 ? 'var(--yellow)' : 'var(--green)';
+    
+    const clickVal = (ml.clickbait_prob * 100).toFixed(1);
+    const clickColor = clickVal >= 70 ? 'var(--red)' : clickVal >= 30 ? 'var(--yellow)' : 'var(--green)';
+
+    const items = [
+      { name: t('ml_fake_news'), val: fakeVal + '%', color: fakeColor },
+      { name: t('ml_sentiment'), val: sentimentLabel, color: sentimentColor },
+      { name: t('ml_clickbait'), val: clickVal + '%', color: clickColor }
+    ];
+
+    mlList.innerHTML = items.map(item => `
+      <li class="criteria-item">
+        <span class="criteria-name">${item.name}</span>
+        <span class="criteria-score" style="font-size:0.85rem; color:${item.color}">${item.val}</span>
+      </li>
+    `).join('');
+    
+    if (mlCard) mlCard.style.display = 'block';
+  } else if (mlCard) {
+    mlCard.style.display = 'none';
+  }
+
   // Explainer
   const explainerEl = document.getElementById(prefix + '-explainer');
   const explainerCard = document.getElementById(prefix + '-explainer-card');
@@ -464,6 +631,211 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
   } else if (explainerCard) {
     explainerCard.style.display = 'none';
   }
+
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// FULL-WIDTH ANALYTICS DASHBOARD (below article)
+// ═══════════════════════════════════════════════════════════════
+function renderAnalyticsDashboard(analysisResult, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const si = analysisResult.scoring_inputs || {};
+  const c = analysisResult.criteria || {};
+  if (!si.total_words) { container.classList.remove('visible'); return; }
+
+  const nConf = si.n_confirmed || 0;
+  const nContra = si.n_contradicted || 0;
+  const nUnv = si.n_unverified || 0;
+  const dt = si.domain_trust || 0.5;
+  const cit = si.citations_count || 0;
+  const emo = si.emotional_words_count || 0;
+  const tw = si.total_words || 0;
+
+  // Pre-calculate formula values
+  const credR = (nConf * 1.0 + cit * 0.2).toFixed(1);
+  const credS = (nContra * 1.0 + emo * 0.3 + nUnv * 0.4).toFixed(1);
+  const credW = 2;
+  const credRaw = ((parseFloat(credR) + credW * dt) / (parseFloat(credR) + parseFloat(credS) + credW) * 100).toFixed(1);
+
+  const transRaw = ((cit + 2 * 0.3) / (cit + 2) * 100).toFixed(1);
+
+  const objK = Math.max(8, Math.floor(tw / 50));
+  const objS = Math.min(emo, objK);
+  const objR = objK - objS;
+  const objRaw = ((objR + 2 * 0.5) / (objR + objS + 2) * 100).toFixed(1);
+
+  const credColor = (c.credibility || 0) >= 70 ? 'var(--green)' : (c.credibility || 0) >= 40 ? 'var(--yellow)' : 'var(--red)';
+  const transColor = (c.transparency || 0) >= 70 ? 'var(--green)' : (c.transparency || 0) >= 40 ? 'var(--yellow)' : 'var(--red)';
+  const objColor = (c.objectivity || 0) >= 70 ? 'var(--green)' : (c.objectivity || 0) >= 40 ? 'var(--yellow)' : 'var(--red)';
+
+  let html = '';
+
+  // Header
+  html += `<div class="analytics-header">
+    <h2>${t('analytics_title')}</h2>
+    <p>${t('analytics_subtitle')}</p>
+  </div>`;
+
+  // Scoring Summary Strip
+  html += `<div class="scoring-strip">
+    <div class="scoring-strip-item">
+      <span class="scoring-strip-val" style="color:var(--green)">${nConf}</span>
+      <span class="scoring-strip-lbl">${t('input_confirmed')}</span>
+    </div>
+    <div class="scoring-strip-item">
+      <span class="scoring-strip-val" style="color:var(--red)">${nContra}</span>
+      <span class="scoring-strip-lbl">${t('input_contradicted')}</span>
+    </div>
+    <div class="scoring-strip-item">
+      <span class="scoring-strip-val" style="color:var(--yellow)">${nUnv}</span>
+      <span class="scoring-strip-lbl">${t('input_unverified')}</span>
+    </div>
+    <div class="scoring-strip-item">
+      <span class="scoring-strip-val">${dt}</span>
+      <span class="scoring-strip-lbl">${t('input_domain_trust')}</span>
+    </div>
+    <div class="scoring-strip-item">
+      <span class="scoring-strip-val" style="color:var(--green)">${cit}</span>
+      <span class="scoring-strip-lbl">${t('input_citations')}</span>
+    </div>
+    <div class="scoring-strip-item">
+      <span class="scoring-strip-val" style="color:var(--red)">${emo}</span>
+      <span class="scoring-strip-lbl">${t('input_emotional')}</span>
+    </div>
+    <div class="scoring-strip-item">
+      <span class="scoring-strip-val">${tw.toLocaleString()}</span>
+      <span class="scoring-strip-lbl">${t('input_total_words')}</span>
+    </div>
+  </div>`;
+
+  // Formula Cards Grid (3 columns)
+  html += `<div class="formulas-grid">`;
+
+  // Credibility Card
+  html += `<div class="formula-card">
+    <div class="formula-card-header">
+      <span class="formula-card-title">${t('analytics_credibility')}</span>
+      <span class="formula-card-score" style="color:${credColor}">${Math.round(c.credibility || 0)}</span>
+    </div>
+    <div class="formula-card-subtitle">E(p) = (r + W·a) / (r + s + W) × 100</div>
+    <div class="formula-equation">
+      r = <span class="val">${nConf}</span>×1.0 + <span class="val">${cit}</span>×0.2 = <span class="val">${credR}</span><br>
+      s = <span class="val">${nContra}</span>×1.0 + <span class="val">${emo}</span>×0.3 + <span class="val">${nUnv}</span>×0.4 = <span class="val">${credS}</span><br>
+      a = <span class="val">${dt}</span> <span class="op">(domain trust)</span><br>
+      W = <span class="val">${credW}</span> <span class="op">(weight)</span><br>
+      <span class="op">――――――――――――――――――――――</span><br>
+      E = (<span class="val">${credR}</span> + ${credW}×<span class="val">${dt}</span>) / (<span class="val">${credR}</span> + <span class="val">${credS}</span> + ${credW}) × 100
+    </div>
+    <div class="formula-card-result">= <span class="result-val" style="color:${credColor}">${credRaw} → ${Math.round(c.credibility || 0)}</span></div>
+  </div>`;
+
+  // Transparency Card
+  html += `<div class="formula-card">
+    <div class="formula-card-header">
+      <span class="formula-card-title">${t('analytics_transparency')}</span>
+      <span class="formula-card-score" style="color:${transColor}">${Math.round(c.transparency || 0)}</span>
+    </div>
+    <div class="formula-card-subtitle">E(p) = (r + W·a) / (r + s + W) × 100</div>
+    <div class="formula-equation">
+      r = <span class="val">${cit}</span> <span class="op">(citations found)</span><br>
+      s = <span class="val">0</span><br>
+      a = <span class="val">0.3</span> <span class="op">(uninformative prior)</span><br>
+      W = <span class="val">2</span> <span class="op">(weight)</span><br>
+      <span class="op">――――――――――――――――――――――</span><br>
+      E = (<span class="val">${cit}</span> + 2×<span class="val">0.3</span>) / (<span class="val">${cit}</span> + 0 + 2) × 100
+    </div>
+    <div class="formula-card-result">= <span class="result-val" style="color:${transColor}">${transRaw} → ${Math.round(c.transparency || 0)}</span></div>
+  </div>`;
+
+  // Objectivity Card
+  html += `<div class="formula-card">
+    <div class="formula-card-header">
+      <span class="formula-card-title">${t('analytics_objectivity')}</span>
+      <span class="formula-card-score" style="color:${objColor}">${Math.round(c.objectivity || 0)}</span>
+    </div>
+    <div class="formula-card-subtitle">E(p) = (r + W·a) / (r + s + W) × 100</div>
+    <div class="formula-equation">
+      K = max(8, <span class="val">${tw}</span> / 50) = <span class="val">${objK}</span> <span class="op">(dynamic window)</span><br>
+      s = min(<span class="val">${emo}</span>, <span class="val">${objK}</span>) = <span class="val">${objS}</span><br>
+      r = <span class="val">${objK}</span> - <span class="val">${objS}</span> = <span class="val">${objR}</span><br>
+      a = <span class="val">0.5</span> <span class="op">(neutral prior)</span><br>
+      W = <span class="val">2</span> <span class="op">(weight)</span><br>
+      <span class="op">――――――――――――――――――――――</span><br>
+      E = (<span class="val">${objR}</span> + 2×<span class="val">0.5</span>) / (<span class="val">${objR}</span> + <span class="val">${objS}</span> + 2) × 100
+    </div>
+    <div class="formula-card-result">= <span class="result-val" style="color:${objColor}">${objRaw} → ${Math.round(c.objectivity || 0)}</span></div>
+  </div>`;
+
+  html += `</div>`; // close formulas-grid
+
+  // Evidence Section (2 columns: citations + emotional words)
+  html += `<div class="evidence-section">`;
+
+  // Citations Card
+  const cits = si.found_citations || [];
+  html += `<div class="evidence-card">
+    <div class="evidence-card-title">
+      ${t('analytics_citations_found')}
+      <span class="ev-count">${cits.length}</span>
+    </div>`;
+  if (cits.length > 0) {
+    cits.forEach(c => {
+      html += `<div class="evidence-item">
+        <span class="evidence-icon citation">✓</span>
+        <span class="evidence-text">${esc(c)}</span>
+      </div>`;
+    });
+  } else {
+    html += `<p class="no-evidence">${t('analytics_no_data')}</p>`;
+  }
+  html += `</div>`;
+
+  // Emotional Words Card
+  const emos = si.found_emotional_words || [];
+  html += `<div class="evidence-card">
+    <div class="evidence-card-title">
+      ${t('analytics_emotional_found')}
+      <span class="ev-count">${emos.length}</span>
+    </div>`;
+  if (emos.length > 0) {
+    html += `<div class="emotional-tags">`;
+    emos.forEach(w => {
+      html += `<span class="emotional-tag">${esc(w)}</span>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<p class="no-evidence">${t('analytics_no_data')}</p>`;
+  }
+  html += `</div>`;
+  html += `</div>`; // close evidence-section
+
+  // OSINT Claims Section
+  const claims = analysisResult.extracted_claims || [];
+  if (claims.length > 0) {
+    html += `<div class="osint-section">
+      <div class="evidence-card-title" style="margin-bottom:16px;">
+        ${t('analytics_osint_title')}
+        <span class="ev-count">${claims.length}</span>
+      </div>`;
+    claims.forEach(cl => {
+      const statusClass = cl.status.toLowerCase();
+      const statusLabel = cl.status === 'CONFIRMED' ? t('claim_confirmed') : cl.status === 'CONTRADICTED' ? t('claim_contradicted') : t('claim_unverified');
+      html += `<div class="osint-claim">
+        <span class="osint-badge ${statusClass}">${statusLabel}</span>
+        <div class="osint-claim-text">
+          <span class="osint-claim-para">¶ ${cl.paragraph_id}</span>
+          ${esc(cl.claim_text)}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+  container.classList.add('visible');
 }
 
 
@@ -473,144 +845,223 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
 const API = 'http://127.0.0.1:8000/analyze';
 
 const ARTICLES = [
-  // ─── A: High Quality ───
   {
-    id:"A1", cat:"A", expect:[60,100],
-    title:"Зеленський підписав закон про посилення відповідальності за порушення військового обліку",
-    url:"https://www.pravda.com.ua/news/2025/04/03/7455000/",
-    paragraphs:[
-      "Президент України Володимир Зеленський підписав закон №12121 про посилення адміністративної та кримінальної відповідальності за порушення законодавства у сфері військового обліку.",
-      "Про це повідомляє прес-служба Верховної Ради України із посиланням на офіційний портал ВРУ.",
-      "Закон був ухвалений Верховною Радою 3 квітня 2025 року голосами 264 народних депутатів.",
-      "Згідно з документом, штрафи за неявку до ТЦК зростають з 3400 грн до 25 500 грн. За повторне порушення передбачається кримінальна відповідальність.",
-      "Міністерство оборони України підтримало законопроєкт, зазначивши, що він є необхідним кроком для забезпечення належного рівня мобілізації.",
-      "Правозахисні організації, зокрема Amnesty International Ukraine, висловили занепокоєння щодо пропорційності покарань та закликали до забезпечення права на оскарження.",
+    "id": "A1",
+    "cat": "A",
+    "expect": [
+      55,
+      95
+    ],
+    "title": "Зеленський підписав закон про посилення захисту прав на землю",
+    "url": "https://www.pravda.com.ua/news/2025/01/10/7441234/",
+    "paragraphs": [
+      "Президент України Володимир Зеленський підписав закон, що посилює захист прав власників земельних ділянок, нерухомість на яких була зруйнована внаслідок бойових дій.",
+      "Про це повідомляє пресслужба Верховної Ради України з посиланням на офіційну публікацію в «Голосі України».",
+      "Відповідно до закону, власники зруйнованих будинків зможуть повернути або отримати у власність земельні ділянки за спрощеною процедурою. Закон набуває чинності через 30 днів з моменту публікації.",
+      "Голова парламентського комітету з питань аграрної політики Олександр Гайду зазначив: «Цей закон є важливим кроком для відновлення справедливості щодо постраждалих громадян».",
+      "За даними Міністерства аграрної політики, понад 120 тисяч земельних ділянок потребують перереєстрації у зв'язку з руйнуваннями.",
+      "Світовий банк підтримав ініціативу, зазначивши, що захист майнових прав є ключовим елементом післявоєнного відновлення."
     ]
   },
   {
-    id:"A2", cat:"A", expect:[60,100],
-    title:"EU approves new €50 billion aid package for Ukraine",
-    url:"https://www.reuters.com/world/europe/eu-aid-ukraine-2025/",
-    paragraphs:[
-      "The European Union formally approved a landmark €50 billion aid package for Ukraine on Thursday, marking one of the largest financial commitments by the bloc since the start of the conflict.",
-      "The package, agreed upon by all 27 member states, includes €33 billion in loans and €17 billion in grants to be disbursed over four years from 2024 to 2027.",
-      "European Commission President Ursula von der Leyen stated: 'This facility will provide stable and predictable financial support that Ukraine needs to maintain essential services and begin reconstruction.'",
-      "Hungarian Prime Minister Viktor Orban had previously blocked the measure but agreed after negotiations secured additional review mechanisms.",
-      "Ukrainian President Volodymyr Zelensky praised the decision, calling it 'a signal of unwavering European solidarity.'",
-      "According to the International Monetary Fund, Ukraine's GDP contracted by 29.1% in 2022 but showed recovery signs with 5.3% growth in 2023.",
+    "id": "A2",
+    "cat": "A",
+    "expect": [
+      55,
+      95
+    ],
+    "title": "ЄС ухвалив 20-й пакет санкцій проти Росії з акцентом на криптоактиви",
+    "url": "https://www.bbc.com/ukrainian/articles/c5y6r2k1d78o",
+    "paragraphs": [
+      "Європейський Союз затвердив 20-й пакет економічних санкцій проти Російської Федерації, що вперше масштабно охоплює криптоактиви.",
+      "Рішення було ухвалене Радою ЄС у Брюсселі у квітні 2026 року за підтримки всіх 27 країн-членів.",
+      "За повідомленням Європейської Комісії, новий пакет включає тотальну заборону на надання криптовалютних послуг для осіб та компаній з РФ.",
+      "Верховний представник ЄС Жозеп Боррель зазначив: «Ці заходи спрямовані на закриття лазівок для обходу існуючих санкцій через цифрові валюти».",
+      "Аналітики White & Case відзначають, що до санкційних списків додано понад 2600 осіб та організацій з початку повномасштабного вторгнення.",
+      "Міністерство закордонних справ РФ засудило рішення, назвавши його «деструктивним для глобальної фінансової стабільності»."
     ]
   },
   {
-    id:"A3", cat:"A", expect:[60,100],
-    title:"Нацбанк зберіг облікову ставку на рівні 13% — роз'яснення регулятора",
-    url:"https://www.liga.net/ua/economics/news/nbu-rate-decision-2025",
-    paragraphs:[
-      "Правління Національного банку України на засіданні 24 квітня 2025 року ухвалило рішення зберегти облікову ставку на рівні 13% річних.",
-      "Як зазначається у прес-релізі НБУ, рішення зумовлене збереженням інфляційних ризиків на тлі невизначеності щодо безпекової ситуації.",
-      "Інфляція у березні 2025 року склала 5.8% у річному вимірі, що відповідає прогнозній траєкторії регулятора.",
-      "Голова НБУ Андрій Пишний зазначив на брифінгу: 'Ми продовжуємо цикл пом'якшення монетарної політики, проте темпи залежатимуть від макроекономічних умов'.",
-      "Аналітики Dragon Capital прогнозують зниження ставки до 12% у другій половині 2025 року.",
-      "Курс гривні на міжбанківському ринку залишився стабільним на рівні 41.35 грн за долар після оголошення рішення.",
+    "id": "A3",
+    "cat": "A",
+    "expect": [
+      55,
+      95
+    ],
+    "title": "НБУ знизив облікову ставку: що це означає для економіки",
+    "url": "https://www.liga.net/ua/economics/news/nbu-rate-decision-2025",
+    "paragraphs": [
+      "Національний банк України ухвалив рішення знизити облікову ставку, повідомляє офіційний сайт регулятора.",
+      "Голова НБУ Андрій Пишний під час пресбрифінгу зазначив, що рішення обумовлене уповільненням інфляції.",
+      "За даними Державної служби статистики, індекс споживчих цін у березні 2025 року знизився до 6.8% у річному вимірі.",
+      "Аналітики Dragon Capital прогнозують подальше пом'якшення монетарної політики за умови збереження макроекономічної стабільності.",
+      "Міністерство фінансів підтримало рішення НБУ, зазначивши, що це сприятиме здешевленню кредитування для бізнесу та населення.",
+      "Forbes Ukraine зазначає, що курс гривні залишається стабільним після оголошення рішення регулятора."
     ]
   },
   {
-    id:"A4", cat:"A", expect:[60,100],
-    title:"ISW: Росія перекидає додаткові підрозділи на Покровський напрямок",
-    url:"https://www.ukrinform.ua/rubric-ato/isw-pokrovsk-2025.html",
-    paragraphs:[
-      "Аналітики Інституту вивчення війни (ISW) повідомляють, що командування російських збройних сил перекидає додаткові батальйони на Покровський напрямок.",
-      "У щоденному звіті ISW від 2 квітня зазначається, що Росія зосередила до 40 000 особового складу на ділянці між Покровськом та Селидовим.",
-      "Генеральний штаб ЗСУ за минулу добу зафіксував 87 бойових зіткнень на Донецькому напрямку, з яких 34 — на Покровському відтинку.",
-      "Речник Східного оперативного угруповання полковник Дмитро Ліхогляд повідомив, що втрати противника за минулий тиждень склали понад 3 200 особового складу.",
-      "Координатор стратегічних комунікацій Ради національної безпеки США Джон Кірбі підтвердив, що ситуація на Покровському напрямку залишається 'найбільш напруженою' серед усіх ділянок фронту.",
-    ]
-  },
-
-  // ─── B: Medium Quality ───
-  {
-    id:"B1", cat:"B", expect:[30,75],
-    title:"Рада може ухвалити скандальний законопроєкт вже наступного тижня",
-    url:"https://regional-news.com.ua/politics/rada-scandal-2025",
-    paragraphs:[
-      "Уже наступного тижня Верховна Рада може розглянути вкрай неоднозначний законопроєкт, який викликав бурхливу реакцію суспільства.",
-      "На думку автора цієї статті, ця ініціатива є прямим наслідком лобістських зусиль великих корпорацій, які прагнуть монополізувати ринок.",
-      "Один з нардепів від опозиції, який побажав залишитися анонімним, назвав законопроєкт 'справжньою катастрофою для малого та середнього бізнесу в Україні'.",
-      "Деякі експерти вважають, що прийняття цього закону може призвести до зростання безробіття на 15-20% протягом першого року.",
-      "Водночас прихильники законопроєкту зазначають, що він сприятиме модернізації окремих галузей промисловості та залученню іноземних інвестицій.",
+    "id": "A4",
+    "cat": "A",
+    "expect": [
+      55,
+      95
+    ],
+    "title": "Ukraine receives new EU loan package worth 90 billion euros",
+    "url": "https://www.reuters.com/world/europe/eu-approves-ukraine-aid-package-2026/",
+    "paragraphs": [
+      "The European Union approved a major 90-billion-euro loan package for Ukraine following months of political negotiations.",
+      "European Commission President Ursula von der Leyen announced the decision at a press conference in Brussels on Monday.",
+      "The package includes funds for energy infrastructure reconstruction, military support, and humanitarian assistance, according to an official EU statement.",
+      "NATO Secretary General Mark Rutte welcomed the decision, calling it 'a clear demonstration of European unity in support of Ukraine'.",
+      "The International Monetary Fund noted that the funding is critical for maintaining Ukraine's macroeconomic stability during wartime.",
+      "Poland's Prime Minister Donald Tusk emphasized that the loan reflects the EU's long-term commitment to Ukraine's sovereignty and territorial integrity."
     ]
   },
   {
-    id:"B2", cat:"B", expect:[30,75],
-    title:"Чому ціни на пальне знову зростуть — аналіз для простих людей",
-    url:"https://blog-economics.ua/oil-prices-analysis-2025",
-    paragraphs:[
-      "Після тимчасового зниження ціни на бензин та дизельне паливо знову повзуть угору. Це, мабуть, нікого вже не дивує.",
-      "На мою думку, головна причина — це непомірна жадібність нафтотрейдерів, які використовують будь-яку нагоду для збагачення за рахунок простих громадян.",
-      "За інформацією з неназваних джерел у паливному секторі, маржа на АЗС зараз складає рекордні 8.5 гривень на кожному літрі палива.",
-      "Слід зазначити, що Антимонопольний комітет до цих пір не провів жодного ефективного розслідування щодо картельної змови на паливному ринку.",
-      "Я прогнозую, що до літа середня ціна за літр А-95 перевищить 60 гривень, якщо влада нарешті не вживе рішучих та жорстких заходів.",
+    "id": "B1",
+    "cat": "B",
+    "expect": [
+      25,
+      65
+    ],
+    "title": "Рада може ухвалити скандальний законопроєкт: наслідки будуть жахливі",
+    "url": "https://politeka.net/ua/politics/rada-skandal-2025",
+    "paragraphs": [
+      "Уже наступного тижня Верховна Рада може розглянути вкрай неоднозначний законопроєкт, який загрожує масовими протестами.",
+      "На думку автора, ця ініціатива є прямим наслідком лобістських зусиль великих корпорацій, які контролюють владу.",
+      "Один з нардепів від опозиції, який побажав залишитися анонімним, назвав законопроєкт «катастрофою для малого бізнесу».",
+      "Деякі експерти вважають, що прийняття цього закону призведе до різкого зростання безробіття.",
+      "Водночас прихильники законопроєкту зазначають, що він сприятиме модернізації окремих галузей промисловості."
     ]
   },
   {
-    id:"B3", cat:"B", expect:[30,75],
-    title:"Як український стартап став конкурентом Notion — думка засновника",
-    url:"https://tech-blog-ua.com/startup-notion-competitor/",
-    paragraphs:[
-      "Український стартап з Львова створив інструмент для управління проєктами, який, за словами засновників, може скласти реальну конкуренцію Notion та Trello.",
-      "Команда з 12 інженерів, колишніх працівників SoftServe та Grammarly, залучила 3 мільйони доларів seed-інвестицій від фонду Horizon Capital.",
-      "Головна перевага продукту — використання ШІ для автоматичної пріоритизації завдань. Однак деталі алгоритму засновники не розкривають.",
-      "Скептики зазначають, що конкурувати на глобальному ринку з продуктами рівня Notion вкрай складно без маркетингового бюджету від 50 мільйонів доларів.",
-      "На суб'єктивну думку засновника, унікальна ніша існує серед компаній, які працюють у сфері defence tech та потребують захищеного рішення.",
-    ]
-  },
-
-  // ─── C: Manipulative / Fake ───
-  {
-    id:"C1", cat:"C", expect:[0,20],
-    title:"ЄС офіційно скасовує паперові гроші: Європарламент ухвалив скандальну директиву щодо переходу на «цифру»",
-    url:"https://eu-insider-news.com/world/economy/eu-bans-cash-2024",
-    paragraphs:[
-      "Сьогодні вранці Європейський парламент на закритому засіданні ухвалив безпрецедентне рішення, яке назавжди змінить фінансову систему Європи. Згідно з новою Директивою 2024/89-EU, з 1 грудня 2024 року на всій території Європейського Союзу повністю забороняється використання готівкових коштів для будь-яких транзакцій.",
-      "Як стало відомо з внутрішнього документа, який опинився в розпорядженні нашої редакції, єдиним законним платіжним засобом залишиться виключно цифровий євро (e-Euro), який контролюватиметься Європейським центральним банком.",
-      "«Ми живемо в епоху, коли паперові гроші стали пережитком минулого, який лише сприяє тіньовій економіці та ухиленню від сплати податків. Повна цифровізація — це крок до абсолютно прозорого суспільства», — заявив під час брифінгу новопризначений Комісар з питань фінансового моніторингу Жан-Клод Мартен.",
-      "Згідно з текстом директиви, жителі країн ЄС та туристи мають рівно два з половиною місяці, щоб здати всі свої банкноти та монети до спеціальних пунктів прийому, які будуть облаштовані у відділеннях поліції та поштових офісах.",
-      "Після 1 грудня 2024 року будь-яка спроба розрахуватися готівкою в магазині каратиметься штрафом у розмірі від 5 000 євро, а при повторному порушенні — блокуванням усіх банківських рахунків на 30 днів.",
-      "Експерти вже б'ють на сполох. Відомий економічний аналітик з Мюнхена, доктор Ганс Мюллер, зазначає: «Це катастрофа для літніх людей та малого бізнесу. Крім того, централізована цифрова валюта дозволить чиновникам відстежувати кожну покупку і за бажання одним кліком відключати неугодних громадян від фінансової системи».",
-      "Новина вже викликала хвилю невдоволення. У Відні та Берліні тисячі людей почали стихійно збиратися біля будівель місцевих парламентів, вимагаючи накласти вето на рішення Брюсселя."
+    "id": "B2",
+    "cat": "B",
+    "expect": [
+      25,
+      65
+    ],
+    "title": "Чому ціни на бензин знову злетять у космос — пояснення експерта",
+    "url": "https://autocentre.ua/news/fuel-prices-2025",
+    "paragraphs": [
+      "Після тимчасового зниження ціни на бензин знову повзуть угору, і це вже нікого не дивує.",
+      "Я вважаю, що головна причина — це жадібність нафтотрейдерів, які використовують будь-яку можливість для збагачення.",
+      "За інформацією з неназваних джерел, маржа на АЗС зараз складає рекордні суми за весь час спостережень.",
+      "АМКУ до цих пір не провів жодного ефективного розслідування щодо картельної змови на паливному ринку.",
+      "Можна прогнозувати, що до літа ціна за літр А-95 перевищить 70 гривень, якщо влада не вживе рішучих заходів."
     ]
   },
   {
-    id:"C2", cat:"C", expect:[0,45],
-    title:"ТЕРМІНОВО!!! ВИ НЕ ПОВІРИТЕ ЩО ВІДКРИЛИ ВЧЕНІ!!!",
-    url:"https://clickbait-extreme.com/scientists-discovery/",
-    paragraphs:[
-      "Вчені зробили геніальне відкриття, яке перевернуло уявлення всього наукового світу та шокувало буквально кожного!",
-      "Хоча конкретні деталі тримаються в суворій таємниці, наші ексклюзивні інсайдери повідомили, що це стосується методу лікування від усіх відомих хвороб.",
-      "Підлі фармацевтичні гіганти панічно намагаються приховати цю руйнівну для їхнього бізнесу інформацію, бо вона знищить мільярдні доходи Big Pharma!",
-      "Перешліть це повідомлення мінімум 10 друзям і ви першими отримаєте доступ до ексклюзивних деталей. Хто проігнорує — гірко про це пошкодує!",
+    "id": "B3",
+    "cat": "B",
+    "expect": [
+      25,
+      65
+    ],
+    "title": "Сенсація: нова українська соцмережа може знищити Instagram",
+    "url": "https://ain.ua/2025/03/15/nova-socmerezha-ukraina/",
+    "paragraphs": [
+      "Українські розробники створили нову соціальну мережу, яка, за їхніми словами, здатна повністю витіснити Instagram з ринку.",
+      "Неймовірний стартап вже залучив мільйони доларів інвестицій від невідомих інвесторів.",
+      "Особливістю платформи є використання штучного інтелекту, що робить її абсолютно унікальною.",
+      "Скептики заявляють, що конкурувати з Meta неможливо, але засновник переконаний у своїй геніальності.",
+      "Вже мільйони людей чекають на запуск цієї революційної платформи."
     ]
   },
   {
-    id:"C3", cat:"C", expect:[0,45],
-    title:"Захід цинічно зраджує Україну — таємна підготовка до капітуляції",
-    url:"https://propaganda-analysis.info/west-betrayal-ukraine/",
-    paragraphs:[
-      "Західні покровителі України готують ганебну здачу всіх своїх зобов'язань. Це стає дедалі очевиднішим для кожної мислячої людини.",
-      "Жоден з так званих 'союзників' насправді не зацікавлений у перемозі України. Вони лише цинічно використовують конфлікт для безсоромного збагачення військово-промислових комплексів своїх країн.",
-      "Так званий 'безпековий пакет' від США — це лише жалюгідна подачка, яка нічого принципово не змінить на полі бою. Це знає кожен експерт.",
-      "Наївні та довірливі українці досі вірять у казки про 'євроінтеграцію' та 'членство в НАТО', хоча всі розумні люди давно зрозуміли гірку правду.",
-      "Єдиний можливий шлях для України — це негайні мирні переговори без будь-яких попередніх умов. Будь-яка інша позиція — це прямий шлях до національної катастрофи.",
+    "id": "B4",
+    "cat": "B",
+    "expect": [
+      25,
+      65
+    ],
+    "title": "Лікарі приховують правду: цей продукт лікує все!",
+    "url": "https://healthinfo.ua/articles/sensational-cure-2025",
+    "paragraphs": [
+      "Сенсаційне відкриття у світі медицини перевернуло все, що ми знали про здоров'я.",
+      "Відомі лікарі роками приховували цей простий метод лікування від широкої громадськості.",
+      "Один анонімний нутриціолог розповів нам всю шокуючу правду про фармацевтичну індустрію.",
+      "Люди, які вживають цей продукт, повідомляють про неймовірні результати вже через тиждень.",
+      "Фармацевтичні компанії панікують і намагаються заблокувати цю інформацію в інтернеті."
     ]
   },
+  {
+    "id": "C1",
+    "cat": "C",
+    "expect": [
+      0,
+      40
+    ],
+    "title": "ЄС скасовує готівку: всіх примусово переведуть на цифрові гроші з чипами",
+    "url": "https://eu-insider-news.com/world/economy/eu-bans-cash-2024",
+    "paragraphs": [
+      "Європарламент на закритому засіданні ухвалив скандальну директиву про повну заборону готівки на території всього ЄС.",
+      "За нашими ексклюзивними даними, кожного громадянина змусять імплантувати спеціальний мікрочип для контролю всіх фінансових операцій.",
+      "Експерти попереджають про тотальний цифровий концтабір, який знищить свободу кожного європейця.",
+      "Мільйони людей вийшли на масові протести, але продажні ЗМІ повністю замовчують ці події.",
+      "Єдиний шлях до порятунку — негайна відмова від банківських карток та перехід на бартер."
+    ]
+  },
+  {
+    "id": "C2",
+    "cat": "C",
+    "expect": [
+      0,
+      40
+    ],
+    "title": "США таємно припинили всю допомогу Україні: Конгрес ухвалив секретний указ",
+    "url": "https://truth-news-today.info/usa-ukraine-betrayal",
+    "paragraphs": [
+      "Стало відомо, що Конгрес США на секретному засіданні ухвалив рішення про повне припинення будь-якої допомоги Україні.",
+      "Американські генерали визнали повний і ганебний провал своєї стратегії підтримки Києва.",
+      "Наші джерела у Пентагоні підтверджують, що всі поставки озброєння зупинені ще два місяці тому.",
+      "Наївні українці продовжують вірити у казки про «західну підтримку», хоча вся ця допомога — лише корупційна схема.",
+      "Європа також готується до повного зняття санкцій з Росії протягом найближчих тижнів."
+    ]
+  },
+  {
+    "id": "C3",
+    "cat": "C",
+    "expect": [
+      0,
+      40
+    ],
+    "title": "Польща офіційно вимагає повернути Львів: армія стягується до кордону",
+    "url": "https://slavic-truth.info/poland-demands-lviv-2025",
+    "paragraphs": [
+      "Президент Польщі на терміновому засіданні Сейму висунув ультиматум Україні з вимогою негайно передати Львівську область.",
+      "Польська армія вже концентрує танкові дивізії безпосередньо на кордоні з Україною.",
+      "Західні політики відкрито підтримують розчленування української держави та розділ її територій.",
+      "Зрадники у вищому керівництві України вже ведуть таємні переговори про капітуляцію.",
+      "Єдиний порятунок для нашого народу — негайний союз зі Сходом проти підступного Заходу."
+    ]
+  },
+  {
+    "id": "C4",
+    "cat": "C",
+    "expect": [
+      0,
+      40
+    ],
+    "title": "Секретні біолабораторії НАТО створили вірус для знищення слов'ян",
+    "url": "https://anti-nato-truth.net/biolabs-virus-2025",
+    "paragraphs": [
+      "Незалежні журналісти знайшли беззаперечні докази створення смертоносного вірусу у лабораторіях НАТО під Харковом.",
+      "Цей жахливий вірус спеціально створений для знищення певних етнічних груп слов'янських народів.",
+      "Пентагон категорично відмовляється коментувати ці шокуючі факти, що лише підтверджує їхню провину.",
+      "Всі вакцини, які нав'язують населенню, насправді є частиною масштабної програми геноциду.",
+      "Прокидайтеся, люди! Ваші діти та онуки у смертельній небезпеці від цього глобального заговору!"
+    ]
+  }
 ];
 
-// ─── Render Articles ───
 function renderArticles() {
   const c = document.getElementById('testArticlesContainer');
   const cats = {
     A: { label:"Якісні статті (авторитетні джерела)", desc:"Очікуваний: 60–100" },
     B: { label:"Середня якість (bias / мало джерел)", desc:"Очікуваний: 30–75" },
     C: { label:"Маніпулятивні / фейкові", desc:"Очікуваний: 0–45" },
+    D: { label:"Реклама / Спам / Нерелевантні", desc:"Очікуваний: 10–60" },
   };
   let html = '', curCat = '';
   for (const a of ARTICLES) {
@@ -628,9 +1079,27 @@ function renderArticles() {
         '<span class="ta-expect ta-expect-' + a.cat.toLowerCase() + '">Очікуваний: ' + a.expect[0] + '–' + a.expect[1] + '</span>' +
       '</div>' +
       '<div class="ta-result" id="res-' + a.id + '"><span class="ta-status" style="color:var(--text-sec)">Pending</span></div>' +
-    '</div>';
+    '</div>' +
+    '<div class="test-detail-panel" id="detail-' + a.id + '" style="display:none;"></div>';
   }
   c.innerHTML = html;
+  
+  // Bind click to open detail panel
+  document.querySelectorAll('.test-article').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.id.replace('row-', '');
+      const detailEl = document.getElementById('detail-' + id);
+      if (detailEl && detailEl.innerHTML.trim() !== '') {
+        const isVisible = detailEl.style.display === 'block';
+        document.querySelectorAll('.test-detail-panel').forEach(p => p.style.display = 'none');
+        document.querySelectorAll('.test-article.expanded').forEach(r => r.classList.remove('expanded'));
+        if (!isVisible) {
+          detailEl.style.display = 'block';
+          el.classList.add('expanded');
+        }
+      }
+    });
+  });
 }
 renderArticles();
 
@@ -702,13 +1171,40 @@ async function runAllTests() {
       testResults.push({
         id: a.id, cat: a.cat, title: a.title, score: score, expected: lo + '-' + hi,
         pass: pass, elapsed: elapsed,
-        src: data.criteria.source_verification,
+        acc: data.criteria.credibility,
+        auth: data.criteria.transparency,
         obj: data.criteria.objectivity,
-        head: data.criteria.headline_relevance,
-        dens: data.criteria.factual_density,
-        logic: data.criteria.logical_consistency,
         highlights: (data.highlights || []).length,
+        full_response: data
       });
+
+      // Render detail panel HTML
+      const dEl = document.getElementById('detail-' + a.id);
+      if (dEl) {
+        let dHtml = '<div class="td-grid">';
+        dHtml += '<div class="td-col"><h4>Аналіз</h4><p><b>Credibility:</b> ' + Math.round(data.criteria.credibility||0) + '</p><p><b>Transparency:</b> ' + Math.round(data.criteria.transparency||0) + '</p><p><b>Objectivity:</b> ' + Math.round(data.criteria.objectivity||0) + '</p></div>';
+        
+        const hlCount = (data.highlights || []).length;
+        dHtml += '<div class="td-col"><h4>Проблеми (' + hlCount + ')</h4><ul class="td-list">';
+        (data.highlights || []).slice(0,3).forEach(h => {
+           dHtml += '<li><span style="color:var(--' + (h.severity==='risk'?'red':'yellow') + ')">●</span> ' + esc(h.reason || h.category) + '</li>';
+        });
+        if(hlCount > 3) dHtml += '<li>...та ще ' + (hlCount-3) + '</li>';
+        dHtml += '</ul></div>';
+
+        const clCount = (data.extracted_claims || []).length;
+        dHtml += '<div class="td-col"><h4>Тези (' + clCount + ')</h4><ul class="td-list">';
+        (data.extracted_claims || []).slice(0,3).forEach(c => {
+           const col = c.status === 'CONFIRMED' ? 'green' : (c.status === 'CONTRADICTED' ? 'red' : 'yellow');
+           dHtml += '<li><span style="color:var(--' + col + ')">■</span> ' + esc(c.claim_text).substring(0,60) + '...</li>';
+        });
+        if(clCount > 3) dHtml += '<li>...та ще ' + (clCount-3) + '</li>';
+        dHtml += '</ul></div>';
+
+        dHtml += '</div>';
+        if (data.explainer) dHtml += '<div class="td-explainer"><b>AI Підсумок:</b> ' + esc(data.explainer) + '</div>';
+        dEl.innerHTML = dHtml;
+      }
 
     } catch(e) {
       row.className = 'test-article failed';
@@ -753,10 +1249,10 @@ function showSummary() {
 
 function exportCSV() {
   if (!testResults.length) { alert('Run tests first!'); return; }
-  let csv = 'ID,Category,Title,Score,Expected,Pass,Elapsed_s,Source,Objectivity,Headline,Density,Logic,Highlights\n';
+  let csv = 'ID,Category,Title,Score,Expected,Pass,Elapsed_s,Accuracy,Authority,Objectivity,Highlights\n';
   for (const r of testResults) {
     if (r.score === undefined) continue;
-    csv += r.id + ',' + r.cat + ',"' + r.title + '",' + r.score + ',' + r.expected + ',' + (r.pass?'YES':'NO') + ',' + r.elapsed + ',' + r.src + ',' + r.obj + ',' + r.head + ',' + r.dens + ',' + r.logic + ',' + r.highlights + '\n';
+    csv += r.id + ',' + r.cat + ',"' + r.title + '",' + r.score + ',' + r.expected + ',' + (r.pass?'YES':'NO') + ',' + r.elapsed + ',' + r.acc + ',' + r.auth + ',' + r.obj + ',' + r.highlights + '\n';
   }
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
@@ -933,9 +1429,21 @@ function renderWriteResults(analysisResult, paragraphs, title, url) {
       <p class="sidebar-title">${t('found_issues')}</p>
       <ul class="hl-summary-list" id="write-highlights"></ul>
     </div>
+    <div class="sidebar-card" id="write-ml-card">
+      <p class="sidebar-title">${t('ai_metrics')}</p>
+      <ul class="criteria-list" id="write-ml-metrics"></ul>
+    </div>
     <div class="sidebar-card" id="write-explainer-card">
       <p class="sidebar-title">${t('ai_summary')}</p>
       <p class="explainer-text" id="write-explainer"></p>
+    </div>
+    <div class="sidebar-card" id="write-inputs-card" style="display:none;">
+      <p class="sidebar-title">${t('scoring_inputs')}</p>
+      <div class="inputs-grid" id="write-inputs"></div>
+    </div>
+    <div class="sidebar-card" id="write-claims-card" style="display:none;">
+      <p class="sidebar-title">${t('extracted_claims')}</p>
+      <ul class="claims-list" id="write-claims"></ul>
     </div>
   `;
   sidebarEl.innerHTML = sidebarHTML;
