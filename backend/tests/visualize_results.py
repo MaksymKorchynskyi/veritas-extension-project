@@ -92,9 +92,9 @@ def chart_trust_by_category(results):
 
 def chart_radar(results):
     """Radar chart comparing criteria across A vs C categories."""
-    criteria_keys = ["source_verification", "objectivity", "headline_relevance",
-                     "factual_density", "logical_consistency"]
-    criteria_labels = ["Джерела", "Об'єктив.", "Заголовок", "Факти", "Логіка"]
+    criteria_keys = ["credibility", "transparency", "objectivity"]
+    
+    criteria_labels = ["Точність (Acc)", "Джерела (Auth)", "Об'єктивність (Obj)"]
 
     fig, ax = plt.subplots(figsize=(7, 7), subplot_kw=dict(polar=True))
     fig.patch.set_facecolor(BG_COLOR)
@@ -173,9 +173,9 @@ def chart_scatter(results):
 
 def chart_criteria_heatmap(results):
     """Heatmap of all criteria for each article — great for coursework."""
-    criteria_keys = ["source_verification", "objectivity", "headline_relevance",
-                     "factual_density", "logical_consistency"]
-    criteria_labels = ["Src", "Obj", "Head", "Dens", "Logic"]
+    criteria_keys = ["credibility", "transparency", "objectivity"]
+    
+    criteria_labels = ["Acc", "Auth", "Obj"]
 
     ids = [r["id"] for r in results]
     data = []
