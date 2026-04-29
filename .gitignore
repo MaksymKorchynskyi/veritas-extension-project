@@ -14,3 +14,4 @@ __pycache__/
 #Logs
 backend/uvicorn.log
 backend/uvicorn.pid
+docs/
