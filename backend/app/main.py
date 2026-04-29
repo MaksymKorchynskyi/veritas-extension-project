@@ -2,15 +2,20 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as api_router
-from app.services.ml.ml_models import ml_service
 import logging
+
+# Configure logging to show all agent chain-of-thought reasoning
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    datefmt="%H:%M:%S"
+)
 
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up VERITAS API...")
-    ml_service.initialize()
     yield
     logger.info("Shutting down VERITAS API...")
 

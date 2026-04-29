@@ -5,8 +5,6 @@ lxml
 google-genai
 python-dotenv
 pydantic
-duckduckgo-search
+ddgs
 instructor
 jsonref
-transformers
-torch

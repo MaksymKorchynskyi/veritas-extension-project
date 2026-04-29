@@ -4,7 +4,8 @@ from typing import Dict, Tuple
 from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import AnalysisRequest, AnalysisResponse
-from app.services.pipeline import process_article, get_domain
+from app.services.pipeline import process_article
+from app.utils import get_domain
 
 router = APIRouter()
 
@@ -12,7 +13,7 @@ router = APIRouter()
 _analysis_cache: Dict[str, Tuple[float, AnalysisResponse]] = {}
 CACHE_TTL = 3600 * 12  # 12 hours
 
-@router.post("/analyze", response_model=AnalysisResponse)
+@router.post("/analyze", response_model=AnalysisResponse) 
 async def analyze_article(request: AnalysisRequest):
     """
     Analyze article credibility using the VERITAS Hybrid AI Pipeline.
