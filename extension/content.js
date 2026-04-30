@@ -1,28 +1,16 @@
-/**
- * VERITAS Content Script
- * Readability.js-Based Article Extraction + Indexed Paragraphs
- * Phase 6 - Enterprise Architecture
- */
 
-// Guard against duplicate injection
+
 if (window.__VERITAS_LOADED__) {
     console.log('[VERITAS] Script already loaded, skipping.');
 } else {
     window.__VERITAS_LOADED__ = true;
 
-    // =============================================================================
-    // UTILITIES
-    // =============================================================================
 
     let veritasParagraphCounter = 0;
 
     function assignObjectIdsToOriginalDOM() {
-        // Tag all meaningful text containers in original DOM with IDs BEFORE parsing.
-        // This ensures the IDs are preserved when Readability clones the DOM.
         const blocks = document.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote, div');
         blocks.forEach(block => {
-            // Only tag if it doesn't already have children that are block elements
-            // (we want leaf nodes or simple text wrappers)
             if (block.children.length === 0 || block.tagName.toLowerCase() === 'p') {
                 const text = block.innerText || block.textContent;
                 if (text && text.trim().length > 30) {
@@ -56,29 +44,21 @@ if (window.__VERITAS_LOADED__) {
         return doc;
     }
 
-    // =============================================================================
-    // MAIN EXTRACTION: Readability
-    // =============================================================================
 
     function extractArticleData() {
         console.log('[VERITAS] Extracting from', window.location.hostname);
 
         try {
-            // Check if Readability is available
             if (typeof Readability === 'undefined') {
                 throw new Error('Readability.js not loaded');
             }
 
-            // 1. Tag original DOM so that highlights perfectly map back later
             assignObjectIdsToOriginalDOM();
 
-            // 2. Clone the DOM so we don't destroy page layout during cleanups
             let clonedDoc = document.cloneNode(true);
             
-            // 3. Pre-clean obvious noise
             clonedDoc = preCleanDOM(clonedDoc);
 
-            // 4. Parse cleanly
             const reader = new Readability(clonedDoc);
             const article = reader.parse();
 
@@ -86,7 +66,6 @@ if (window.__VERITAS_LOADED__) {
                 throw new Error('Readability returned null or empty content');
             }
 
-            // 5. Post-process: Extract the array of paragraphs that Readability kept
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = article.content;
             
@@ -95,7 +74,6 @@ if (window.__VERITAS_LOADED__) {
             
             taggedNodes.forEach(node => {
                 const text = node.textContent.trim();
-                // Filter out empty or tiny fragments
                 if (text.length > 20) {
                     paragraphs.push({
                         id: parseInt(node.getAttribute('data-veritas-id'), 10),
@@ -121,8 +99,6 @@ if (window.__VERITAS_LOADED__) {
             };
         } catch (e) {
             console.error('[VERITAS] Extraction error:', e.message);
-            // Fallback strategy: just snatch ALL tagged paragraphs from the raw body.
-            // This bypasses Readability's smart filtering, but guarantees SOMETHING returns.
             const fallbackParagraphs = [];
             document.body.querySelectorAll('[data-veritas-id]').forEach(node => {
                 const text = node.innerText || node.textContent;
@@ -152,9 +128,6 @@ if (window.__VERITAS_LOADED__) {
     }
 
 
-    // =============================================================================
-    // PRECISE HIGHLIGHTING (O(1) Element Lookup via ID)
-    // =============================================================================
 
     function applyHighlights(highlights) {
         if (!highlights || highlights.length === 0) {
@@ -177,8 +150,6 @@ if (window.__VERITAS_LOADED__) {
                 console.log(`[VERITAS] Found target for ID ${h.paragraph_id}. Wrapping.`);
                 
                 try {
-                    // Wrap the element's INNER contents. Better than range selection because 
-                    // this element was exactly the boundary of the text.
                     const span = document.createElement('span');
                     span.className = `veritas-highlight veritas-${h.severity || 'warning'}`;
                     span.dataset.reason = h.reason || 'Ця ділянка тексту містить маніпуляції.';
@@ -192,7 +163,6 @@ if (window.__VERITAS_LOADED__) {
                         span.style.cssText = 'background-color: #fff176 !important; color: black !important; padding: 2px 4px !important; border-radius: 3px !important; display: inline-block;';
                     }
 
-                    // Move all inner content of the targetElement into our highlight span, then append the span.
                     while (targetElement.firstChild) {
                         span.appendChild(targetElement.firstChild);
                     }
@@ -223,9 +193,6 @@ if (window.__VERITAS_LOADED__) {
     }
 
 
-    // =============================================================================
-    // TOOLTIP SYSTEM (Coffee Edition Design)
-    // =============================================================================
 
     function injectTooltipStyles() {
         if (document.getElementById('veritas-tooltip-styles')) return;
@@ -491,9 +458,6 @@ if (window.__VERITAS_LOADED__) {
     }
 
 
-    // =============================================================================
-    // MESSAGE LISTENER
-    // =============================================================================
 
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log('[VERITAS] Message:', request.action);
@@ -527,7 +491,6 @@ if (window.__VERITAS_LOADED__) {
                     break;
                 case 'toggleHighlights':
                     if (request.enabled) {
-                        // Re-apply stored highlights
                         const stored = window.__VERITAS_HIGHLIGHTS__ || [];
                         if (stored.length > 0) {
                             const toggleResult = applyHighlights(stored);
@@ -538,7 +501,6 @@ if (window.__VERITAS_LOADED__) {
                             sendResponse({ applied: 0 });
                         }
                     } else {
-                        // Remove highlights but keep data in memory
                         removeHighlights();
                         sendResponse({ removed: true });
                     }

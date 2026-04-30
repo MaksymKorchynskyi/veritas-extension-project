@@ -11,7 +11,7 @@
 <body>
   <div class="container">
 
-    <!-- Hero Section: Always Visible -->
+    
     <header class="hero">
       <h1 class="brand">Veritas</h1>
       <p class="tagline" data-i18n="tagline">News Credibility Analyzer</p>
@@ -34,7 +34,7 @@
       </div>
     </header>
 
-    <!-- State: Initial (Show Analyze Button) -->
+    
     <section class="state-initial" id="stateInitial">
       <div class="hero-score hero-score--empty">
         <span class="score-placeholder">?</span>
@@ -43,7 +43,7 @@
       <p class="hint" data-i18n="hint_click">Click to assess article credibility</p>
     </section>
 
-    <!-- State: Analyzing -->
+    
     <section class="state-analyzing hidden" id="stateAnalyzing">
       <div class="hero-score hero-score--loading">
         <div class="spinner"></div>
@@ -57,9 +57,9 @@
       <button class="btn-secondary" id="resetBtn" style="margin-top: 15px;" data-i18n="cancel">Cancel</button>
     </section>
 
-    <!-- State: Results -->
+    
     <section class="state-results hidden" id="stateResults">
-      <!-- Hero Score Circle with SVG Ring -->
+      
       <div class="hero-score-wrapper" id="heroScoreWrapper">
         <svg class="score-ring" viewBox="0 0 140 140" width="140" height="140">
           <circle class="score-ring__track" cx="70" cy="70" r="62" fill="none" stroke-width="6"/>
@@ -72,10 +72,10 @@
         </div>
       </div>
 
-      <!-- Toggle for Details -->
+      
       <button class="btn-link" id="toggleDetails" data-i18n="view_breakdown">View Detailed Breakdown</button>
 
-      <!-- Highlight Navigator -->
+      
       <div class="highlight-navigator hidden" id="highlightNavigator">
         <p class="navigator-title" data-i18n="found_issues">Found Issues</p>
         <div class="highlight-badges">
@@ -95,11 +95,11 @@
         </div>
       </div>
 
-      <!-- Hidden Accordion Section -->
+      
       <div class="details-panel hidden" id="detailsPanel">
-        <!-- Radar Chart Container -->
+        
         <div class="radar-chart-container" id="radarChartContainer">
-          <!-- SVG radar chart will be injected by JS -->
+          
         </div>
 
         <div class="metrics-list">
@@ -117,17 +117,17 @@
           </div>
         </div>
 
-        <!-- Explainer at the bottom -->
+        
         <div class="explainer-section">
           <p class="explainer-text" id="explainerText"></p>
         </div>
       </div>
 
-      <!-- Re-analyze -->
+      
       <button class="btn-secondary" id="reanalyzeBtn" data-i18n="analyze_again">Analyze Again</button>
     </section>
 
-    <!-- State: Error -->
+    
     <section class="state-error hidden" id="stateError">
       <div class="hero-score hero-score--error">
         <span class="error-icon">!</span>
@@ -136,7 +136,7 @@
       <button class="btn-secondary" id="retryBtn" data-i18n="try_again">Try Again</button>
     </section>
 
-    <!-- State: Settings -->
+    
     <section class="state-settings hidden" id="stateSettings">
       <h2 data-i18n="settings_title" style="margin-bottom: 20px; text-align: center;">Settings</h2>
       
@@ -159,7 +159,7 @@
       <button class="btn-secondary" id="backToAnalysisBtn" data-i18n="back_to_analysis">Back to Analysis</button>
     </section>
 
-    <!-- Footer -->
+    
     <footer class="footer">
       <div class="connection-indicator">
         <span class="dot-status" id="connectionDot"></span>

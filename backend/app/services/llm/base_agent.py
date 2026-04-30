@@ -1,8 +1,3 @@
-"""
-Base Agent — Gemini API interaction via Instructor.
-Provides a generic `run_agent()` wrapper with structured output and retry logic.
-"""
-
 import os
 import logging
 import asyncio
@@ -70,7 +65,6 @@ async def run_agent(prompt: str, system_instruction: str, response_schema: Type[
                 ),
             )
 
-            # Log chain-of-thought reasoning if available
             if hasattr(response, "raw_thoughts") and response.raw_thoughts:
                 logger.info(
                     f"\n{'='*60}\n"

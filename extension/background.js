@@ -1,16 +1,9 @@
-/**
- * VERITAS Background Service Worker
- * Handles persistent analysis that survives popup close
- */
+
 
 const BASE_URL = "http://127.0.0.1:8000";
 
-// =============================================================================
-// STORAGE HELPERS
-// =============================================================================
 
 async function getStorageKey(url) {
-    // SHA-256 hash for collision-free cache keys
     if (!url) return 'analysis_unknown';
 
     try {
@@ -21,7 +14,6 @@ async function getStorageKey(url) {
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         return `analysis_${hashHex.substring(0, 32)}`;
     } catch (e) {
-        // Fallback for edge cases
         console.warn('[VERITAS BG] Hash failed, using fallback:', e.message);
         return `analysis_${btoa(url).substring(0, 40)}`;
     }
@@ -45,8 +37,6 @@ async function saveAnalysisResult(url, data, extractedParagraphs, articleTitle) 
         [key]: data,
         [`timestamp_${key}`]: Date.now()
     };
-    // Persist extracted paragraphs alongside the analysis result (keyed by URL)
-    // so parsed_text.html can retrieve them even after tab state is cleared
     if (extractedParagraphs) {
         storagePayload[`paragraphs_${key}`] = extractedParagraphs;
         storagePayload[`url_${key}`] = url;
@@ -65,7 +55,6 @@ async function getAnalysisResult(url) {
     if (result[key]) {
         const timestamp = result[`timestamp_${key}`] || 0;
         const age = Date.now() - timestamp;
-        // Cache valid for 1 hour
         if (age < 3600000) {
             console.log('[VERITAS BG] Cache hit for:', url.substring(0, 50));
             return result[key];
@@ -75,15 +64,11 @@ async function getAnalysisResult(url) {
 }
 
 
-// =============================================================================
-// ANALYSIS ORCHESTRATION
-// =============================================================================
 
 async function performAnalysis(tabId, tabUrl) {
     console.log('[VERITAS BG] Starting analysis for tab:', tabId);
 
     try {
-        // Update state: analyzing (store URL for stale-state detection)
         await setAnalysisState(tabId, {
             status: 'analyzing',
             step: 1,
@@ -91,10 +76,8 @@ async function performAnalysis(tabId, tabUrl) {
             url: tabUrl
         });
 
-        // Step 1: Extract content from tab
         let extractedData;
 
-        // Check if content script already loaded via ping
         let scriptReady = false;
         try {
             const pingResponse = await chrome.tabs.sendMessage(tabId, { action: 'ping' });
@@ -104,7 +87,6 @@ async function performAnalysis(tabId, tabUrl) {
             console.log('[VERITAS BG] Ping failed, will inject script');
         }
 
-        // Inject only if not already loaded
         if (!scriptReady) {
             try {
                 await chrome.scripting.executeScript({
@@ -118,11 +100,9 @@ async function performAnalysis(tabId, tabUrl) {
             }
         }
 
-        // Now try to extract content
         try {
             const response = await chrome.tabs.sendMessage(tabId, { action: 'extractContent' });
             if (!response?.success) {
-                // Handle "Text too short" as a user-friendly message
                 const errorMsg = response?.error || 'Extraction failed';
                 if (errorMsg.includes('too short')) {
                     throw new Error('Not enough text on this page. Try on an article page.');
@@ -140,7 +120,6 @@ async function performAnalysis(tabId, tabUrl) {
 
         console.log('[VERITAS BG] Extracted:', extractedData.wordCount, 'words');
 
-        // Update state: step 2
         await setAnalysisState(tabId, {
             status: 'analyzing',
             step: 2,
@@ -148,7 +127,6 @@ async function performAnalysis(tabId, tabUrl) {
             url: tabUrl
         });
 
-        // Step 2: Call backend API with Readability-extracted content
         const storage = await chrome.storage.local.get(['appLanguage']);
         const lang = storage.appLanguage || 'uk';
         
@@ -167,7 +145,6 @@ async function performAnalysis(tabId, tabUrl) {
         if (!apiResponse.ok) {
             const err = await apiResponse.json().catch(() => ({}));
             let errMsg = err.detail || `Server error: ${apiResponse.status}`;
-            // If FastAPI validation error (422), detail is an array of objects
             if (typeof errMsg === 'object') {
                 errMsg = JSON.stringify(errMsg);
             }
@@ -177,10 +154,8 @@ async function performAnalysis(tabId, tabUrl) {
         const analysisResult = await apiResponse.json();
         console.log('[VERITAS BG] Analysis complete, score:', analysisResult.trust_score);
 
-        // Save result to storage
         await saveAnalysisResult(tabUrl, analysisResult, extractedData.paragraphs, extractedData.title);
 
-        // Update state: complete
         await setAnalysisState(tabId, {
             status: 'complete',
             step: 3,
@@ -191,7 +166,6 @@ async function performAnalysis(tabId, tabUrl) {
             articleTitle: extractedData.title
         });
 
-        // Apply highlights if any (respecting user setting)
         if (analysisResult.highlights?.length > 0) {
             try {
                 const hlSetting = await chrome.storage.local.get(['highlightsEnabled']);
@@ -223,9 +197,6 @@ async function performAnalysis(tabId, tabUrl) {
 }
 
 
-// =============================================================================
-// MESSAGE LISTENER
-// =============================================================================
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('[VERITAS BG] Message received:', request.action);
@@ -233,7 +204,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'START_ANALYSIS') {
         const { tabId, tabUrl } = request;
 
-        // Run analysis in background (async)
         performAnalysis(tabId, tabUrl)
             .then(result => {
                 console.log('[VERITAS BG] Analysis finished successfully');
@@ -242,7 +212,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 console.error('[VERITAS BG] Analysis failed:', error.message);
             });
 
-        // Respond immediately that analysis has started
         sendResponse({ started: true });
         return false; // Sync response
     }
@@ -264,7 +233,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if (request.action === 'GET_CACHED_FULL') {
-        // Returns analysis result + extracted paragraphs + url, keyed by URL
         const { url } = request;
         (async () => {
             const key = await getStorageKey(url);
@@ -297,23 +265,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 
-// =============================================================================
-// AUTO-CLEAR STATE ON TAB NAVIGATION
-// =============================================================================
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    // When a tab navigates to a new URL, clear old analysis state
     if (changeInfo.url) {
         console.log('[VERITAS BG] Tab', tabId, 'navigated to:', changeInfo.url.substring(0, 60));
-        // Clear the analysis state for this tab so popup shows fresh "Analyze" button
         chrome.storage.local.remove([`state_${tabId}`]);
     }
 });
 
 
-// =============================================================================
-// HEALTH CHECK
-// =============================================================================
 
 chrome.runtime.onInstalled.addListener(() => {
     console.log('[VERITAS BG] Extension installed/updated');

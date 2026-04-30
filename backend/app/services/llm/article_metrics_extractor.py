@@ -1,8 +1,3 @@
-"""
-Article Metrics Extractor: Linguistic and structural analyzer for the BRS Scoring Framework.
-Extracts verifiable citation counts and manipulative linguistic markers from article text.
-"""
-
 from app.services.llm.base_agent import run_agent
 from app.models.schemas import JudgeEvaluation
 

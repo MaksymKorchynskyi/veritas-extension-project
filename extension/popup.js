@@ -1,15 +1,7 @@
-/**
- * VERITAS Popup Script
- * Communicates with background.js for persistent analysis
- * Progressive disclosure UI
- */
 
-// =============================================================================
-// DOM ELEMENTS
-// =============================================================================
+
 
 const el = {
-    // Buttons
     analyzeBtn: document.getElementById('analyzeBtn'),
     reanalyzeBtn: document.getElementById('reanalyzeBtn'),
     retryBtn: document.getElementById('retryBtn'),
@@ -20,20 +12,17 @@ const el = {
     languageSelect: document.getElementById('languageSelect'),
     highlightsToggle: document.getElementById('highlightsToggle'),
     
-    // States
     stateInitial: document.getElementById('stateInitial'),
     stateAnalyzing: document.getElementById('stateAnalyzing'),
     stateResults: document.getElementById('stateResults'),
     stateError: document.getElementById('stateError'),
     stateSettings: document.getElementById('stateSettings'),
 
-    // Analyzing
     statusText: document.getElementById('statusText'),
     dot1: document.getElementById('dot1'),
     dot2: document.getElementById('dot2'),
     dot3: document.getElementById('dot3'),
 
-    // Results
     heroScore: document.getElementById('heroScore'),
     heroScoreWrapper: document.getElementById('heroScoreWrapper'),
     scoreValue: document.getElementById('scoreValue'),
@@ -45,7 +34,6 @@ const el = {
     metricObjectivity: document.getElementById('metricObjectivity'),
     explainerText: document.getElementById('explainerText'),
 
-    // Highlight Navigator
     highlightNavigator: document.getElementById('highlightNavigator'),
     badgeWarnings: document.getElementById('badgeWarnings'),
     badgeRisks: document.getElementById('badgeRisks'),
@@ -56,10 +44,8 @@ const el = {
     nextHighlight: document.getElementById('nextHighlight'),
     navPosition: document.getElementById('navPosition'),
 
-    // Error
     errorText: document.getElementById('errorText'),
 
-    // Footer
     connectionDot: document.getElementById('connectionDot'),
     connectionText: document.getElementById('connectionText')
 };
@@ -70,7 +56,6 @@ let pollInterval = null;
 let currentHighlights = [];
 let currentHighlightIndex = 0;
 
-// Dynamic loading status messages timer
 let loadingStatusTimer = null;
 let loadingStatusIndex = 0;
 
@@ -126,9 +111,6 @@ const translations = {
 
 let currentLanguage = 'uk'; // Default
 
-// =============================================================================
-// DYNAMIC LOADING STATUS MESSAGES
-// =============================================================================
 
 const loadingMessages = {
     "uk": [
@@ -152,7 +134,6 @@ function startLoadingStatusCycle() {
     loadingStatusIndex = 0;
 
     const messages = loadingMessages[currentLanguage] || loadingMessages["en"];
-    // Set the first message immediately
     setStatusTextAnimated(messages[0]);
 
     loadingStatusTimer = setInterval(() => {
@@ -168,7 +149,7 @@ function stopLoadingStatusCycle() {
     }
 }
 
-/** Fade-out, swap text, fade-in */
+
 function setStatusTextAnimated(text) {
     if (!el.statusText) return;
     el.statusText.classList.add('fade-out');
@@ -179,28 +160,19 @@ function setStatusTextAnimated(text) {
 }
 
 
-// =============================================================================
-// ANIMATED SCORE RING + COUNTER
-// =============================================================================
 
 const RING_CIRCUMFERENCE = 2 * Math.PI * 62; // ≈ 389.56
 
-/**
- * Animate the score ring fill and numeric counter from 0 → targetScore
- * @param {number} targetScore - The final score value (0-100)
- * @param {number} duration - Animation duration in ms (default 1500)
- */
+
 function animateScoreRing(targetScore, duration = 1500) {
     const ringFill = el.scoreRingFill;
     const scoreDisplay = el.scoreValue;
     if (!ringFill || !scoreDisplay) return;
 
-    // Determine color class
     const colorClass = getScoreClass(targetScore);
     ringFill.classList.remove('score-high', 'score-mid', 'score-low');
     ringFill.classList.add(colorClass);
 
-    // Apply color class to content container too
     el.heroScore?.classList.remove('score-high', 'score-mid', 'score-low');
     el.heroScore?.classList.add(colorClass);
 
@@ -212,27 +184,22 @@ function animateScoreRing(targetScore, duration = 1500) {
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
 
-        // Ease-out cubic
         const ease = 1 - Math.pow(1 - progress, 3);
 
-        // Ring fill
         const currentOffset = RING_CIRCUMFERENCE - (RING_CIRCUMFERENCE - targetOffset) * ease;
         ringFill.setAttribute('stroke-dashoffset', currentOffset.toFixed(2));
 
-        // Number counter
         const currentValue = Math.round(targetScore * ease);
         scoreDisplay.textContent = currentValue;
 
         if (progress < 1) {
             requestAnimationFrame(tick);
         } else {
-            // Final exact values
             ringFill.setAttribute('stroke-dashoffset', targetOffset.toFixed(2));
             scoreDisplay.textContent = Math.round(targetScore);
         }
     }
 
-    // Reset before starting
     ringFill.setAttribute('stroke-dashoffset', RING_CIRCUMFERENCE.toFixed(2));
     scoreDisplay.textContent = '0';
 
@@ -240,19 +207,12 @@ function animateScoreRing(targetScore, duration = 1500) {
 }
 
 
-// =============================================================================
-// SVG PENTAGON RADAR CHART
-// =============================================================================
 
-/**
- * Draw a pentagon radar chart into the radarChartContainer
- * @param {Object} scores - { source, objectivity, headline, density, logic } each 0-100
- */
+
 function drawRadarChart(scores) {
     const container = el.radarChartContainer;
     if (!container) return;
 
-    // Clear previous chart
     container.innerHTML = '';
 
     const size = 210;
@@ -273,13 +233,11 @@ function drawRadarChart(scores) {
     svg.setAttribute('height', '200');
     svg.style.display = 'block';
 
-    // Read CSS variable colors
     const style = getComputedStyle(document.documentElement);
     const borderAccent = style.getPropertyValue('--border-accent').trim() || '#8D6E63';
     const textSecondary = style.getPropertyValue('--text-secondary').trim() || '#795548';
     const textPrimary = style.getPropertyValue('--text-primary').trim() || '#3E2723';
 
-    // Determine fill color based on average score
     const avgScore = values.reduce((a, b) => a + b, 0) / values.length;
     let fillColor, strokeColor;
     if (avgScore >= 70) {
@@ -293,13 +251,8 @@ function drawRadarChart(scores) {
         strokeColor = fillColor;
     }
 
-    /**
-     * Get (x, y) for a pentagon vertex
-     * @param {number} index 0-4
-     * @param {number} radius
-     */
+    
     function getPoint(index, radius) {
-        // Start from top (−90° = −π/2), go clockwise
         const angle = (2 * Math.PI * index) / 3 - Math.PI / 2;
         return {
             x: cx + radius * Math.cos(angle),
@@ -307,7 +260,7 @@ function drawRadarChart(scores) {
         };
     }
 
-    /** Build a polygon points-string from indices 0..2 at given radius */
+    
     function polygonPoints(radius) {
         return Array.from({ length: 3 }, (_, i) => {
             const p = getPoint(i, radius);
@@ -315,7 +268,6 @@ function drawRadarChart(scores) {
         }).join(' ');
     }
 
-    // --- Background grid: 4 concentric polygons ---
     const rings = [0.25, 0.5, 0.75, 1.0];
     rings.forEach(frac => {
         const polygon = document.createElementNS(ns, 'polygon');
@@ -327,7 +279,6 @@ function drawRadarChart(scores) {
         svg.appendChild(polygon);
     });
 
-    // --- Axes (from center to each vertex) ---
     for (let i = 0; i < 3; i++) {
         const p = getPoint(i, maxRadius);
         const line = document.createElementNS(ns, 'line');
@@ -341,7 +292,6 @@ function drawRadarChart(scores) {
         svg.appendChild(line);
     }
 
-    // --- Data polygon ---
     const dataPoints = values.map((v, i) => {
         const r = (v / 100) * maxRadius;
         const p = getPoint(i, r);
@@ -357,7 +307,6 @@ function drawRadarChart(scores) {
     dataPolygon.setAttribute('stroke-linejoin', 'round');
     svg.appendChild(dataPolygon);
 
-    // --- Data point dots ---
     values.forEach((v, i) => {
         const r = (v / 100) * maxRadius;
         const p = getPoint(i, r);
@@ -369,7 +318,6 @@ function drawRadarChart(scores) {
         svg.appendChild(circle);
     });
 
-    // --- Labels ---
     const labelOffsets = [
         { dx: 0, dy: -12 },    // top
         { dx: 14, dy: 14 },    // bottom-right
@@ -389,7 +337,6 @@ function drawRadarChart(scores) {
         text.setAttribute('fill', textSecondary);
         text.textContent = label;
 
-        // Also show value next to label
         const valText = document.createElementNS(ns, 'text');
         valText.setAttribute('x', (p.x + labelOffsets[i].dx).toFixed(2));
         valText.setAttribute('y', (p.y + labelOffsets[i].dy + 10).toFixed(2));
@@ -409,44 +356,34 @@ function drawRadarChart(scores) {
 }
 
 
-// =============================================================================
-// INITIALIZATION
-// =============================================================================
 
 async function init() {
     console.log('[VERITAS Popup] Initializing...');
 
-    // Load language preferences
     const storage = await chrome.storage.local.get(['appLanguage', 'highlightsEnabled']);
     if (storage.appLanguage) {
         currentLanguage = storage.appLanguage;
         if (el.languageSelect) el.languageSelect.value = currentLanguage;
     }
-    // Load highlights toggle (default ON)
     if (el.highlightsToggle) {
         el.highlightsToggle.checked = storage.highlightsEnabled !== false;
     }
     applyTranslations();
 
-    // Get current tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab) {
         currentTabId = tab.id;
         currentTabUrl = tab.url;
     }
 
-    // Bind events
     el.analyzeBtn?.addEventListener('click', startAnalysis);
     el.reanalyzeBtn?.addEventListener('click', startAnalysis);
     el.retryBtn?.addEventListener('click', startAnalysis);
     el.toggleDetails?.addEventListener('click', toggleDetailsPanel);
     el.resetBtn?.addEventListener('click', forceResetState);
     
-    // Settings Binding
     el.settingsBtn?.addEventListener('click', () => showState('settings'));
     el.backToAnalysisBtn?.addEventListener('click', () => {
-        // Just reload the logical state by running init checks again, or just show initial
-        // But safer to just reload popup context fully, or handle states
         window.location.reload(); 
     });
     el.languageSelect?.addEventListener('change', async (e) => {
@@ -455,11 +392,9 @@ async function init() {
         applyTranslations();
     });
 
-    // Highlights toggle
     el.highlightsToggle?.addEventListener('change', async (e) => {
         const enabled = e.target.checked;
         await chrome.storage.local.set({ highlightsEnabled: enabled });
-        // Tell content script to toggle highlights on/off
         if (currentTabId) {
             try {
                 await chrome.tabs.sendMessage(currentTabId, {
@@ -472,22 +407,18 @@ async function init() {
         }
     });
     
-    // Bind new View Parsed Text button
     document.getElementById('viewParsedTextBtn')?.addEventListener('click', () => {
         const encodedUrl = encodeURIComponent(currentTabUrl || '');
         chrome.tabs.create({ url: `parsed_text.html?tabId=${currentTabId}&articleUrl=${encodedUrl}` });
     });
 
-    // Highlight Navigator events
     el.badgeWarnings?.addEventListener('click', () => jumpToHighlight('warning'));
     el.badgeRisks?.addEventListener('click', () => jumpToHighlight('risk'));
     el.prevHighlight?.addEventListener('click', () => navigateHighlight(-1));
     el.nextHighlight?.addEventListener('click', () => navigateHighlight(1));
 
-    // Check server connection
     checkConnection();
 
-    // Check for cached result first (cached by URL, so safe)
     const cached = await getCachedResult();
     if (cached) {
         console.log('[VERITAS Popup] Found cached result');
@@ -495,10 +426,8 @@ async function init() {
         return;
     }
 
-    // Check if analysis is in progress
     const state = await getAnalysisState();
 
-    // Safety check: ignore state if it belongs to a different URL (user navigated away)
     if (state?.url && currentTabUrl && state.url !== currentTabUrl) {
         console.log('[VERITAS Popup] State URL mismatch, clearing stale state');
         await forceResetState();
@@ -519,7 +448,6 @@ async function init() {
         return;
     }
 
-    // Default: show initial state
     showState('initial');
 }
 
@@ -543,16 +471,12 @@ function applyTranslations() {
         }
     });
 
-    // Handle dynamically toggled text safely
     if (el.toggleDetails) {
         const isHidden = el.detailsPanel?.classList.contains('hidden');
         el.toggleDetails.textContent = isHidden ? dict["view_breakdown"] : dict["hide_details"];
     }
 }
 
-// =============================================================================
-// STATE MANAGEMENT
-// =============================================================================
 
 function showState(stateName) {
     el.stateInitial?.classList.add('hidden');
@@ -586,8 +510,6 @@ function showState(stateName) {
 }
 
 function updateProgress(step, message) {
-    // The dynamic loading messages handle status text now,
-    // but we still update dots based on step
     el.dot1?.classList.toggle('active', step >= 1);
     el.dot1?.classList.toggle('done', step > 1);
     el.dot2?.classList.toggle('active', step >= 2);
@@ -596,9 +518,6 @@ function updateProgress(step, message) {
 }
 
 
-// =============================================================================
-// BACKGROUND COMMUNICATION
-// =============================================================================
 
 async function getCachedResult() {
     if (!currentTabUrl) return null;
@@ -632,17 +551,14 @@ async function startAnalysis() {
     showState('analyzing');
     updateProgress(1, 'Extracting content...');
 
-    // Clear previous state
     await chrome.runtime.sendMessage({ action: 'CLEAR_STATE', tabId: currentTabId });
 
-    // Start analysis in background
     chrome.runtime.sendMessage({
         action: 'START_ANALYSIS',
         tabId: currentTabId,
         tabUrl: currentTabUrl
     });
 
-    // Start polling for updates
     startPolling();
 }
 
@@ -674,47 +590,37 @@ function stopPolling() {
 }
 
 
-// =============================================================================
-// RESULTS DISPLAY
-// =============================================================================
 
 function showResults(result) {
     showState('results');
 
     const score = result.trust_score;
 
-    // Apply color class to content container
     el.heroScore?.classList.remove('score-high', 'score-mid', 'score-low');
     el.heroScore?.classList.add(getScoreClass(score));
 
-    // Animate score ring + counter
     animateScoreRing(score);
 
-    // Metrics
     const c = result.criteria || {};
     setMetric(el.metricAccuracy, c.credibility);
     setMetric(el.metricSource, c.transparency);
     setMetric(el.metricObjectivity, c.objectivity);
 
-    // Draw radar chart with the criteria scores
     drawRadarChart({
         accuracy: c.credibility || 0,
         authority: c.transparency || 0,
         objectivity: c.objectivity || 0
     });
 
-    // Explainer
     if (el.explainerText && result.explainer) {
         el.explainerText.textContent = result.explainer;
     }
 
-    // Highlight Navigator
     const highlights = result.highlights || [];
     currentHighlights = highlights;
     currentHighlightIndex = 0;
     updateHighlightNavigator(highlights);
 
-    // Collapse details by default
     el.detailsPanel?.classList.add('hidden');
     const dict = translations[currentLanguage] || translations["uk"];
     if (el.toggleDetails) el.toggleDetails.textContent = dict["view_breakdown"];
@@ -748,9 +654,6 @@ function showError(message) {
 }
 
 
-// =============================================================================
-// HIGHLIGHT NAVIGATOR
-// =============================================================================
 
 function updateHighlightNavigator(highlights) {
     if (!highlights || highlights.length === 0) {
@@ -761,13 +664,11 @@ function updateHighlightNavigator(highlights) {
     const warnings = highlights.filter(h => h.severity === 'warning').length;
     const risks = highlights.filter(h => h.severity === 'risk').length;
 
-    // Hide badge if count is 0
     if (el.warningCount) el.warningCount.textContent = warnings;
     if (el.badgeWarnings) el.badgeWarnings.style.display = warnings > 0 ? '' : 'none';
     if (el.riskCount) el.riskCount.textContent = risks;
     if (el.badgeRisks) el.badgeRisks.style.display = risks > 0 ? '' : 'none';
 
-    // Only show navigator if there's at least one actual badge visible
     if (warnings === 0 && risks === 0) {
         el.highlightNavigator?.classList.add('hidden');
     } else {
@@ -780,7 +681,6 @@ function jumpToHighlight(severity) {
     const filtered = currentHighlights.filter(h => h.severity === severity);
     if (filtered.length === 0) return;
 
-    // Find index in full array
     const targetHighlight = filtered[0];
     currentHighlightIndex = currentHighlights.indexOf(targetHighlight);
 
@@ -824,9 +724,6 @@ function scrollToHighlightInPage(index) {
 }
 
 
-// =============================================================================
-// CONNECTION CHECK
-// =============================================================================
 
 async function checkConnection() {
     try {
@@ -844,8 +741,5 @@ async function checkConnection() {
 }
 
 
-// =============================================================================
-// INIT
-// =============================================================================
 
 document.addEventListener('DOMContentLoaded', init);

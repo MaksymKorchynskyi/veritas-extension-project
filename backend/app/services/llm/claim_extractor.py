@@ -1,7 +1,3 @@
-"""
-Claim Extraction Agent — extracts verifiable claims from article text.
-"""
-
 from app.services.llm.base_agent import run_agent
 from app.models.schemas import FactExtraction
 

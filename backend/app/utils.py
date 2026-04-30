@@ -1,8 +1,3 @@
-"""
-VERITAS Utils
-General utility functions for the Hybrid AI Pipeline.
-"""
-
 from urllib.parse import urlparse
 import logging
 

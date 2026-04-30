@@ -9,7 +9,6 @@ from app.utils import get_domain
 
 router = APIRouter()
 
-# In-memory cache: SHA256(domain+headline+lang) -> (timestamp, AnalysisResponse)
 _analysis_cache: Dict[str, Tuple[float, AnalysisResponse]] = {}
 CACHE_TTL = 3600 * 12  # 12 hours
 
@@ -33,17 +32,14 @@ async def analyze_article(request: AnalysisRequest):
         
     article_domain = get_domain(request.url)
         
-    # Check Cache
     cache_key = hashlib.sha256(f"{article_domain}_{headline}_{request.language}".encode()).hexdigest()
     if cache_key in _analysis_cache:
         cached_time, cached_response = _analysis_cache[cache_key]
         if time.time() - cached_time < CACHE_TTL:
             return cached_response
     
-    # Run the entire Hybrid AI Pipeline
     response = await process_article(request)
     
-    # Save to Cache
     _analysis_cache[cache_key] = (time.time(), response)
     
     return response

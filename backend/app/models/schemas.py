@@ -1,16 +1,7 @@
-"""
-VERITAS Pydantic Models
-========================
-API Request/Response schemas & Gemini Structured Output models.
-"""
-
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-# ─────────────────────────────────────────────────────────────
-# GEMINI STRUCTURED OUTPUT MODELS (Agent responses)
-# ─────────────────────────────────────────────────────────────
 
 class VerifiableClaim(BaseModel):
     """A factual claim extracted by FactExtractionAgent."""
@@ -77,9 +68,6 @@ class DomainReputationResult(BaseModel):
     background_summary: str = Field(..., description="Short description of the domain's reputation")
 
 
-# ─────────────────────────────────────────────────────────────
-# API MODELS (Client ↔ Server)
-# ─────────────────────────────────────────────────────────────
 
 class ParagraphModel(BaseModel):
     """Single paragraph extracted client-side by Readability.js."""

@@ -1,12 +1,5 @@
-/**
- * VERITAS — Parsed Text & Test Dashboard & Write & Analyze
- * Handles tab switching, parsed text display, i18n, and benchmark test runner.
- * Extracted from inline script for Manifest V3 CSP compliance.
- */
 
-// ═══════════════════════════════════════════════════════════════
-// i18n — TRANSLATIONS
-// ═══════════════════════════════════════════════════════════════
+
 const ptTranslations = {
   "uk": {
     "brand_sub": "Аналіз Статей",
@@ -34,11 +27,9 @@ const ptTranslations = {
     "no_analysis_data_msg": "Спершу запустіть аналіз натиснувши \"Аналізувати Цю Статтю\" в попапі.",
     "load_failed": "Помилка Завантаження",
     "no_analysis_msg": "Дані аналізу з'являться тут після запуску аналізу.",
-    // Criteria names
     "cr_source": "Прозорість",
     "cr_objectivity": "Об'єктивність",
     "cr_accuracy": "Достовірність",
-    // Write & Analyze
     "write_title_label": "Заголовок Статті",
     "write_title_placeholder": "Введіть заголовок статті...",
     "write_url_label": "URL Статті",
@@ -114,11 +105,9 @@ const ptTranslations = {
     "no_analysis_data_msg": "Run an analysis first by clicking \"Analyze This Article\" in the popup.",
     "load_failed": "Load Failed",
     "no_analysis_msg": "Analysis data will appear here after running an analysis.",
-    // Criteria names
     "cr_source": "Transparency",
     "cr_objectivity": "Objectivity",
     "cr_accuracy": "Credibility",
-    // Write & Analyze
     "write_title_label": "Article Title",
     "write_title_placeholder": "Enter article title...",
     "write_url_label": "Article URL",
@@ -183,24 +172,19 @@ function applyPageTranslations() {
     const key = el.getAttribute('data-i18n');
     if (dict[key]) el.textContent = dict[key];
   });
-  // Translate placeholders
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
     if (dict[key]) el.placeholder = dict[key];
   });
 }
 
-// ═══════════════════════════════════════════════════════════════
-// LANGUAGE INIT & BACK BUTTON
-// ═══════════════════════════════════════════════════════════════
 (async () => {
-  // Load saved language
   try {
     const storage = await chrome.storage.local.get(['appLanguage']);
     if (storage.appLanguage) {
       ptCurrentLanguage = storage.appLanguage;
     }
-  } catch (e) { /* Not in extension context, use default */ }
+  } catch (e) {  }
 
   const langSelect = document.getElementById('pageLangSelect');
   if (langSelect) {
@@ -210,12 +194,11 @@ function applyPageTranslations() {
       ptCurrentLanguage = e.target.value;
       try {
         await chrome.storage.local.set({ appLanguage: ptCurrentLanguage });
-      } catch (ex) { /* ignore */ }
+      } catch (ex) {  }
       applyPageTranslations();
     });
   }
 
-  // Back to Article button
   const urlParams = new URLSearchParams(window.location.search);
   const articleUrl = urlParams.get('articleUrl') ? decodeURIComponent(urlParams.get('articleUrl')) : null;
   const backBtn = document.getElementById('backToArticleBtn');
@@ -223,7 +206,6 @@ function applyPageTranslations() {
     if (articleUrl) {
       backBtn.href = articleUrl;
       backBtn.addEventListener('click', (e) => {
-        // Navigate current tab to article URL
         e.preventDefault();
         window.location.href = articleUrl;
       });
@@ -234,9 +216,6 @@ function applyPageTranslations() {
 })();
 
 
-// ═══════════════════════════════════════════════════════════════
-// TAB SWITCHING
-// ═══════════════════════════════════════════════════════════════
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -246,7 +225,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-// Check URL params — if ?tab=tests, switch to tests tab
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('tab') === 'tests') {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -260,9 +238,6 @@ if (urlParams.get('tab') === 'tests') {
   document.getElementById('tab-write').classList.add('active');
 }
 
-// ═══════════════════════════════════════════════════════════════
-// TAB 1: PARSED TEXT — Premium Article Reader
-// ═══════════════════════════════════════════════════════════════
 (async () => {
   const tabId = urlParams.get('tabId');
   const articleUrl = urlParams.get('articleUrl') ? decodeURIComponent(urlParams.get('articleUrl')) : null;
@@ -287,11 +262,9 @@ if (urlParams.get('tab') === 'tests') {
     return;
   }
 
-  // ─── Fetch Data (two sources) ───
   let state = null;
   let analysisResult = null;
 
-  // Source 1: Tab state (active session)
   if (tabId) {
     try {
       const data = await chrome.storage.local.get(`state_${tabId}`);
@@ -306,7 +279,6 @@ if (urlParams.get('tab') === 'tests') {
     }
   }
 
-  // Source 2: URL-keyed persistent cache (fallback after reload)
   if (!state && articleUrl) {
     try {
       const response = await new Promise((resolve) => {
@@ -335,13 +307,11 @@ if (urlParams.get('tab') === 'tests') {
     return;
   }
 
-  // ─── Render Article ───
   try {
     const effectiveUrl = state.url || articleUrl || '';
     let hostname = 'Unknown';
     try { hostname = new URL(effectiveUrl).hostname.replace('www.', ''); } catch(_) {}
 
-    // Article title
     const articleTitle = state.articleTitle || '';
     if (articleTitle) {
       titleEl.textContent = articleTitle;
@@ -350,11 +320,9 @@ if (urlParams.get('tab') === 'tests') {
     }
     titleEl.classList.remove('pulse', 'loading-title');
 
-    // Source link
     sourceDomainEl.textContent = hostname;
     urlEl.href = effectiveUrl;
 
-    // Build highlight map: paragraph_id -> highlight data
     const highlightMap = {};
     const actualHighlights = [];
     if (analysisResult?.highlights?.length) {
@@ -366,7 +334,6 @@ if (urlParams.get('tab') === 'tests') {
       }
     }
 
-    // Render paragraphs
     let fullText = '';
     if (state.extractedParagraphs?.length) {
       let h = '';
@@ -400,36 +367,30 @@ if (urlParams.get('tab') === 'tests') {
       document.getElementById('pt-paras').textContent = state.extractedText.split('\n\n').filter(p => p.trim()).length;
     }
 
-    // Stats
     document.getElementById('pt-words').textContent = fullText.trim().split(/\s+/).filter(w => w).length.toLocaleString();
     document.getElementById('pt-chars').textContent = fullText.length.toLocaleString();
     statsBar.style.display = 'flex';
 
-    // Show layout
     layoutEl.style.display = 'grid';
 
-    // ─── Highlight badge click → toggle tooltip ───
     contentEl.querySelectorAll('.hl-badge').forEach(badge => {
       badge.addEventListener('click', () => {
         const tooltipId = badge.dataset.tooltip;
         const tooltip = document.getElementById(tooltipId);
         if (tooltip) {
           const isVisible = tooltip.classList.contains('visible');
-          // Close all other tooltips first
           contentEl.querySelectorAll('.hl-tooltip.visible').forEach(t => t.classList.remove('visible'));
           if (!isVisible) tooltip.classList.add('visible');
         }
       });
     });
 
-    // ─── Populate Analysis Sidebar ───
     const sidebar = document.getElementById('pt-sidebar');
 
     if (analysisResult) {
       renderAnalysisSidebar(analysisResult, actualHighlights, 'sb', contentEl);
       renderAnalyticsDashboard(analysisResult, 'pt-analytics');
     } else {
-      // No analysis result — hide sidebar cards except a notice
       sidebar.innerHTML = `<div class="sidebar-card"><p class="no-highlights-msg">${t('no_analysis_msg')}</p></div>`;
     }
 
@@ -441,11 +402,7 @@ if (urlParams.get('tab') === 'tests') {
 
 function esc(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 
-// ═══════════════════════════════════════════════════════════════
-// SHARED: Render analysis sidebar (used by both parsed text & write tab)
-// ═══════════════════════════════════════════════════════════════
 function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, contentEl) {
-  // Trust Score
   const score = analysisResult.trust_score || 0;
   const scoreEl = document.getElementById(prefix + '-score');
   if (scoreEl) {
@@ -454,10 +411,8 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
     scoreEl.classList.add(score >= 70 ? 'score-high' : score >= 40 ? 'score-mid' : 'score-low');
   }
 
-  // Scoring inputs from backend
   const si = analysisResult.scoring_inputs || {};
 
-  // Criteria with formula panels
   const c = analysisResult.criteria || {};
   const criteriaData = [
     { key: 'credibility', name: t('cr_accuracy'), value: c.credibility, weight: '50%' },
@@ -465,7 +420,6 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
     { key: 'objectivity', name: t('cr_objectivity'), value: c.objectivity, weight: '20%' }
   ];
 
-  // Build formula HTML for each criteria
   function buildFormulaHTML(key, val) {
     const nConf = si.n_confirmed || 0;
     const nContra = si.n_contradicted || 0;
@@ -535,14 +489,12 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
       ${hasInputs ? `<div class="formula-panel" id="${panelId}">${buildFormulaHTML(cr.key, val)}</div>` : ''}`;
     }).join('');
 
-    // Bind click events for formula expansion
     criteriaList.querySelectorAll('.criteria-item[data-panel]').forEach(item => {
       item.addEventListener('click', () => {
         const panelId = item.dataset.panel;
         const panel = document.getElementById(panelId);
         if (!panel) return;
         const isVisible = panel.classList.contains('visible');
-        // Close all panels first
         criteriaList.querySelectorAll('.formula-panel.visible').forEach(p => p.classList.remove('visible'));
         criteriaList.querySelectorAll('.criteria-item.expanded').forEach(i => i.classList.remove('expanded'));
         if (!isVisible) {
@@ -553,7 +505,6 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
     });
   }
 
-  // Highlights in sidebar (only actual highlights that exist)
   const hlList = document.getElementById(prefix + '-highlights');
   const hlCard = document.getElementById(prefix + '-highlights-card');
   if (hlList && actualHighlights.length > 0) {
@@ -567,7 +518,6 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
       </li>`;
     }).join('');
 
-    // Click to scroll to paragraph
     if (contentEl) {
       hlList.querySelectorAll('.hl-summary-item').forEach(item => {
         item.addEventListener('click', () => {
@@ -586,13 +536,11 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
     hlCard.style.display = 'none';
   }
 
-  // ML Metrics
   const mlCard = document.getElementById(prefix + '-ml-card');
   const mlList = document.getElementById(prefix + '-ml-metrics');
   if (analysisResult.ml_metrics && Object.keys(analysisResult.ml_metrics).length > 0 && mlList) {
     const ml = analysisResult.ml_metrics;
     
-    // Format sentiment mapping
     let sentimentColor = 'var(--text-sec)';
     let sentimentLabel = ml.sentiment;
     if (ml.sentiment === 'NEGATIVE') { sentimentColor = 'var(--red)'; sentimentLabel = 'Negative'; }
@@ -623,7 +571,6 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
     mlCard.style.display = 'none';
   }
 
-  // Explainer
   const explainerEl = document.getElementById(prefix + '-explainer');
   const explainerCard = document.getElementById(prefix + '-explainer-card');
   if (analysisResult.explainer && explainerEl) {
@@ -635,9 +582,6 @@ function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, content
 }
 
 
-// ═══════════════════════════════════════════════════════════════
-// FULL-WIDTH ANALYTICS DASHBOARD (below article)
-// ═══════════════════════════════════════════════════════════════
 function renderAnalyticsDashboard(analysisResult, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -654,7 +598,6 @@ function renderAnalyticsDashboard(analysisResult, containerId) {
   const emo = si.emotional_words_count || 0;
   const tw = si.total_words || 0;
 
-  // Pre-calculate formula values
   const credR = (nConf * 1.0 + cit * 0.2).toFixed(1);
   const credS = (nContra * 1.0 + emo * 0.3 + nUnv * 0.4).toFixed(1);
   const credW = 2;
@@ -673,13 +616,11 @@ function renderAnalyticsDashboard(analysisResult, containerId) {
 
   let html = '';
 
-  // Header
   html += `<div class="analytics-header">
     <h2>${t('analytics_title')}</h2>
     <p>${t('analytics_subtitle')}</p>
   </div>`;
 
-  // Scoring Summary Strip
   html += `<div class="scoring-strip">
     <div class="scoring-strip-item">
       <span class="scoring-strip-val" style="color:var(--green)">${nConf}</span>
@@ -711,10 +652,8 @@ function renderAnalyticsDashboard(analysisResult, containerId) {
     </div>
   </div>`;
 
-  // Formula Cards Grid (3 columns)
   html += `<div class="formulas-grid">`;
 
-  // Credibility Card
   html += `<div class="formula-card">
     <div class="formula-card-header">
       <span class="formula-card-title">${t('analytics_credibility')}</span>
@@ -732,7 +671,6 @@ function renderAnalyticsDashboard(analysisResult, containerId) {
     <div class="formula-card-result">= <span class="result-val" style="color:${credColor}">${credRaw} → ${Math.round(c.credibility || 0)}</span></div>
   </div>`;
 
-  // Transparency Card
   html += `<div class="formula-card">
     <div class="formula-card-header">
       <span class="formula-card-title">${t('analytics_transparency')}</span>
@@ -750,7 +688,6 @@ function renderAnalyticsDashboard(analysisResult, containerId) {
     <div class="formula-card-result">= <span class="result-val" style="color:${transColor}">${transRaw} → ${Math.round(c.transparency || 0)}</span></div>
   </div>`;
 
-  // Objectivity Card
   html += `<div class="formula-card">
     <div class="formula-card-header">
       <span class="formula-card-title">${t('analytics_objectivity')}</span>
@@ -771,10 +708,8 @@ function renderAnalyticsDashboard(analysisResult, containerId) {
 
   html += `</div>`; // close formulas-grid
 
-  // Evidence Section (2 columns: citations + emotional words)
   html += `<div class="evidence-section">`;
 
-  // Citations Card
   const cits = si.found_citations || [];
   html += `<div class="evidence-card">
     <div class="evidence-card-title">
@@ -793,7 +728,6 @@ function renderAnalyticsDashboard(analysisResult, containerId) {
   }
   html += `</div>`;
 
-  // Emotional Words Card
   const emos = si.found_emotional_words || [];
   html += `<div class="evidence-card">
     <div class="evidence-card-title">
@@ -812,7 +746,6 @@ function renderAnalyticsDashboard(analysisResult, containerId) {
   html += `</div>`;
   html += `</div>`; // close evidence-section
 
-  // OSINT Claims Section
   const claims = analysisResult.extracted_claims || [];
   if (claims.length > 0) {
     html += `<div class="osint-section">
@@ -839,9 +772,6 @@ function renderAnalyticsDashboard(analysisResult, containerId) {
 }
 
 
-// ═══════════════════════════════════════════════════════════════
-// TAB 2: TEST DASHBOARD — Real Articles Dataset
-// ═══════════════════════════════════════════════════════════════
 const API = 'http://127.0.0.1:8000/analyze';
 
 const ARTICLES = [
@@ -1084,7 +1014,6 @@ function renderArticles() {
   }
   c.innerHTML = html;
   
-  // Bind click to open detail panel
   document.querySelectorAll('.test-article').forEach(el => {
     el.addEventListener('click', () => {
       const id = el.id.replace('row-', '');
@@ -1103,11 +1032,9 @@ function renderArticles() {
 }
 renderArticles();
 
-// Bind buttons (no inline onclick in MV3)
 document.getElementById('runAllBtn').addEventListener('click', runAllTests);
 document.getElementById('exportBtn').addEventListener('click', exportCSV);
 
-// ─── Run All Tests ───
 let testResults = [];
 
 async function runAllTests() {
@@ -1119,7 +1046,6 @@ async function runAllTests() {
   document.getElementById('progressWrap').style.display = 'block';
   document.getElementById('summarySection').style.display = 'none';
 
-  // Reset all rows
   ARTICLES.forEach(a => {
     const row = document.getElementById('row-' + a.id);
     row.className = 'test-article';
@@ -1133,7 +1059,6 @@ async function runAllTests() {
     row.className = 'test-article running';
     resEl.innerHTML = '<span class="ta-status color-yellow">Analyzing...</span>';
 
-    // Update progress
     document.getElementById('progressFill').style.width = ((i) / ARTICLES.length * 100) + '%';
     document.getElementById('progressText').textContent = (i + 1) + ' / ' + ARTICLES.length + ' — ' + a.id;
 
@@ -1178,7 +1103,6 @@ async function runAllTests() {
         full_response: data
       });
 
-      // Render detail panel HTML
       const dEl = document.getElementById('detail-' + a.id);
       if (dEl) {
         let dHtml = '<div class="td-grid">';
@@ -1212,7 +1136,6 @@ async function runAllTests() {
       testResults.push({ id: a.id, cat: a.cat, status: 'exception', error: e.message });
     }
 
-    // Small delay to avoid overwhelming the backend
     await new Promise(r => setTimeout(r, 1500));
   }
 
@@ -1262,9 +1185,6 @@ function exportCSV() {
 }
 
 
-// ═══════════════════════════════════════════════════════════════
-// TAB 3: WRITE & ANALYZE — Custom Article Input
-// ═══════════════════════════════════════════════════════════════
 document.getElementById('writeAnalyzeBtn').addEventListener('click', analyzeCustomArticle);
 
 async function analyzeCustomArticle() {
@@ -1282,7 +1202,6 @@ async function analyzeCustomArticle() {
   const text = textInput.value.trim();
   const refs = refsInput.value.trim();
 
-  // Validation
   if (!title) {
     alert(t('write_error_title'));
     titleInput.focus();
@@ -1294,12 +1213,10 @@ async function analyzeCustomArticle() {
     return;
   }
 
-  // Split text into paragraphs (blank lines)
   const rawParagraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
   const paragraphs = rawParagraphs.map((p, idx) => ({ id: idx + 1, text: p }));
   const html_content = rawParagraphs.map(p => '<p>' + p + '</p>').join('');
 
-  // Build payload
   const payload = {
     url: url,
     title: title,
@@ -1308,7 +1225,6 @@ async function analyzeCustomArticle() {
     language: ptCurrentLanguage
   };
 
-  // If user provided reference links, append them to html_content context
   if (refs) {
     const refLinks = refs.split('\n').map(r => r.trim()).filter(r => r.length > 0);
     if (refLinks.length > 0) {
@@ -1316,7 +1232,6 @@ async function analyzeCustomArticle() {
     }
   }
 
-  // Show loading
   btn.disabled = true;
   formEl.style.display = 'none';
   resultsEl.classList.remove('visible');
@@ -1339,10 +1254,8 @@ async function analyzeCustomArticle() {
     const data = await resp.json();
     console.log('[VERITAS Write] Analysis complete, score:', data.trust_score);
 
-    // Hide loading
     loadingEl.style.display = 'none';
 
-    // Render results
     renderWriteResults(data, paragraphs, title, url);
 
   } catch (e) {
@@ -1362,7 +1275,6 @@ function renderWriteResults(analysisResult, paragraphs, title, url) {
   const formEl = document.querySelector('.write-form');
   const btn = document.getElementById('writeAnalyzeBtn');
 
-  // Build highlight map
   const highlightMap = {};
   const actualHighlights = [];
   if (analysisResult?.highlights?.length) {
@@ -1374,7 +1286,6 @@ function renderWriteResults(analysisResult, paragraphs, title, url) {
     }
   }
 
-  // Render article preview with highlights
   let previewHTML = `<h2 class="preview-title">${esc(title)}</h2>`;
   let fullText = '';
 
@@ -1403,13 +1314,11 @@ function renderWriteResults(analysisResult, paragraphs, title, url) {
 
   previewEl.innerHTML = previewHTML;
 
-  // Stats
   document.getElementById('writeStatParas').textContent = paragraphs.length;
   document.getElementById('writeStatWords').textContent = fullText.trim().split(/\s+/).filter(w => w).length.toLocaleString();
   document.getElementById('writeStatChars').textContent = fullText.length.toLocaleString();
   statsEl.style.display = 'flex';
 
-  // Build sidebar HTML dynamically (like the parsed text sidebar)
   const score = analysisResult.trust_score || 0;
   const scoreClass = score >= 70 ? 'score-high' : score >= 40 ? 'score-mid' : 'score-low';
 
@@ -1448,10 +1357,8 @@ function renderWriteResults(analysisResult, paragraphs, title, url) {
   `;
   sidebarEl.innerHTML = sidebarHTML;
 
-  // Populate using shared function
   renderAnalysisSidebar(analysisResult, actualHighlights, 'write', previewEl);
 
-  // Bind tooltip clicks in preview
   previewEl.querySelectorAll('.hl-badge').forEach(badge => {
     badge.addEventListener('click', () => {
       const tooltipId = badge.dataset.tooltip;
@@ -1464,10 +1371,8 @@ function renderWriteResults(analysisResult, paragraphs, title, url) {
     });
   });
 
-  // Show results, add "Analyze Again" button at top
   resultsEl.classList.add('visible');
 
-  // Re-show form and re-enable button so user can analyze again
   formEl.style.display = 'block';
   btn.disabled = false;
 }

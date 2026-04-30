@@ -1,13 +1,3 @@
-"""
-VERITAS Algorithm Benchmark
-============================
-Automated test runner that sends real article data through the API
-and validates against expected quality categories.
-
-Usage:  python tests/benchmark_articles.py
-Requires: backend running at http://127.0.0.1:8000
-"""
-
 import asyncio
 import json
 import time
@@ -27,19 +17,8 @@ RESULTS_DIR = Path(__file__).parent / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
 
 
-# =============================================================================
-# TEST DATASET — 12 REAL ARTICLES
-# =============================================================================
-# Три категорії:
-#   A — Якісні (авторитетні джерела, факти, цитати)    → очікуваний Trust Score: 55–95
-#   B — Середня якість (bias, мало джерел, емоції)     → очікуваний Trust Score: 25–65
-#   C — Маніпулятивні / фейкові (пропаганда, фейки)   → очікуваний Trust Score: 0–40
-# =============================================================================
 
 ARTICLES = [
-    # ─────────────────────────────────────────────────────────────
-    # КАТЕГОРІЯ A: Якісні статті (авторитетні джерела)
-    # ─────────────────────────────────────────────────────────────
     {
         "id": "A1",
         "category": "A",
@@ -101,9 +80,6 @@ ARTICLES = [
         ],
     },
 
-    # ─────────────────────────────────────────────────────────────
-    # КАТЕГОРІЯ B: Середня якість (bias, клікбейт, мало джерел)
-    # ─────────────────────────────────────────────────────────────
     {
         "id": "B1",
         "category": "B",
@@ -161,9 +137,6 @@ ARTICLES = [
         ],
     },
 
-    # ─────────────────────────────────────────────────────────────
-    # КАТЕГОРІЯ C: Маніпулятивні / фейкові (пропаганда, дезінформація)
-    # ─────────────────────────────────────────────────────────────
     {
         "id": "C1",
         "category": "C",
@@ -223,9 +196,6 @@ ARTICLES = [
 ]
 
 
-# =============================================================================
-# BENCHMARK ENGINE
-# =============================================================================
 
 async def analyze_one(client: httpx.AsyncClient, article: dict) -> dict:
     """Send one article to the API and return structured result."""
@@ -312,7 +282,6 @@ async def main():
     print(f"  Articles: {len(ARTICLES)}")
     print("=" * 65)
 
-    # ─── Health Check ───
     async with httpx.AsyncClient() as client:
         try:
             health = await client.get("http://127.0.0.1:8000/health", timeout=5.0)
@@ -325,7 +294,6 @@ async def main():
             print("     Start backend: cd backend && uvicorn app.main:app --reload")
             return
 
-    # ─── Run Benchmark ───
     results = []
     async with httpx.AsyncClient() as client:
         for article in ARTICLES:
@@ -350,7 +318,6 @@ async def main():
 
             await asyncio.sleep(3)  # Rate limiting
 
-    # ─── Summary ───
     ok_results = [r for r in results if r.get("status") == "OK"]
     errors = len(results) - len(ok_results)
     correct = sum(1 for r in ok_results if r.get("in_range") == "✅")
@@ -385,7 +352,6 @@ async def main():
         gap = statistics.mean(cat_scores["A"]) - statistics.mean(cat_scores["C"])
         print(f"  Separation A vs C:  {gap:.1f} points {'✅' if gap > 25 else '⚠️'}")
 
-    # ─── Stability Test (on article A1) ───
     print("\n" + "-" * 65)
     print("  🔄 STABILITY TEST (running A1 x3)...")
     async with httpx.AsyncClient() as client:
@@ -396,7 +362,6 @@ async def main():
         else:
             print(f"    Could not complete stability test")
 
-    # ─── Save CSV ───
     csv_path = RESULTS_DIR / f"benchmark_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
     csv_fields = ["id", "category", "title", "expected_range", "trust_score",
                   "in_range", "credibility", "transparency", "objectivity",
@@ -408,7 +373,6 @@ async def main():
             writer.writerows(ok_results)
         print(f"\n  💾 Results saved: {csv_path}")
 
-    # Also save latest as JSON for frontend consumption
     latest_json_path = RESULTS_DIR / "latest_results.json"
     json_results = []
     for r in ok_results:
@@ -420,7 +384,6 @@ async def main():
         json.dump(json_results, f, ensure_ascii=False, indent=2)
     print(f"  💾 JSON saved: {latest_json_path}")
 
-    # Save latest CSV too
     latest_path = RESULTS_DIR / "latest_results.csv"
     if ok_results:
         with open(latest_path, "w", newline="", encoding="utf-8") as f:

@@ -1,1 +1,0 @@
-# VERITAS Test Suite

@@ -1,8 +1,3 @@
-"""
-Core Hybrid AI Pipeline for VERITAS
-Coordinates LLM Agents, OSINT, and Python-side Math for the Metzger (2007) Credibility Framework.
-"""
-
 import asyncio
 import logging
 from datetime import datetime
@@ -35,9 +30,7 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
     article_domain = get_domain(request.url)
     current_date = datetime.now().strftime("%Y-%m-%d")
     
-    # ---------------------------------------------------------
     # STEP 1: PARALLEL DATA GATHERING (Facts + Reputation)
-    # ---------------------------------------------------------
     common_prompt = f"""
     TODAY'S DATE IS: {current_date}.
     SOURCE URL: {request.url}
@@ -66,9 +59,7 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
     if fact_res and getattr(fact_res, "verifiable_claims", None):
         verifiable_claims = fact_res.verifiable_claims
 
-    # ---------------------------------------------------------
     # STEP 2: OSINT VERIFICATION (Google/DuckDuckGo)
-    # ---------------------------------------------------------
     osint_results = {"osint_claims": []}
     all_highlights = []
     claim_statuses = {}  # paragraph_id -> status
@@ -89,13 +80,10 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
 
     n_unverified = len(verifiable_claims) - n_conf - n_contra if verifiable_claims else 0
     
-    # Build per-claim result list for frontend
     extracted_claims_results = []
     for claim in verifiable_claims:
         status = claim_statuses.get(claim.paragraph_id, "UNVERIFIED")
         if status == "UNVERIFIED" and n_conf > 0:
-            # If this claim was not contradicted and we have confirms, check if it was confirmed
-            # Simple heuristic: confirmed claims are those not in the contradicted set
             pass
         extracted_claims_results.append(
             ExtractedClaimResult(
@@ -105,9 +93,7 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
             )
         )
 
-    # ---------------------------------------------------------
     # STEP 3: METZGER JUDGE AGENT (Accuracy & Objectivity)
-    # ---------------------------------------------------------
     judge_res = await extract_article_metrics(
         article_text=formatted_article_text,
         osint_results=osint_results,
@@ -128,10 +114,7 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
     if judge_res.highlights:
         all_highlights.extend(judge_res.highlights)
 
-    # ---------------------------------------------------------
     # STEP 4: MATHEMATICAL SCORING — Jøsang & Ismail (2002)
-    # Beta Reputation System: E(p) = (r + W·a) / (r + s + W)
-    # ---------------------------------------------------------
     from app.services.scoring import (
         calculate_credibility,
         calculate_transparency,
@@ -139,7 +122,6 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
         aggregate_trust_score
     )
 
-    # Extract domain trust index as BRS base rate (prior 'a')
     domain_trust = 0.5  # uninformative prior (default)
     if reputation_res and hasattr(reputation_res, "trust_index"):
         domain_trust = reputation_res.trust_index
@@ -173,10 +155,7 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
         for h in all_highlights
     ]
 
-    # ---------------------------------------------------------
     # STEP 5: POST-SCORING AI SUMMARY
-    # Generate explainer AFTER scoring is done, with full context
-    # ---------------------------------------------------------
     from app.services.llm.base_agent import run_agent
     from app.models.schemas import JudgeEvaluation
 

@@ -1,45 +1,38 @@
-/* =========================================
-   VERITAS Design System v2
-   Theme: "Coffee Edition" - Minimalist
-   ========================================= */
+
 
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Playfair+Display:ital,wght@1,500;1,700&display=swap');
 
-/* =========================================
-   CSS VARIABLES
-   ========================================= */
+
 :root {
-  /* Palette */
+  
   --bg-color: #EFE9E1;
   --text-primary: #3E2723;
   --text-secondary: #795548;
   --border-accent: #8D6E63;
   --card-bg: rgba(255, 255, 255, 0.6);
 
-  /* Scoring */
+  
   --score-high: #33691E;
   --score-mid: #C58940;
   --score-low: #8D2D24;
 
-  /* Typography */
+  
   --font-display: 'Playfair Display', serif;
   --font-body: 'Manrope', sans-serif;
 
-  /* Spacing */
+  
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 32px;
 
-  /* Borders */
+  
   --radius: 12px;
   --radius-sm: 8px;
 }
 
-/* =========================================
-   BASE
-   ========================================= */
+
 * {
   margin: 0;
   padding: 0;
@@ -65,9 +58,7 @@ body {
   display: none !important;
 }
 
-/* =========================================
-   HEADER
-   ========================================= */
+
 .hero {
   text-align: center;
   margin-bottom: var(--spacing-lg);
@@ -91,9 +82,7 @@ body {
   margin-top: var(--spacing-xs);
 }
 
-/* =========================================
-   HERO SCORE CIRCLE
-   ========================================= */
+
 .hero-score {
   width: 140px;
   height: 140px;
@@ -177,9 +166,7 @@ body {
   color: var(--score-low);
 }
 
-/* =========================================
-   SVG SCORE RING (Results Hero)
-   ========================================= */
+
 .hero-score-wrapper {
   position: relative;
   width: 140px;
@@ -202,8 +189,8 @@ body {
 
 .score-ring__fill {
   stroke: var(--border-accent);
-  stroke-dasharray: 389.56; /* 2 * PI * 62 */
-  stroke-dashoffset: 389.56; /* starts fully hidden */
+  stroke-dasharray: 389.56; 
+  stroke-dashoffset: 389.56; 
   transition: stroke 0.3s ease;
 }
 
@@ -234,9 +221,7 @@ body {
   backdrop-filter: blur(10px);
 }
 
-/* =========================================
-   SPINNER
-   ========================================= */
+
 .spinner {
   width: 40px;
   height: 40px;
@@ -252,9 +237,7 @@ body {
   }
 }
 
-/* =========================================
-   STATUS & PROGRESS
-   ========================================= */
+
 .status-text {
   text-align: center;
   font-size: 0.85rem;
@@ -294,9 +277,7 @@ body {
   background: var(--score-high);
 }
 
-/* =========================================
-   BUTTONS
-   ========================================= */
+
 .btn-primary {
   width: 100%;
   padding: var(--spacing-md);
@@ -389,9 +370,7 @@ body {
   margin-bottom: var(--spacing-sm);
 }
 
-/* =========================================
-   DETAILS PANEL
-   ========================================= */
+
 .details-panel {
   background: var(--card-bg);
   border: 1px solid var(--border-accent);
@@ -400,9 +379,7 @@ body {
   margin-top: var(--spacing-md);
 }
 
-/* =========================================
-   RADAR CHART
-   ========================================= */
+
 .radar-chart-container {
   display: flex;
   justify-content: center;
@@ -468,9 +445,7 @@ body {
   line-height: 1.5;
 }
 
-/* =========================================
-   FOOTER
-   ========================================= */
+
 .footer {
   margin-top: auto;
   padding-top: var(--spacing-md);
@@ -504,9 +479,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* =========================================
-   STATES CENTERING
-   ========================================= */
+
 .state-initial,
 .state-analyzing,
 .state-results,
@@ -517,9 +490,7 @@ body {
   flex: 1;
 }
 
-/* =========================================
-   HIGHLIGHT NAVIGATOR
-   ========================================= */
+
 .highlight-navigator {
   margin-top: var(--spacing-md);
   padding: var(--spacing-md);
@@ -637,9 +608,7 @@ body {
   text-align: center;
 }
 
-/* =========================================
-   SWITCH TOGGLE
-   ========================================= */
+
 .switch {
   position: relative;
   display: inline-block;
