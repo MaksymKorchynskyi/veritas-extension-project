@@ -1,11 +1,3 @@
-"""
-VERITAS Results Visualizer
-===========================
-Generates charts from benchmark CSV results for the coursework paper.
-
-Usage:  python tests/visualize_results.py
-Requires: pip install matplotlib numpy
-"""
 
 import csv
 import sys
@@ -13,7 +5,7 @@ from pathlib import Path
 
 try:
     import matplotlib
-    matplotlib.use("Agg")  # Non-interactive backend
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
 except ImportError:
@@ -23,12 +15,11 @@ except ImportError:
 RESULTS_DIR = Path(__file__).parent / "results"
 CSV_PATH = RESULTS_DIR / "latest_results.csv"
 
-# VERITAS color palette (Coffee Edition)
 COLORS = {
-    "A": "#33691E",  # Forest Green
-    "B": "#C58940",  # Caramel
-    "C": "#8D2D24",  # Burnt Cherry
-    "D": "#795548",  # Cocoa
+    "A": "#33691E",
+    "B": "#C58940",
+    "C": "#8D2D24",
+    "D": "#795548",
 }
 BG_COLOR = "#EFE9E1"
 TEXT_COLOR = "#3E2723"
@@ -77,7 +68,6 @@ def chart_trust_by_category(results):
     ax.set_ylim(0, 110)
     ax.tick_params(colors=TEXT_COLOR)
 
-    # Reference lines
     ax.axhline(y=70, color="#33691E", linestyle="--", alpha=0.4, linewidth=1)
     ax.axhline(y=40, color="#8D2D24", linestyle="--", alpha=0.4, linewidth=1)
     ax.text(len(labels) - 0.5, 72, "High Trust (70)", fontsize=8, color="#33691E", alpha=0.7)
@@ -93,7 +83,7 @@ def chart_trust_by_category(results):
 def chart_radar(results):
     """Radar chart comparing criteria across A vs C categories."""
     criteria_keys = ["credibility", "transparency", "objectivity"]
-    
+
     criteria_labels = ["Точність (Acc)", "Джерела (Auth)", "Об'єктивність (Obj)"]
 
     fig, ax = plt.subplots(figsize=(7, 7), subplot_kw=dict(polar=True))
@@ -149,7 +139,6 @@ def chart_scatter(results):
     ax.axhline(y=70, color="#33691E", linestyle="--", alpha=0.5, linewidth=1, label="High (70)")
     ax.axhline(y=40, color="#8D2D24", linestyle="--", alpha=0.5, linewidth=1, label="Low (40)")
 
-    # Legend for categories
     import matplotlib.patches as mpatches
     legend_items = [mpatches.Patch(color=COLORS[c], label=f'{c}: {l}')
                     for c, l in [("A", "Якісні"), ("B", "Середні"), ("C", "Маніпулятивні"), ("D", "Edge Cases")]
@@ -174,7 +163,7 @@ def chart_scatter(results):
 def chart_criteria_heatmap(results):
     """Heatmap of all criteria for each article — great for coursework."""
     criteria_keys = ["credibility", "transparency", "objectivity"]
-    
+
     criteria_labels = ["Acc", "Auth", "Obj"]
 
     ids = [r["id"] for r in results]
@@ -187,7 +176,6 @@ def chart_criteria_heatmap(results):
     fig, ax = plt.subplots(figsize=(8, max(4, len(results) * 0.45)))
     fig.patch.set_facecolor(BG_COLOR)
 
-    # Custom colormap: red → yellow → green
     from matplotlib.colors import LinearSegmentedColormap
     cmap = LinearSegmentedColormap.from_list("veritas",
         ["#8D2D24", "#C58940", "#C5B358", "#7CB342", "#33691E"])
@@ -199,7 +187,6 @@ def chart_criteria_heatmap(results):
     ax.set_yticks(range(len(ids)))
     ax.set_yticklabels(ids, fontsize=10, color=TEXT_COLOR)
 
-    # Annotate cells
     for i in range(len(ids)):
         for j in range(len(criteria_keys)):
             val = data[i, j]
