@@ -9,8 +9,8 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.models.schemas import (
-    AnalysisRequest, 
-    AnalysisResponse, 
+    AnalysisRequest,
+    AnalysisResponse,
     Highlight,
     CriteriaScore,
     ScoringInputs,
@@ -28,16 +28,14 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
     The main execution flow for the Metzger (2007) Pipeline.
     """
     logger.info(f"Starting Metzger Pipeline for: {request.title}")
-    
+
     headline = request.title.strip()
     formatted_text_parts = [f"[ID: {p.id}] {p.text}" for p in request.paragraphs]
     formatted_article_text = "\n\n".join(formatted_text_parts)
     article_domain = get_domain(request.url)
     current_date = datetime.now().strftime("%Y-%m-%d")
-    
-    # ---------------------------------------------------------
+
     # STEP 1: PARALLEL DATA GATHERING (Facts + Reputation)
-    # ---------------------------------------------------------
     common_prompt = f"""
     TODAY'S DATE IS: {current_date}.
     SOURCE URL: {request.url}
@@ -45,40 +43,38 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
     ARTICLE TEXT:
     {formatted_article_text}
     """
-    
+
     fact_task = extract_factual_claims(common_prompt)
     reputation_task = check_domain_reputation(article_domain)
     total_words = len(formatted_article_text.split())
-    
+
     fact_res, reputation_res = await asyncio.gather(
         fact_task, reputation_task,
         return_exceptions=True
     )
-    
+
     if isinstance(fact_res, Exception):
         logger.error(f"Fact agent failed: {fact_res}")
         fact_res = None
     if isinstance(reputation_res, Exception):
         logger.error(f"Reputation task failed: {reputation_res}")
         reputation_res = None
-        
+
     verifiable_claims = []
     if fact_res and getattr(fact_res, "verifiable_claims", None):
         verifiable_claims = fact_res.verifiable_claims
 
-    # ---------------------------------------------------------
     # STEP 2: OSINT VERIFICATION (Google/DuckDuckGo)
-    # ---------------------------------------------------------
     osint_results = {"osint_claims": []}
     all_highlights = []
-    claim_statuses = {}  # paragraph_id -> status
-    
+    claim_statuses = {}
+
     if verifiable_claims:
         osint_highlights, n_conf, n_contra = await verify_claims_osint(verifiable_claims)
         if osint_highlights:
             all_highlights.extend(osint_highlights)
             osint_results["osint_claims"] = [
-                {"snippet": f"Paragraph {h.paragraph_id} claim contradicted: {h.reason}"} 
+                {"snippet": f"Paragraph {h.paragraph_id} claim contradicted: {h.reason}"}
                 for h in osint_highlights
             ]
             for h in osint_highlights:
@@ -88,14 +84,11 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
         osint_highlights = []
 
     n_unverified = len(verifiable_claims) - n_conf - n_contra if verifiable_claims else 0
-    
-    # Build per-claim result list for frontend
+
     extracted_claims_results = []
     for claim in verifiable_claims:
         status = claim_statuses.get(claim.paragraph_id, "UNVERIFIED")
         if status == "UNVERIFIED" and n_conf > 0:
-            # If this claim was not contradicted and we have confirms, check if it was confirmed
-            # Simple heuristic: confirmed claims are those not in the contradicted set
             pass
         extracted_claims_results.append(
             ExtractedClaimResult(
@@ -105,15 +98,13 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
             )
         )
 
-    # ---------------------------------------------------------
     # STEP 3: METZGER JUDGE AGENT (Accuracy & Objectivity)
-    # ---------------------------------------------------------
     judge_res = await extract_article_metrics(
         article_text=formatted_article_text,
         osint_results=osint_results,
         language=request.language
     )
-    
+
     if not judge_res:
         logger.error("Judge Agent failed. Using fallback.")
         return AnalysisResponse(
@@ -124,14 +115,12 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
             explainer="Помилка при генерації фінального вердикту Judge Agent.",
             highlights=[]
         )
-        
+
     if judge_res.highlights:
         all_highlights.extend(judge_res.highlights)
 
-    # ---------------------------------------------------------
     # STEP 4: MATHEMATICAL SCORING — Jøsang & Ismail (2002)
     # Beta Reputation System: E(p) = (r + W·a) / (r + s + W)
-    # ---------------------------------------------------------
     from app.services.scoring import (
         calculate_credibility,
         calculate_transparency,
@@ -139,8 +128,7 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
         aggregate_trust_score
     )
 
-    # Extract domain trust index as BRS base rate (prior 'a')
-    domain_trust = 0.5  # uninformative prior (default)
+    domain_trust = 0.5
     if reputation_res and hasattr(reputation_res, "trust_index"):
         domain_trust = reputation_res.trust_index
 
@@ -165,18 +153,16 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
 
     final_api_highlights = [
         Highlight(
-            paragraph_id=h.paragraph_id, 
-            severity=h.severity, 
-            category=h.category or "", 
+            paragraph_id=h.paragraph_id,
+            severity=h.severity,
+            category=h.category or "",
             reason=h.reason or ""
         )
         for h in all_highlights
     ]
 
-    # ---------------------------------------------------------
     # STEP 5: POST-SCORING AI SUMMARY
     # Generate explainer AFTER scoring is done, with full context
-    # ---------------------------------------------------------
     from app.services.llm.base_agent import run_agent
     from app.models.schemas import JudgeEvaluation
 

@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as api_router
 import logging
 
-# Configure logging to show all agent chain-of-thought reasoning
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
@@ -26,7 +25,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -40,5 +38,4 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "ok", "version": "2.0.0", "algorithm": "Hybrid AI Pipeline", "phase": "Enterprise"}
 
-# Register router
 app.include_router(api_router)

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     http:
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,7 @@
 
 /*
  * This code is heavily based on Arc90's readability.js (1.7.1) script
- * available at: http://code.google.com/p/arc90labs-readability
+ * available at: http:
  */
 
 /**
@@ -25,7 +25,6 @@
  * @param {Object}       options The options object.
  */
 function Readability(doc, options) {
-  // In some older versions, people passed a URI as the first argument. Cope:
   if (options && options.documentElement) {
     doc = options;
     options = arguments[2];
@@ -45,7 +44,6 @@ function Readability(doc, options) {
   this._attempts = [];
   this._metadata = {};
 
-  // Configurable options
   this._debug = !!options.debug;
   this._maxElemsToParse =
     options.maxElemsToParse || this.DEFAULT_MAX_ELEMS_TO_PARSE;
@@ -65,13 +63,11 @@ function Readability(doc, options) {
   this._allowedVideoRegex = options.allowedVideoRegex || this.REGEXPS.videos;
   this._linkDensityModifier = options.linkDensityModifier || 0;
 
-  // Start with all flags set
   this._flags =
     this.FLAG_STRIP_UNLIKELYS |
     this.FLAG_WEIGHT_CLASSES |
     this.FLAG_CLEAN_CONDITIONALLY;
 
-  // Control whether log messages are sent to the console
   if (this._debug) {
     let logNode = function (node) {
       if (node.nodeType == node.TEXT_NODE) {
@@ -91,7 +87,6 @@ function Readability(doc, options) {
           return arg;
         });
         args.unshift("Reader: (Readability)");
-        // eslint-disable-next-line no-console
         console.log(...args);
       } else if (typeof dump !== "undefined") {
         /* global dump */
@@ -113,30 +108,20 @@ Readability.prototype = {
   FLAG_WEIGHT_CLASSES: 0x2,
   FLAG_CLEAN_CONDITIONALLY: 0x4,
 
-  // https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
   ELEMENT_NODE: 1,
   TEXT_NODE: 3,
 
-  // Max number of nodes supported by this parser. Default: 0 (no limit)
   DEFAULT_MAX_ELEMS_TO_PARSE: 0,
 
-  // The number of top candidates to consider when analysing how
-  // tight the competition is among candidates.
   DEFAULT_N_TOP_CANDIDATES: 5,
 
-  // Element tags to score by default.
   DEFAULT_TAGS_TO_SCORE: "section,h2,h3,h4,h5,h6,p,td,pre"
     .toUpperCase()
     .split(","),
 
-  // The default number of chars an article must have in order to return a result
   DEFAULT_CHAR_THRESHOLD: 500,
 
-  // All of the regular expressions in use within readability.
-  // Defined up here so we don't instantiate them repeatedly in loops.
   REGEXPS: {
-    // NOTE: These two regular expressions are duplicated in
-    // Readability-readerable.js. Please keep both copies in sync.
     unlikelyCandidates:
       /-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|disqus|extra|footer|gdpr|header|legends|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|yom-remote/i,
     okMaybeItsACandidate:
@@ -162,13 +147,9 @@ Readability.prototype = {
     hashUrl: /^#.+/,
     srcsetUrl: /(\S+)(\s+[\d.]+[xw])?(\s*(?:,|$))/g,
     b64DataUrl: /^data:\s*([^\s;,]+)\s*;\s*base64\s*,/i,
-    // Commas as used in Latin, Sindhi, Chinese and various other scripts.
-    // see: https://en.wikipedia.org/wiki/Comma#Comma_variants
     commas: /\u002C|\u060C|\uFE50|\uFE10|\uFE11|\u2E41|\u2E34|\u2E32|\uFF0C/g,
-    // See: https://schema.org/Article
     jsonLdArticleTypes:
       /^Article|AdvertiserContentArticle|NewsArticle|AnalysisNewsArticle|AskPublicNewsArticle|BackgroundNewsArticle|OpinionNewsArticle|ReportageNewsArticle|ReviewNewsArticle|Report|SatiricalArticle|ScholarlyArticle|MedicalScholarlyArticle|SocialMediaPosting|BlogPosting|LiveBlogPosting|DiscussionForumPosting|TechArticle|APIReference$/,
-    // used to see if a node's content matches words commonly used for ad blocks or loading indicators
     adWords:
       /^(ad(vertising|vertisement)?|pub(licité)?|werb(ung)?|广告|Реклама|Anuncio)$/iu,
     loadingWords:
@@ -216,10 +197,7 @@ Readability.prototype = {
 
   DEPRECATED_SIZE_ATTRIBUTE_ELEMS: ["TABLE", "TH", "TD", "HR", "PRE"],
 
-  // The commented out elements qualify as phrasing content but tend to be
-  // removed by readability when put into paragraphs, so we ignore them here.
   PHRASING_ELEMS: [
-    // "CANVAS", "IFRAME", "SVG", "VIDEO",
     "ABBR",
     "AUDIO",
     "B",
@@ -261,10 +239,8 @@ Readability.prototype = {
     "WBR",
   ],
 
-  // These are the classes that readability sets itself.
   CLASSES_TO_PRESERVE: ["page"],
 
-  // These are the list of HTML entities that need to be escaped.
   HTML_ESCAPE_MAP: {
     lt: "<",
     gt: ">",
@@ -280,13 +256,11 @@ Readability.prototype = {
    * @return void
    **/
   _postProcessContent(articleContent) {
-    // Readability cannot open relative uris so we convert them to absolute uris.
     this._fixRelativeUris(articleContent);
 
     this._simplifyNestedElements(articleContent);
 
     if (!this._keepClasses) {
-      // Remove classes.
       this._cleanClasses(articleContent);
     }
   },
@@ -302,7 +276,6 @@ Readability.prototype = {
    * @return void
    */
   _removeNodes(nodeList, filterFn) {
-    // Avoid ever operating on live node lists.
     if (this._docJSDOMParser && nodeList._isLiveNodeList) {
       throw new Error("Do not pass live node lists to _removeNodes");
     }
@@ -325,7 +298,6 @@ Readability.prototype = {
    * @return void
    */
   _replaceNodeTags(nodeList, newTagName) {
-    // Avoid ever operating on live node lists.
     if (this._docJSDOMParser && nodeList._isLiveNodeList) {
       throw new Error("Do not pass live node lists to _replaceNodeTags");
     }
@@ -458,16 +430,13 @@ Readability.prototype = {
     var baseURI = this._doc.baseURI;
     var documentURI = this._doc.documentURI;
     function toAbsoluteURI(uri) {
-      // Leave hash links alone if the base URI matches the document URI:
       if (baseURI == documentURI && uri.charAt(0) == "#") {
         return uri;
       }
 
-      // Otherwise, resolve against base URI:
       try {
         return new URL(uri, baseURI).href;
       } catch (ex) {
-        // Something went wrong, just return the original:
       }
       return uri;
     }
@@ -476,10 +445,7 @@ Readability.prototype = {
     this._forEachNode(links, function (link) {
       var href = link.getAttribute("href");
       if (href) {
-        // Remove links with javascript: URIs, since
-        // they won't work after scripts have been removed from the page.
         if (href.indexOf("javascript:") === 0) {
-          // if the link only contains simple text content, it can be converted to a text node
           if (
             link.childNodes.length === 1 &&
             link.childNodes[0].nodeType === this.TEXT_NODE
@@ -487,7 +453,6 @@ Readability.prototype = {
             var text = this._doc.createTextNode(link.textContent);
             link.parentNode.replaceChild(text, link);
           } else {
-            // if the link has multiple children, they should all be preserved
             var container = this._doc.createElement("span");
             while (link.firstChild) {
               container.appendChild(link.firstChild);
@@ -578,7 +543,6 @@ Readability.prototype = {
     try {
       curTitle = origTitle = doc.title.trim();
 
-      // If they had an element with id "title" in their HTML
       if (typeof curTitle !== "string") {
         curTitle = origTitle = this._getInnerText(
           doc.getElementsByTagName("title")[0]
@@ -593,7 +557,6 @@ Readability.prototype = {
       return str.split(/\s+/).length;
     }
 
-    // If there's a separator in the title, first remove the final part
     const titleSeparators = /\|\-–—\\\/>»/.source;
     if (new RegExp(`\\s[${titleSeparators}]\\s`).test(curTitle)) {
       titleHadHierarchicalSeparators = /\s[\\\/>»]\s/.test(curTitle);
@@ -602,7 +565,6 @@ Readability.prototype = {
       );
       curTitle = origTitle.substring(0, allSeparators.pop().index);
 
-      // If the resulting title is too short, remove the first part instead:
       if (wordCount(curTitle) < 3) {
         curTitle = origTitle.replace(
           new RegExp(`^[^${titleSeparators}]*[${titleSeparators}]`, "gi"),
@@ -610,23 +572,17 @@ Readability.prototype = {
         );
       }
     } else if (curTitle.includes(": ")) {
-      // Check if we have an heading containing this exact string, so we
-      // could assume it's the full title.
       var headings = this._getAllNodesWithTag(doc, ["h1", "h2"]);
       var trimmedTitle = curTitle.trim();
       var match = this._someNode(headings, function (heading) {
         return heading.textContent.trim() === trimmedTitle;
       });
 
-      // If we don't, let's extract the title out of the original title string.
       if (!match) {
         curTitle = origTitle.substring(origTitle.lastIndexOf(":") + 1);
 
-        // If the title is now too short, try the first colon instead:
         if (wordCount(curTitle) < 3) {
           curTitle = origTitle.substring(origTitle.indexOf(":") + 1);
-          // But if we have too many words before the colon there's something weird
-          // with the titles and the H tags so let's just use the original title instead
         } else if (wordCount(origTitle.substr(0, origTitle.indexOf(":"))) > 5) {
           curTitle = origTitle;
         }
@@ -640,10 +596,6 @@ Readability.prototype = {
     }
 
     curTitle = curTitle.trim().replace(this.REGEXPS.normalize, " ");
-    // If we now have 4 words or fewer as our title, and either no
-    // 'hierarchical' separators (\, /, > or ») were found in the original
-    // title or we decreased the number of words by more than 1 word, use
-    // the original title.
     var curTitleWordCount = wordCount(curTitle);
     if (
       curTitleWordCount <= 4 &&
@@ -669,7 +621,6 @@ Readability.prototype = {
   _prepDocument() {
     var doc = this._doc;
 
-    // Remove all style tags in head
     this._removeNodes(this._getAllNodesWithTag(doc, ["style"]));
 
     if (doc.body) {
@@ -707,13 +658,8 @@ Readability.prototype = {
     this._forEachNode(this._getAllNodesWithTag(elem, ["br"]), function (br) {
       var next = br.nextSibling;
 
-      // Whether 2 or more <br> elements have been found and replaced with a
-      // <p> block.
       var replaced = false;
 
-      // If we find a <br> chain, remove the <br>s until we hit another node
-      // or non-whitespace. This leaves behind the first <br> in the chain
-      // (which will be replaced with a <p> later).
       while ((next = this._nextNode(next)) && next.tagName == "BR") {
         replaced = true;
         var brSibling = next.nextSibling;
@@ -721,16 +667,12 @@ Readability.prototype = {
         next = brSibling;
       }
 
-      // If we removed a <br> chain, replace the remaining <br> with a <p>. Add
-      // all sibling nodes as children of the <p> until we hit another <br>
-      // chain.
       if (replaced) {
         var p = this._doc.createElement("p");
         br.parentNode.replaceChild(p, br);
 
         next = p.nextSibling;
         while (next) {
-          // If we've hit another <br><br>, we're done adding children to this <p>.
           if (next.tagName == "BR") {
             var nextElem = this._nextNode(next.nextSibling);
             if (nextElem && nextElem.tagName == "BR") {
@@ -742,7 +684,6 @@ Readability.prototype = {
             break;
           }
 
-          // Otherwise, make this node a child of the new <p>.
           var sibling = next.nextSibling;
           p.appendChild(next);
           next = sibling;
@@ -792,14 +733,10 @@ Readability.prototype = {
   _prepArticle(articleContent) {
     this._cleanStyles(articleContent);
 
-    // Check for data tables before we continue, to avoid removing items in
-    // those tables, which will often be isolated even though they're
-    // visually linked to other content-ful elements (text, images, etc.).
     this._markDataTables(articleContent);
 
     this._fixLazyImages(articleContent);
 
-    // Clean out junk from the article content
     this._cleanConditionally(articleContent, "form");
     this._cleanConditionally(articleContent, "fieldset");
     this._clean(articleContent, "object");
@@ -808,8 +745,6 @@ Readability.prototype = {
     this._clean(articleContent, "link");
     this._clean(articleContent, "aside");
 
-    // Clean out elements with little content that have "share" in their id/class combinations from final top candidates,
-    // which means we don't remove the top candidates even they have "share".
 
     var shareElementThreshold = this.DEFAULT_CHAR_THRESHOLD;
 
@@ -829,24 +764,18 @@ Readability.prototype = {
     this._clean(articleContent, "button");
     this._cleanHeaders(articleContent);
 
-    // Do these last as the previous stuff may have removed junk
-    // that will affect these
     this._cleanConditionally(articleContent, "table");
     this._cleanConditionally(articleContent, "ul");
     this._cleanConditionally(articleContent, "div");
 
-    // replace H1 with H2 as H1 should be only title that is displayed separately
     this._replaceNodeTags(
       this._getAllNodesWithTag(articleContent, ["h1"]),
       "h2"
     );
 
-    // Remove extra paragraphs
     this._removeNodes(
       this._getAllNodesWithTag(articleContent, ["p"]),
       function (paragraph) {
-        // At this point, nasty iframes have been removed; only embedded video
-        // ones remain.
         var contentElementCount = this._getAllNodesWithTag(paragraph, [
           "img",
           "embed",
@@ -869,7 +798,6 @@ Readability.prototype = {
       }
     );
 
-    // Remove single-cell tables
     this._forEachNode(
       this._getAllNodesWithTag(articleContent, ["table"]),
       function (table) {
@@ -957,27 +885,18 @@ Readability.prototype = {
    * @return {Element}
    */
   _getNextNode(node, ignoreSelfAndKids) {
-    // First check for kids if those aren't being ignored
     if (!ignoreSelfAndKids && node.firstElementChild) {
       return node.firstElementChild;
     }
-    // Then for siblings...
     if (node.nextElementSibling) {
       return node.nextElementSibling;
     }
-    // And finally, move up the parent chain *and* find a sibling
-    // (because this is depth-first traversal, we will have already
-    // seen the parent nodes themselves).
     do {
       node = node.parentNode;
     } while (node && !node.nextElementSibling);
     return node && node.nextElementSibling;
   },
 
-  // compares second text to first one
-  // 1 = same text, 0 = completely different text
-  // works the way that it splits both texts into words and then finds words that are unique in second text
-  // the result is given by the lower length of unique parts
   _textSimilarity(textA, textB) {
     var tokensA = textA
       .toLowerCase()
@@ -1044,7 +963,6 @@ Readability.prototype = {
     var isPaging = page !== null;
     page = page ? page : this._doc.body;
 
-    // We can't grab an article if we don't have a page!
     if (!page) {
       this.log("No body found in document. Abort.");
       return null;
@@ -1058,9 +976,6 @@ Readability.prototype = {
         this.FLAG_STRIP_UNLIKELYS
       );
 
-      // First, node prepping. Trash nodes that look cruddy (like ones with the
-      // class name "comment", etc), and turn divs into P tags where they have been
-      // used inappropriately (as in, where they contain no other block level elements.)
       var elementsToScore = [];
       var node = this._doc.documentElement;
 
@@ -1079,7 +994,6 @@ Readability.prototype = {
           continue;
         }
 
-        // User is not able to see elements applied with both "aria-modal = true" and "role = dialog"
         if (
           node.getAttribute("aria-modal") == "true" &&
           node.getAttribute("role") == "dialog"
@@ -1088,13 +1002,11 @@ Readability.prototype = {
           continue;
         }
 
-        // If we don't have a byline yet check to see if this node is a byline; if it is store the byline and remove the node.
         if (
           !this._articleByline &&
           !this._metadata.byline &&
           this._isValidByline(node, matchString)
         ) {
-          // Find child node matching [itemprop="name"] and use that if it exists for a more accurate author name byline
           var endOfSearchMarkerNode = this._getNextNode(node, true);
           var next = this._getNextNode(node);
           var itemPropNameNode = null;
@@ -1123,7 +1035,6 @@ Readability.prototype = {
           continue;
         }
 
-        // Remove unlikely candidates
         if (stripUnlikelyCandidates) {
           if (
             this.REGEXPS.unlikelyCandidates.test(matchString) &&
@@ -1150,7 +1061,6 @@ Readability.prototype = {
           }
         }
 
-        // Remove DIV, SECTION, and HEADER nodes without any content(e.g. text, image, video, or iframe).
         if (
           (node.tagName === "DIV" ||
             node.tagName === "SECTION" ||
@@ -1171,22 +1081,18 @@ Readability.prototype = {
           elementsToScore.push(node);
         }
 
-        // Turn all divs that don't have children block level elements into p's
         if (node.tagName === "DIV") {
-          // Put phrasing content into paragraphs.
           var childNode = node.firstChild;
           while (childNode) {
             var nextSibling = childNode.nextSibling;
             if (this._isPhrasingContent(childNode)) {
               var fragment = doc.createDocumentFragment();
-              // Collect all consecutive phrasing content into a fragment.
               do {
                 nextSibling = childNode.nextSibling;
                 fragment.appendChild(childNode);
                 childNode = nextSibling;
               } while (childNode && this._isPhrasingContent(childNode));
 
-              // Trim leading and trailing whitespace from the fragment.
               while (
                 fragment.firstChild &&
                 this._isWhitespace(fragment.firstChild)
@@ -1200,8 +1106,6 @@ Readability.prototype = {
                 fragment.lastChild.remove();
               }
 
-              // If the fragment contains anything, wrap it in a paragraph and
-              // insert it before the next non-phrasing node.
               if (fragment.firstChild) {
                 var p = doc.createElement("p");
                 p.appendChild(fragment);
@@ -1211,10 +1115,6 @@ Readability.prototype = {
             childNode = nextSibling;
           }
 
-          // Sites like http://mobile.slate.com encloses each paragraph with a DIV
-          // element. DIVs with only a P element inside and no text content can be
-          // safely converted into plain P elements to avoid confusing the scoring
-          // algorithm with DIVs with are, in practice, paragraphs.
           if (
             this._hasSingleTagInsideElement(node, "P") &&
             this._getLinkDensity(node) < 0.25
@@ -1246,13 +1146,11 @@ Readability.prototype = {
           return;
         }
 
-        // If this paragraph is less than 25 characters, don't even count it.
         var innerText = this._getInnerText(elementToScore);
         if (innerText.length < 25) {
           return;
         }
 
-        // Exclude nodes with no ancestor.
         var ancestors = this._getNodeAncestors(elementToScore, 5);
         if (ancestors.length === 0) {
           return;
@@ -1260,16 +1158,12 @@ Readability.prototype = {
 
         var contentScore = 0;
 
-        // Add a point for the paragraph itself as a base.
         contentScore += 1;
 
-        // Add points for any commas within this paragraph.
         contentScore += innerText.split(this.REGEXPS.commas).length;
 
-        // For every 100 characters in this paragraph, add another point. Up to 3 points.
         contentScore += Math.min(Math.floor(innerText.length / 100), 3);
 
-        // Initialize and score ancestors.
         this._forEachNode(ancestors, function (ancestor, level) {
           if (
             !ancestor.tagName ||
@@ -1284,10 +1178,6 @@ Readability.prototype = {
             candidates.push(ancestor);
           }
 
-          // Node score divider:
-          // - parent:             1 (no division)
-          // - grandparent:        2
-          // - great grandparent+: ancestor level * 3
           if (level === 0) {
             var scoreDivider = 1;
           } else if (level === 1) {
@@ -1299,15 +1189,10 @@ Readability.prototype = {
         });
       });
 
-      // After we've calculated scores, loop through all of the possible
-      // candidate nodes we found and find the one with the highest score.
       var topCandidates = [];
       for (var c = 0, cl = candidates.length; c < cl; c += 1) {
         var candidate = candidates[c];
 
-        // Scale the final candidates score based on link density. Good content
-        // should have a relatively small link density (5% or less) and be mostly
-        // unaffected by this operation.
         var candidateScore =
           candidate.readability.contentScore *
           (1 - this._getLinkDensity(candidate));
@@ -1335,14 +1220,9 @@ Readability.prototype = {
       var neededToCreateTopCandidate = false;
       var parentOfTopCandidate;
 
-      // If we still have no top candidate, just use the body as a last resort.
-      // We also have to copy the body node so it is something we can modify.
       if (topCandidate === null || topCandidate.tagName === "BODY") {
-        // Move all of the page's children into topCandidate
         topCandidate = doc.createElement("DIV");
         neededToCreateTopCandidate = true;
-        // Move everything (not just elements, also text nodes etc.) into the container
-        // so we even include text directly in the body:
         while (page.firstChild) {
           this.log("Moving child out:", page.firstChild);
           topCandidate.appendChild(page.firstChild);
@@ -1352,8 +1232,6 @@ Readability.prototype = {
 
         this._initializeNode(topCandidate);
       } else if (topCandidate) {
-        // Find a better top candidate node if it contains (at least three) nodes which belong to `topCandidates` array
-        // and whose scores are quite closed with current `topCandidate` node.
         var alternativeCandidateAncestors = [];
         for (var i = 1; i < topCandidates.length; i++) {
           if (
@@ -1394,16 +1272,8 @@ Readability.prototype = {
           this._initializeNode(topCandidate);
         }
 
-        // Because of our bonus system, parents of candidates might have scores
-        // themselves. They get half of the node. There won't be nodes with higher
-        // scores than our topCandidate, but if we see the score going *up* in the first
-        // few steps up the tree, that's a decent sign that there might be more content
-        // lurking in other places that we want to unify in. The sibling stuff
-        // below does some of that - but only if we've looked high enough up the DOM
-        // tree.
         parentOfTopCandidate = topCandidate.parentNode;
         var lastScore = topCandidate.readability.contentScore;
-        // The scores shouldn't get too low.
         var scoreThreshold = lastScore / 3;
         while (parentOfTopCandidate.tagName !== "BODY") {
           if (!parentOfTopCandidate.readability) {
@@ -1415,7 +1285,6 @@ Readability.prototype = {
             break;
           }
           if (parentScore > lastScore) {
-            // Alright! We found a better parent to use.
             topCandidate = parentOfTopCandidate;
             break;
           }
@@ -1423,8 +1292,6 @@ Readability.prototype = {
           parentOfTopCandidate = parentOfTopCandidate.parentNode;
         }
 
-        // If the top candidate is the only child, use parent instead. This will help sibling
-        // joining logic when adjacent content is actually located in parent's sibling node.
         parentOfTopCandidate = topCandidate.parentNode;
         while (
           parentOfTopCandidate.tagName != "BODY" &&
@@ -1438,9 +1305,6 @@ Readability.prototype = {
         }
       }
 
-      // Now that we have the top candidate, look through its siblings for content
-      // that might also be related. Things like preambles, content split by ads
-      // that we removed, etc.
       var articleContent = doc.createElement("DIV");
       if (isPaging) {
         articleContent.id = "readability-content";
@@ -1450,7 +1314,6 @@ Readability.prototype = {
         10,
         topCandidate.readability.contentScore * 0.2
       );
-      // Keep potential top candidate's parent node to try to get text direction of it later.
       parentOfTopCandidate = topCandidate.parentNode;
       var siblings = parentOfTopCandidate.children;
 
@@ -1475,7 +1338,6 @@ Readability.prototype = {
         } else {
           var contentBonus = 0;
 
-          // Give a bonus if sibling nodes and top candidates have the example same classname
           if (
             sibling.className === topCandidate.className &&
             topCandidate.className !== ""
@@ -1511,21 +1373,13 @@ Readability.prototype = {
           this.log("Appending node:", sibling);
 
           if (!this.ALTER_TO_DIV_EXCEPTIONS.includes(sibling.nodeName)) {
-            // We have a node that isn't a common block level element, like a form or td tag.
-            // Turn it into a div so it doesn't get filtered out later by accident.
             this.log("Altering sibling:", sibling, "to div.");
 
             sibling = this._setNodeTag(sibling, "DIV");
           }
 
           articleContent.appendChild(sibling);
-          // Fetch children again to make it compatible
-          // with DOM parsers without live collection support.
           siblings = parentOfTopCandidate.children;
-          // siblings is a reference to the children array, and
-          // sibling is removed from the array when we call appendChild().
-          // As a result, we must revisit this index since the nodes
-          // have been shifted.
           s -= 1;
           sl -= 1;
         }
@@ -1534,17 +1388,12 @@ Readability.prototype = {
       if (this._debug) {
         this.log("Article content pre-prep: " + articleContent.innerHTML);
       }
-      // So we have all of the content that we need. Now we clean it up for presentation.
       this._prepArticle(articleContent);
       if (this._debug) {
         this.log("Article content post-prep: " + articleContent.innerHTML);
       }
 
       if (neededToCreateTopCandidate) {
-        // We already created a fake div thing, and there wouldn't have been any siblings left
-        // for the previous loop, so there's no point trying to create a new div, and then
-        // move all the children over. Just assign IDs and class names here. No need to append
-        // because that already happened anyway.
         topCandidate.id = "readability-page-1";
         topCandidate.className = "page";
       } else {
@@ -1563,15 +1412,9 @@ Readability.prototype = {
 
       var parseSuccessful = true;
 
-      // Now that we've gone through the full algorithm, check to see if
-      // we got any meaningful content. If we didn't, we may need to re-run
-      // grabArticle with different flags set. This gives us a higher likelihood of
-      // finding the content, and the sieve approach gives us a higher likelihood of
-      // finding the -right- content.
       var textLength = this._getInnerText(articleContent, true).length;
       if (textLength < this._charThreshold) {
         parseSuccessful = false;
-        // eslint-disable-next-line no-unsanitized/property
         page.innerHTML = pageCacheHtml;
 
         this._attempts.push({
@@ -1586,12 +1429,10 @@ Readability.prototype = {
         } else if (this._flagIsActive(this.FLAG_CLEAN_CONDITIONALLY)) {
           this._removeFlag(this.FLAG_CLEAN_CONDITIONALLY);
         } else {
-          // No luck after removing flags, just return the longest text we found during the different loops
           this._attempts.sort(function (a, b) {
             return b.textLength - a.textLength;
           });
 
-          // But first check if we actually have something
           if (!this._attempts[0].textLength) {
             return null;
           }
@@ -1602,7 +1443,6 @@ Readability.prototype = {
       }
 
       if (parseSuccessful) {
-        // Find out text direction from ancestors of final top candidate.
         var ancestors = [parentOfTopCandidate, topCandidate].concat(
           this._getNodeAncestors(parentOfTopCandidate)
         );
@@ -1641,7 +1481,6 @@ Readability.prototype = {
       .replace(/&#(?:x([0-9a-f]+)|([0-9]+));/gi, function (_, hex, numStr) {
         var num = parseInt(hex || numStr, hex ? 16 : 10);
 
-        // these character references are replaced by a conforming HTML parser
         if (num == 0 || num > 0x10ffff || (num >= 0xd800 && num <= 0xdfff)) {
           num = 0xfffd;
         }
@@ -1666,7 +1505,6 @@ Readability.prototype = {
         jsonLdElement.getAttribute("type") === "application/ld+json"
       ) {
         try {
-          // Strip CDATA markers if present
           var content = jsonLdElement.textContent.replace(
             /^\s*<!\[CDATA\[|\]\]>\s*$/g,
             ""
@@ -1718,9 +1556,6 @@ Readability.prototype = {
             typeof parsed.headline === "string" &&
             parsed.name !== parsed.headline
           ) {
-            // we have both name and headline element in the JSON-LD. They should both be the same but some websites like aktualne.cz
-            // put their own name into "name" and the article title to "headline" which confuses Readability. So we try to check if either
-            // "name" or "headline" closely matches the html title, and if so, use that one. If not, then we use "name" by default.
 
             var title = this._getArticleTitle();
             var nameMatches = this._textSimilarity(parsed.name, title) > 0.75;
@@ -1785,15 +1620,12 @@ Readability.prototype = {
     var values = {};
     var metaElements = this._doc.getElementsByTagName("meta");
 
-    // property is a space-separated list of values
     var propertyPattern =
       /\s*(article|dc|dcterm|og|twitter)\s*:\s*(author|creator|description|published_time|title|site_name)\s*/gi;
 
-    // name is a single value
     var namePattern =
       /^\s*(?:(dc|dcterm|og|twitter|parsely|weibo:(article|webpage))\s*[-\.:]\s*)?(author|creator|pub-date|description|title|site_name)\s*$/i;
 
-    // Find description tags.
     this._forEachNode(metaElements, function (element) {
       var elementName = element.getAttribute("name");
       var elementProperty = element.getAttribute("property");
@@ -1807,25 +1639,19 @@ Readability.prototype = {
       if (elementProperty) {
         matches = elementProperty.match(propertyPattern);
         if (matches) {
-          // Convert to lowercase, and remove any whitespace
-          // so we can match below.
           name = matches[0].toLowerCase().replace(/\s/g, "");
-          // multiple authors
           values[name] = content.trim();
         }
       }
       if (!matches && elementName && namePattern.test(elementName)) {
         name = elementName;
         if (content) {
-          // Convert to lowercase, remove any whitespace, and convert dots
-          // to colons so we can match below.
           name = name.toLowerCase().replace(/\s/g, "").replace(/\./g, ":");
           values[name] = content.trim();
         }
       }
     });
 
-    // get title
     metadata.title =
       jsonld.title ||
       values["dc:title"] ||
@@ -1847,7 +1673,6 @@ Readability.prototype = {
         ? values["article:author"]
         : undefined;
 
-    // get author
     metadata.byline =
       jsonld.byline ||
       values["dc:creator"] ||
@@ -1856,7 +1681,6 @@ Readability.prototype = {
       values["parsely-author"] ||
       articleAuthor;
 
-    // get description
     metadata.excerpt =
       jsonld.excerpt ||
       values["dc:description"] ||
@@ -1867,18 +1691,14 @@ Readability.prototype = {
       values.description ||
       values["twitter:description"];
 
-    // get site name
     metadata.siteName = jsonld.siteName || values["og:site_name"];
 
-    // get article published time
     metadata.publishedTime =
       jsonld.datePublished ||
       values["article:published_time"] ||
       values["parsely-pub-date"] ||
       null;
 
-    // in many sites the meta value is escaped with HTML entities,
-    // so here we need to unescape it
     metadata.title = this._unescapeHtmlEntities(metadata.title);
     metadata.byline = this._unescapeHtmlEntities(metadata.byline);
     metadata.excerpt = this._unescapeHtmlEntities(metadata.excerpt);
@@ -1916,8 +1736,6 @@ Readability.prototype = {
    * @param Element
    **/
   _unwrapNoscriptImages(doc) {
-    // Find img without source or attributes that might contains image, and remove it.
-    // This is done to prevent a placeholder img is replaced by img from noscript in next step.
     var imgs = Array.from(doc.getElementsByTagName("img"));
     this._forEachNode(imgs, function (img) {
       for (var i = 0; i < img.attributes.length; i++) {
@@ -1938,24 +1756,14 @@ Readability.prototype = {
       img.remove();
     });
 
-    // Next find noscript and try to extract its image
     var noscripts = Array.from(doc.getElementsByTagName("noscript"));
     this._forEachNode(noscripts, function (noscript) {
-      // Parse content of noscript and make sure it only contains image
       if (!this._isSingleImage(noscript)) {
         return;
       }
       var tmp = doc.createElement("div");
-      // We're running in the document context, and using unmodified
-      // document contents, so doing this should be safe.
-      // (Also we heavily discourage people from allowing script to
-      // run at all in this document...)
-      // eslint-disable-next-line no-unsanitized/property
       tmp.innerHTML = noscript.innerHTML;
 
-      // If noscript has previous sibling and it only contains image,
-      // replace it with noscript content. However we also keep old
-      // attributes that might contains image.
       var prevElement = noscript.previousElementSibling;
       if (prevElement && this._isSingleImage(prevElement)) {
         var prevImg = prevElement;
@@ -2011,12 +1819,10 @@ Readability.prototype = {
    * @param string tag of child element
    **/
   _hasSingleTagInsideElement(element, tag) {
-    // There should be exactly 1 element child with given tag
     if (element.children.length != 1 || element.children[0].tagName !== tag) {
       return false;
     }
 
-    // And there should be no text nodes with real content
     return !this._someNode(element.childNodes, function (node) {
       return (
         node.nodeType === this.TEXT_NODE &&
@@ -2052,7 +1858,7 @@ Readability.prototype = {
 
   /***
    * Determine if a node qualifies as phrasing content.
-   * https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/Content_categories#Phrasing_content
+   * https:
    **/
   _isPhrasingContent(node) {
     return (
@@ -2116,7 +1922,6 @@ Readability.prototype = {
       return;
     }
 
-    // Remove `style` and deprecated presentational attributes
     for (var i = 0; i < this.PRESENTATIONAL_ATTRIBUTES.length; i++) {
       e.removeAttribute(this.PRESENTATIONAL_ATTRIBUTES[i]);
     }
@@ -2148,7 +1953,6 @@ Readability.prototype = {
 
     var linkLength = 0;
 
-    // XXX implement _reduceNodeList?
     this._forEachNode(element.getElementsByTagName("a"), function (linkNode) {
       var href = linkNode.getAttribute("href");
       var coefficient = href && this.REGEXPS.hashUrl.test(href) ? 0.3 : 1;
@@ -2172,7 +1976,6 @@ Readability.prototype = {
 
     var weight = 0;
 
-    // Look for a special classname
     if (typeof e.className === "string" && e.className !== "") {
       if (this.REGEXPS.negative.test(e.className)) {
         weight -= 25;
@@ -2183,7 +1986,6 @@ Readability.prototype = {
       }
     }
 
-    // Look for a special ID
     if (typeof e.id === "string" && e.id !== "") {
       if (this.REGEXPS.negative.test(e.id)) {
         weight -= 25;
@@ -2209,16 +2011,13 @@ Readability.prototype = {
     var isEmbed = ["object", "embed", "iframe"].includes(tag);
 
     this._removeNodes(this._getAllNodesWithTag(e, [tag]), function (element) {
-      // Allow youtube and vimeo videos through as people usually want to see those.
       if (isEmbed) {
-        // First, check the elements attributes to see if any of them contain youtube or vimeo
         for (var i = 0; i < element.attributes.length; i++) {
           if (this._allowedVideoRegex.test(element.attributes[i].value)) {
             return false;
           }
         }
 
-        // For embed with <object> tag, check inner HTML as well.
         if (
           element.tagName === "object" &&
           this._allowedVideoRegex.test(element.innerHTML)
@@ -2274,7 +2073,6 @@ Readability.prototype = {
       }
       rows += rowspan || 1;
 
-      // Now look for column-related info
       var columnsInThisRow = 0;
       var cells = trs[i].getElementsByTagName("td");
       for (var j = 0; j < cells.length; j++) {
@@ -2292,7 +2090,7 @@ Readability.prototype = {
   /**
    * Look for 'data' (as opposed to 'layout') tables, for which we use
    * similar checks as
-   * https://searchfox.org/mozilla-central/rev/f82d5c549f046cb64ce5602bfd894b7ae807c8f8/accessible/generic/TableAccessible.cpp#19
+   * https:
    */
   _markDataTables(root) {
     var tables = root.getElementsByTagName("table");
@@ -2320,7 +2118,6 @@ Readability.prototype = {
         continue;
       }
 
-      // If the table has a descendant with any of these tags, consider a data table:
       var dataTableDescendants = ["col", "colgroup", "tfoot", "thead", "th"];
       var descendantExists = function (tag) {
         return !!table.getElementsByTagName(tag)[0];
@@ -2331,7 +2128,6 @@ Readability.prototype = {
         continue;
       }
 
-      // Nested tables indicate a layout table:
       if (table.getElementsByTagName("table")[0]) {
         table._readabilityDataTable = false;
         continue;
@@ -2340,7 +2136,6 @@ Readability.prototype = {
       var sizeInfo = this._getRowAndColumnCount(table);
 
       if (sizeInfo.columns == 1 || sizeInfo.rows == 1) {
-        // single colum/row tables are commonly used for page layout purposes.
         table._readabilityDataTable = false;
         continue;
       }
@@ -2349,7 +2144,6 @@ Readability.prototype = {
         table._readabilityDataTable = true;
         continue;
       }
-      // Now just go by size entirely:
       table._readabilityDataTable = sizeInfo.rows * sizeInfo.columns > 10;
     }
   },
@@ -2359,17 +2153,12 @@ Readability.prototype = {
     this._forEachNode(
       this._getAllNodesWithTag(root, ["img", "picture", "figure"]),
       function (elem) {
-        // In some sites (e.g. Kotaku), they put 1px square image as base64 data uri in the src attribute.
-        // So, here we check if the data uri is too short, just might as well remove it.
         if (elem.src && this.REGEXPS.b64DataUrl.test(elem.src)) {
-          // Make sure it's not SVG, because SVG can have a meaningful image in under 133 bytes.
           var parts = this.REGEXPS.b64DataUrl.exec(elem.src);
           if (parts[1] === "image/svg+xml") {
             return;
           }
 
-          // Make sure this element has other attributes which contains image.
-          // If it doesn't, then this src is important and shouldn't be removed.
           var srcCouldBeRemoved = false;
           for (var i = 0; i < elem.attributes.length; i++) {
             var attr = elem.attributes[i];
@@ -2383,8 +2172,6 @@ Readability.prototype = {
             }
           }
 
-          // Here we assume if image is less than 100 bytes (or 133 after encoded to base64)
-          // it will be too small, therefore it might be placeholder image.
           if (srcCouldBeRemoved) {
             var b64starts = parts[0].length;
             var b64length = elem.src.length - b64starts;
@@ -2394,7 +2181,6 @@ Readability.prototype = {
           }
         }
 
-        // also check for "null" to work around https://github.com/jsdom/jsdom/issues/2580
         if (
           (elem.src || (elem.srcset && elem.srcset != "null")) &&
           !elem.className.toLowerCase().includes("lazy")
@@ -2418,15 +2204,12 @@ Readability.prototype = {
             copyTo = "src";
           }
           if (copyTo) {
-            //if this is an img or picture, set the attribute directly
             if (elem.tagName === "IMG" || elem.tagName === "PICTURE") {
               elem.setAttribute(copyTo, attr.value);
             } else if (
               elem.tagName === "FIGURE" &&
               !this._getAllNodesWithTag(elem, ["img", "picture"]).length
             ) {
-              //if the item is a <figure> that does not contain an image or picture, create one and place it inside the figure
-              //see the nytimes-3 testcase for an example
               var img = this._doc.createElement("img");
               img.setAttribute(copyTo, attr.value);
               elem.appendChild(img);
@@ -2462,13 +2245,7 @@ Readability.prototype = {
       return;
     }
 
-    // Gather counts for other typical elements embedded within.
-    // Traverse backwards so we can remove nodes at the same time
-    // without effecting the traversal.
-    //
-    // TODO: Consider taking into account original contentScore here.
     this._removeNodes(this._getAllNodesWithTag(e, [tag]), function (node) {
-      // First check if this node IS data table, in which case don't remove it.
       var isDataTable = function (t) {
         return t._readabilityDataTable;
       };
@@ -2488,7 +2265,6 @@ Readability.prototype = {
         return false;
       }
 
-      // Next check if we're inside a data table, in which case don't remove it as well.
       if (this._hasAncestorTag(node, "table", -1, isDataTable)) {
         return false;
       }
@@ -2497,7 +2273,6 @@ Readability.prototype = {
         return false;
       }
 
-      // keep element if it has a data tables
       if (
         [...node.getElementsByTagName("table")].some(
           tbl => tbl._readabilityDataTable
@@ -2517,9 +2292,6 @@ Readability.prototype = {
       }
 
       if (this._getCharCount(node, ",") < 10) {
-        // If there are not very many commas, and the number of
-        // non-paragraph elements is more than paragraphs or other
-        // ominous signs, remove the element.
         var p = node.getElementsByTagName("p").length;
         var img = node.getElementsByTagName("img").length;
         var li = node.getElementsByTagName("li").length - 100;
@@ -2541,14 +2313,12 @@ Readability.prototype = {
         ]);
 
         for (var i = 0; i < embeds.length; i++) {
-          // If this embed has attribute that matches video regex, don't delete it.
           for (var j = 0; j < embeds[i].attributes.length; j++) {
             if (this._allowedVideoRegex.test(embeds[i].attributes[j].value)) {
               return false;
             }
           }
 
-          // For embed with <object> tag, check inner HTML as well.
           if (
             embeds[i].tagName === "object" &&
             this._allowedVideoRegex.test(embeds[i].innerHTML)
@@ -2561,7 +2331,6 @@ Readability.prototype = {
 
         var innerText = this._getInnerText(node);
 
-        // toss any node whose inner text contains nothing but suspicious words
         if (
           this.REGEXPS.adWords.test(innerText) ||
           this.REGEXPS.loadingWords.test(innerText)
@@ -2577,7 +2346,6 @@ Readability.prototype = {
         var textDensity = this._getTextDensity(node, textishTags);
         var isFigureChild = this._hasAncestorTag(node, "figure");
 
-        // apply shadiness checks, then check for exceptions
         const shouldRemoveNode = () => {
           const errs = [];
           if (!isFigureChild && img > 1 && p / img < 0.5) {
@@ -2636,17 +2404,14 @@ Readability.prototype = {
 
         var haveToRemove = shouldRemoveNode();
 
-        // Allow simple lists of images to remain in pages
         if (isList && haveToRemove) {
           for (var x = 0; x < node.children.length; x++) {
             let child = node.children[x];
-            // Don't filter in lists with li's that contain more than one child
             if (child.children.length > 1) {
               return haveToRemove;
             }
           }
           let li_count = node.getElementsByTagName("li").length;
-          // Only allow the list to remain if every li contains an image
           if (img == li_count) {
             return false;
           }
@@ -2718,12 +2483,10 @@ Readability.prototype = {
   },
 
   _isProbablyVisible(node) {
-    // Have to null-check node.style and node.className.includes to deal with SVG and MathML nodes.
     return (
       (!node.style || node.style.display != "none") &&
       (!node.style || node.style.visibility != "hidden") &&
       !node.hasAttribute("hidden") &&
-      //check for "fallback-image" so that wikimedia math images are displayed
       (!node.hasAttribute("aria-hidden") ||
         node.getAttribute("aria-hidden") != "true" ||
         (node.className &&
@@ -2745,7 +2508,6 @@ Readability.prototype = {
    * @return void
    **/
   parse() {
-    // Avoid parsing too large documents, as per configuration option
     if (this._maxElemsToParse > 0) {
       var numTags = this._doc.getElementsByTagName("*").length;
       if (numTags > this._maxElemsToParse) {
@@ -2755,13 +2517,10 @@ Readability.prototype = {
       }
     }
 
-    // Unwrap image from noscript
     this._unwrapNoscriptImages(this._doc);
 
-    // Extract JSON-LD metadata before removing scripts
     var jsonLd = this._disableJSONLD ? {} : this._getJSONLD(this._doc);
 
-    // Remove script tags from the document.
     this._removeScripts(this._doc);
 
     this._prepDocument();
@@ -2779,9 +2538,6 @@ Readability.prototype = {
 
     this._postProcessContent(articleContent);
 
-    // If we haven't found an excerpt in the article's metadata, use the article's
-    // first paragraph as the excerpt. This is used for displaying a preview of
-    // the article's content.
     if (!metadata.excerpt) {
       var paragraphs = articleContent.getElementsByTagName("p");
       if (paragraphs.length) {

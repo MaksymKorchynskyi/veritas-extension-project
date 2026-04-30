@@ -43,10 +43,10 @@
       -moz-osx-font-smoothing: grayscale;
     }
 
-    /* ─── Page Layout ─── */
+    
     .page { max-width: 1200px; margin: 0 auto; padding: 0 32px; min-height: 100vh; display: flex; flex-direction: column; }
 
-    /* ─── Header ─── */
+    
     .header {
       padding: 40px 0 0;
       text-align: center;
@@ -107,7 +107,7 @@
     }
     .btn-back:hover { border-color: var(--accent); color: var(--text); background: rgba(93,64,55,0.06); }
 
-    /* ─── Tabs ─── */
+    
     .tabs { display: flex; gap: 0; margin: 28px 0 0; border-bottom: 1px solid var(--border); }
     .tab-btn {
       flex: 1; padding: 14px 16px; border: none; background: none; cursor: pointer;
@@ -121,11 +121,9 @@
     .tab-content { display: none; padding: 28px 0; flex: 1; }
     .tab-content.active { display: block; }
 
-    /* ═══════════════════════════════════════════════
-       PARSED TEXT TAB — Premium Editorial Layout
-       ═══════════════════════════════════════════════ */
+    
 
-    /* Article Header */
+    
     .article-header {
       margin-bottom: 32px;
       padding-bottom: 28px;
@@ -166,7 +164,7 @@
       letter-spacing: -0.5px;
     }
 
-    /* Two-Column Layout */
+    
     .content-layout {
       display: grid;
       grid-template-columns: 1fr 340px;
@@ -178,7 +176,7 @@
       .analysis-sidebar { order: -1; }
     }
 
-    /* Article Content */
+    
     .article-body {
       background: var(--card-solid);
       border: 1px solid var(--border-light);
@@ -187,7 +185,7 @@
       box-shadow: var(--shadow-md);
     }
 
-    /* Drop Cap */
+    
     .para:first-child .para-text::first-letter {
       font-family: var(--font-display);
       font-weight: 800;
@@ -226,7 +224,7 @@
       color: var(--text-body);
     }
 
-    /* Highlighted paragraphs */
+    
     .para.hl-warning {
       border-left-color: var(--yellow);
       background: var(--yellow-bg);
@@ -289,7 +287,7 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* ─── Analysis Sidebar ─── */
+    
     .analysis-sidebar {
       position: sticky;
       top: 24px;
@@ -383,7 +381,7 @@
       color: var(--text-sec);
     }
 
-    /* Highlights Summary */
+    
     .hl-summary-list { list-style: none; }
     .hl-summary-item {
       display: flex;
@@ -422,7 +420,7 @@
       padding: 16px 0;
     }
 
-    /* ─── Stats Footer ─── */
+    
     .stats-footer {
       display: flex;
       gap: 16px;
@@ -455,7 +453,7 @@
       margin-top: 2px;
     }
 
-    /* ─── Raw text fallback ─── */
+    
     .raw-text {
       white-space: pre-wrap;
       font-family: var(--font-body);
@@ -465,7 +463,7 @@
       padding: 20px;
     }
 
-    /* ─── Error / Loading ─── */
+    
     .error-box {
       background: rgba(141,45,36,0.05);
       border: 1px solid rgba(141,45,36,0.15);
@@ -485,9 +483,7 @@
       color: var(--text-muted);
     }
 
-    /* ═══════════════════════════════════════════════
-       TEST DASHBOARD TAB (unchanged visuals)
-       ═══════════════════════════════════════════════ */
+    
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
 
     .dash-controls { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
@@ -552,9 +548,7 @@
       margin-top: auto;
     }
 
-    /* ═══════════════════════════════════════════════
-       WRITE & ANALYZE TAB
-       ═══════════════════════════════════════════════ */
+    
     .write-form { max-width: 800px; margin: 0 auto; }
     .form-group { margin-bottom: 20px; }
     .form-label {
@@ -675,9 +669,7 @@
       font-size: 0.9rem;
       color: var(--text-sec);
     }
-    /* ═══════════════════════════════════════════════
-       FORMULA EXPANSION PANELS
-       ═══════════════════════════════════════════════ */
+    
     .criteria-item { cursor: pointer; position: relative; }
     .criteria-item:hover { background: rgba(93,64,55,0.04); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 8px; }
     .criteria-expand-icon {
@@ -729,9 +721,7 @@
     }
     .formula-result .result-val { font-weight: 800; color: var(--text); }
 
-    /* ═══════════════════════════════════════════════
-       EXTRACTED CLAIMS & SCORING INPUTS BLOCK
-       ═══════════════════════════════════════════════ */
+    
     .claims-list { list-style: none; }
     .claim-item {
       padding: 10px 0;
@@ -799,9 +789,7 @@
       text-align: center;
     }
 
-    /* ═══════════════════════════════════════════════
-       FULL-WIDTH ANALYTICS DASHBOARD (Bottom Section)
-       ═══════════════════════════════════════════════ */
+    
     .analytics-dashboard {
       display: none;
       margin-top: 48px;
@@ -829,7 +817,7 @@
       letter-spacing: 2px;
     }
 
-    /* Formula Cards Grid */
+    
     .formulas-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -897,7 +885,7 @@
     }
     .formula-card .formula-card-result .result-val { font-weight: 800; }
 
-    /* Evidence Section */
+    
     .evidence-section {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -985,7 +973,7 @@
       padding: 12px 0;
     }
 
-    /* OSINT Claims Section */
+    
     .osint-section {
       background: var(--card-solid);
       border: 1px solid var(--border-light);
@@ -1030,7 +1018,7 @@
       margin-bottom: 2px;
     }
 
-    /* Scoring summary strip */
+    
     .scoring-strip {
       display: flex;
       gap: 12px;
@@ -1063,7 +1051,7 @@
       margin-top: 2px;
     }
     
-    /* Benchmark Detail Panel */
+    
     .test-detail-panel {
       background: var(--bg-sec);
       border-top: 1px solid var(--border);
@@ -1103,7 +1091,7 @@
 <body>
 <div class="page">
 
-  <!-- ─── Header ─── -->
+  
   <div class="header">
     <h1 class="brand">Veritas</h1>
     <p class="brand-sub" data-i18n="brand_sub">Article Analysis Reader</p>
@@ -1119,19 +1107,17 @@
     </div>
   </div>
 
-  <!-- ─── Tabs ─── -->
+  
   <div class="tabs">
     <button class="tab-btn active" data-tab="parsed" data-i18n="tab_reader">📄 Article Reader</button>
     <button class="tab-btn" data-tab="tests" data-i18n="tab_tests">🧪 Test Dashboard</button>
     <button class="tab-btn" data-tab="write" data-i18n="tab_write">✍️ Write & Analyze</button>
   </div>
 
-  <!-- ═══════════════════════════════════════════════
-       TAB 1: PARSED TEXT — Premium Reader
-       ═══════════════════════════════════════════════ -->
+  
   <div class="tab-content active" id="tab-parsed">
 
-    <!-- Article Header (title + source) -->
+    
     <div class="article-header" id="pt-header">
       <a class="article-source-link" id="pt-url" href="#" target="_blank">
         <span class="link-icon">🔗</span>
@@ -1140,16 +1126,16 @@
       <h1 class="article-title loading-title pulse" id="pt-title">Loading article…</h1>
     </div>
 
-    <!-- Two-Column Content -->
+    
     <div class="content-layout" id="pt-layout" style="display:none;">
 
-      <!-- Left: Article Body -->
+      
       <div>
         <div class="article-body" id="pt-content">
           <p class="para-text pulse" style="color:var(--text-muted)">Fetching parsed text…</p>
         </div>
 
-        <!-- Stats Footer (moved to bottom) -->
+        
         <div class="stats-footer" id="pt-stats" style="display:none;">
           <div class="stat-pill"><span class="stat-pill-num" id="pt-paras">0</span><span class="stat-pill-lbl" data-i18n="stat_paragraphs">Paragraphs</span></div>
           <div class="stat-pill"><span class="stat-pill-num" id="pt-words">0</span><span class="stat-pill-lbl" data-i18n="stat_words">Words</span></div>
@@ -1157,10 +1143,10 @@
         </div>
       </div>
 
-      <!-- Right: Analysis Sidebar -->
+      
       <div class="analysis-sidebar" id="pt-sidebar">
 
-        <!-- Trust Score -->
+        
         <div class="sidebar-card">
           <div class="trust-score-hero">
             <p class="trust-label" data-i18n="trust_score">Trust Score</p>
@@ -1169,25 +1155,25 @@
           </div>
         </div>
 
-        <!-- Criteria Breakdown -->
+        
         <div class="sidebar-card" id="sb-criteria-card">
           <p class="sidebar-title" data-i18n="criteria_breakdown">Criteria Breakdown</p>
           <ul class="criteria-list" id="sb-criteria"></ul>
         </div>
 
-        <!-- Highlights / Issues -->
+        
         <div class="sidebar-card" id="sb-highlights-card">
           <p class="sidebar-title" data-i18n="found_issues">Found Issues</p>
           <ul class="hl-summary-list" id="sb-highlights"></ul>
         </div>
 
-        <!-- ML Metrics -->
+        
         <div class="sidebar-card" id="sb-ml-card">
           <p class="sidebar-title" data-i18n="ai_metrics">ШІ Метрики</p>
           <ul class="criteria-list" id="sb-ml-metrics"></ul>
         </div>
 
-        <!-- Explainer -->
+        
         <div class="sidebar-card" id="sb-explainer-card">
           <p class="sidebar-title" data-i18n="ai_summary">AI Summary</p>
           <p class="explainer-text" id="sb-explainer"></p>
@@ -1196,19 +1182,15 @@
       </div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════
-         FULL-WIDTH ANALYTICS DASHBOARD
-         ═══════════════════════════════════════════════ -->
+    
     <div class="analytics-dashboard" id="pt-analytics"></div>
 
-    <!-- Error / No Data container (shown if no data) -->
+    
     <div id="pt-error-container"></div>
 
   </div>
 
-  <!-- ═══════════════════════════════════════════════
-       TAB 2: TEST DASHBOARD
-       ═══════════════════════════════════════════════ -->
+  
   <div class="tab-content" id="tab-tests">
 
     <div class="dash-controls">
@@ -1220,7 +1202,7 @@
       <button class="btn-export" id="exportBtn" data-i18n="export_csv">💾 Export CSV</button>
     </div>
 
-    <!-- Summary (appears after run) -->
+    
     <div id="summarySection" style="display:none">
       <div class="summary-grid">
         <div class="summary-item"><span class="summary-val color-green" id="sumAccuracy">—</span><span class="summary-lbl" data-i18n="accuracy">Accuracy</span></div>
@@ -1233,9 +1215,7 @@
     <div id="testArticlesContainer"></div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════
-       TAB 3: WRITE & ANALYZE
-       ═══════════════════════════════════════════════ -->
+  
   <div class="tab-content" id="tab-write">
     <div class="write-form">
 
@@ -1269,16 +1249,16 @@ https://source2.com" data-i18n-placeholder="write_refs_placeholder"></textarea>
 
     </div>
 
-    <!-- Loading state -->
+    
     <div class="write-loading" id="writeLoading" style="display:none;">
       <div class="spinner-lg"></div>
       <p class="write-loading-text" data-i18n="write_analyzing">Analyzing your article...</p>
     </div>
 
-    <!-- Results -->
+    
     <div class="write-results" id="writeResults">
       <div class="write-result-layout">
-        <!-- Left: Article preview with highlights -->
+        
         <div>
           <div class="write-article-preview" id="writePreviewContent"></div>
           <div class="stats-footer" id="writeStats" style="display:none;">
@@ -1287,7 +1267,7 @@ https://source2.com" data-i18n-placeholder="write_refs_placeholder"></textarea>
             <div class="stat-pill"><span class="stat-pill-num" id="writeStatChars">0</span><span class="stat-pill-lbl" data-i18n="stat_characters">Characters</span></div>
           </div>
         </div>
-        <!-- Right: Analysis sidebar -->
+        
         <div class="analysis-sidebar" id="writeSidebar"></div>
       </div>
     </div>

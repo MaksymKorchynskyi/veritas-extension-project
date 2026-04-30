@@ -70,7 +70,6 @@ async def run_agent(prompt: str, system_instruction: str, response_schema: Type[
                 ),
             )
 
-            # Log chain-of-thought reasoning if available
             if hasattr(response, "raw_thoughts") and response.raw_thoughts:
                 logger.info(
                     f"\n{'='*60}\n"
@@ -85,9 +84,9 @@ async def run_agent(prompt: str, system_instruction: str, response_schema: Type[
         except Exception as e:
             err_str = str(e)
             is_overload = "503" in err_str or "UNAVAILABLE" in err_str or "overloaded" in err_str.lower()
-            
+
             if attempt < max_retries - 1:
-                delay = (attempt + 1) * 2  # 2s, 4s, 6s
+                delay = (attempt + 1) * 2
                 level = "warning" if is_overload else "error"
                 logger.log(
                     logging.WARNING if is_overload else logging.ERROR,

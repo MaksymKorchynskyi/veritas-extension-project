@@ -1,5 +1,5 @@
 """
-VERITAS OSINT Search RAG 
+VERITAS OSINT Search RAG
 Google Custom Search & Fact Verification
 """
 
@@ -22,7 +22,6 @@ from app.services.llm.base_agent import client, MODEL_NAME, FALLBACK_MODEL_NAME
 
 logger = logging.getLogger(__name__)
 
-# Hardcoded domain reputation for common local media
 LOCAL_DOMAINS_REPUTATION = {
     "pravda.com.ua": {"trust_index": 0.9, "summary": "Надійне українське видання (Українська правда)."},
     "truha.ua": {"trust_index": 0.2, "summary": "Telegram-канал/агрегатор з низькою репутацією (Труха). Часто публікує неперевірені дані."},
@@ -143,10 +142,10 @@ async def search_duckduckgo(query: str) -> List[str]:
 async def run_cross_agent(claim_text: str, snippets: List[str]) -> CrossReferenceResult | None:
     if not client or not snippets:
         return None
-        
+
     snippets_text = "\n".join([f"- {s}" for s in snippets])
     prompt = f"ORIGINAL CLAIM: {claim_text}\n\nSEARCH RESULTS (SNIPPETS):\n{snippets_text}"
-    
+
     try:
         max_retries = 2
         current_model = MODEL_NAME
@@ -178,27 +177,23 @@ async def run_cross_agent(claim_text: str, snippets: List[str]) -> CrossReferenc
 async def process_single_claim(claim: VerifiableClaim) -> tuple[str, GeminiHighlight | None]:
     """Process a single verifiable claim end-to-end to see if it is contradicted or confirmed."""
     logger.info(f"[OSINT] Evaluating claim ID {claim.paragraph_id}: {claim.claim_text}")
-    
-    # 1. Translate & Generate Query
+
     query = await run_query_agent(claim.claim_text)
     if not query:
         return "UNVERIFIED", None
-        
+
     logger.info(f"[OSINT] Query generated: {query}")
-    
-    # 2. Search Google Custom Search
+
     snippets = await search_duckduckgo(query)
     if not snippets:
         return "UNVERIFIED", None
-        
-    # 3. Cross Reference
+
     verdict = await run_cross_agent(claim.claim_text, snippets)
     if not verdict:
         return "UNVERIFIED", None
-        
+
     logger.info(f"[OSINT] Claim ID {claim.paragraph_id} Verdict: {verdict.status}")
-    
-    # 4. Act on CONTRADICTED
+
     if verdict.status == "CONTRADICTED":
         hl = GeminiHighlight(
             paragraph_id=claim.paragraph_id,
@@ -207,10 +202,10 @@ async def process_single_claim(claim: VerifiableClaim) -> tuple[str, GeminiHighl
             reason=verdict.reason
         )
         return "CONTRADICTED", hl
-        
+
     if verdict.status == "CONFIRMED":
         return "CONFIRMED", None
-        
+
     return "UNVERIFIED", None
 
 async def verify_claims_osint(claims: List[VerifiableClaim]) -> tuple[List[GeminiHighlight], int, int]:
@@ -219,18 +214,17 @@ async def verify_claims_osint(claims: List[VerifiableClaim]) -> tuple[List[Gemin
     """
     if not claims:
         return [], 0, 0
-        
-    # Strictly enforce Top 5 cap
+
     target_claims = claims[:5]
     logger.info(f"[OSINT] Starting parallel verification for {len(target_claims)} claims.")
-    
+
     tasks = [process_single_claim(c) for c in target_claims]
     results = await asyncio.gather(*tasks)
-    
+
     highlights = []
     n_conf = 0
     n_contra = 0
-    
+
     for status, hl in results:
         if status == "CONFIRMED":
             n_conf += 1
@@ -238,15 +232,14 @@ async def verify_claims_osint(claims: List[VerifiableClaim]) -> tuple[List[Gemin
             n_contra += 1
             if hl:
                 highlights.append(hl)
-                
+
     return highlights, n_conf, n_contra
 
 async def check_domain_reputation(domain: str) -> DomainReputationResult:
     """Uses LOCAL_DOMAINS_REPUTATION first, then Google Custom Search + Gemini to check media watchdog statements."""
     if not domain:
         return DomainReputationResult(trust_index=0.5, background_summary="Оцінка неможлива (пустий домен)")
-        
-    # 1. Check Local Domain List
+
     domain_lower = domain.lower().replace("www.", "")
     if domain_lower in LOCAL_DOMAINS_REPUTATION:
         logger.info(f"[OSINT] Domain '{domain_lower}' found in LOCAL_DOMAINS_REPUTATION.")
@@ -258,23 +251,22 @@ async def check_domain_reputation(domain: str) -> DomainReputationResult:
 
     if not client:
         return DomainReputationResult(trust_index=0.5, background_summary="Оцінка неможлива (AI offline)")
-        
-    # 2. Fallback to Google Search
+
     query = f"{domain} bias fact-check reliability credibility"
     logger.info(f"[OSINT] Querying reputation for domain: {domain}")
-    
+
     snippets = await search_duckduckgo(query)
-    
+
     if not snippets:
         logger.info(f"[OSINT] No watchdog data for {domain}. Defaulting to 0.5.")
         return DomainReputationResult(
-            trust_index=0.5, 
+            trust_index=0.5,
             background_summary="Локальне або маловідоме видання. Прямих підтверджень упередженості не знайдено."
         )
-        
+
     snippets_text = "\n".join([f"- {s}" for s in snippets])
     prompt = f"TARGET DOMAIN: {domain}\n\nREPUTATION SNIPPETS:\n{snippets_text}"
-    
+
     try:
         max_retries = 2
         current_model = MODEL_NAME
