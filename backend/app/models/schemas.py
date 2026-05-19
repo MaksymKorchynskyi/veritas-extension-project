@@ -4,13 +4,13 @@ from pydantic import BaseModel, Field
 
 
 class VerifiableClaim(BaseModel):
-    """A factual claim extracted by FactExtractionAgent."""
+    """Фактологічна теза, витягнута агентом FactExtractionAgent."""
     paragraph_id: int = Field(..., description="The ID of the paragraph where the claim is located")
     claim_text: str = Field(..., description="The exact factual claim (dates, statistics, quotes, actions)")
 
 
 class FactExtraction(BaseModel):
-    """Output for FactualClaimExtractor."""
+    """Результат роботи агента витягу фактологічних тез."""
     verifiable_claims: List[VerifiableClaim] = Field(
         default_factory=list,
         description="Max 5 hard, concrete claims extracted from the article",
@@ -19,7 +19,7 @@ class FactExtraction(BaseModel):
 
 
 class GeminiHighlight(BaseModel):
-    """A problematic text segment identified by an AI agent."""
+    """Проблемний сегмент тексту, ідентифікований AI-агентом."""
     paragraph_id: int = Field(..., description="The exact paragraph ID (from [ID: X] markers)")
     severity: Literal["warning", "risk"] = Field(
         ...,
@@ -30,7 +30,7 @@ class GeminiHighlight(BaseModel):
 
 
 class JudgeEvaluation(BaseModel):
-    """Output for ArticleMetricsExtractor — feeds into BRS scoring formulas."""
+    """Результат роботи ArticleMetricsExtractor — вхідні дані для формул BRS."""
     citations_count: int = Field(..., ge=0, description="Number of verifiable named citations")
     emotional_words_count: int = Field(..., ge=0, description="Number of manipulative/emotional phrases")
     found_citations: List[str] = Field(
@@ -50,12 +50,12 @@ class JudgeEvaluation(BaseModel):
 
 
 class QueryGenerationResult(BaseModel):
-    """Output for SearchQueryGenerator."""
+    """Результат роботи генератора пошукових запитів."""
     english_query: str = Field(..., description="Short search query (3-7 keywords in the claim's language)")
 
 
 class CrossReferenceResult(BaseModel):
-    """Output for OSINT CrossReferenceAgent."""
+    """Результат роботи агента перехресної верифікації (CrossReferenceAgent)."""
     status: Literal["CONFIRMED", "CONTRADICTED", "UNVERIFIED"] = Field(
         ..., description="Verdict based on search snippets vs original claim"
     )
@@ -63,20 +63,20 @@ class CrossReferenceResult(BaseModel):
 
 
 class DomainReputationResult(BaseModel):
-    """Output for OSINT ReputationAgent."""
+    """Результат роботи агента оцінки репутації домену (ReputationAgent)."""
     trust_index: float = Field(..., description="0.0 to 1.0 trust index for the domain")
     background_summary: str = Field(..., description="Short description of the domain's reputation")
 
 
 
 class ParagraphModel(BaseModel):
-    """Single paragraph extracted client-side by Readability.js."""
+    """Окремий абзац, витягнутий клієнтським Readability.js."""
     id: int = Field(..., description="Unique index of the paragraph")
     text: str = Field(..., description="Text content of the paragraph")
 
 
 class AnalysisRequest(BaseModel):
-    """Request model — article data parsed client-side."""
+    """Модель запиту — дані статті, розпарсені на клієнтській стороні."""
     url: str = Field(..., description="URL of the article")
     title: str = Field(..., description="Article title from Readability.js")
     html_content: str = Field(..., description="Clean article HTML (for link extraction)")
@@ -85,18 +85,18 @@ class AnalysisRequest(BaseModel):
 
 
 class CriteriaScore(BaseModel):
-    """Individual BRS-derived scores for each analysis criterion."""
-    credibility: float = Field(..., ge=0, le=100, description="OSINT-based credibility (BRS)")
+    """Індивідуальні BRS-бали для кожного критерію аналізу."""
+    credibility: float = Field(..., ge=0, le=100, description="Cross-verification-based credibility (BRS)")
     transparency: float = Field(..., ge=0, le=100, description="Citation-based transparency (BRS)")
     objectivity: float = Field(..., ge=0, le=100, description="Emotional analysis objectivity (BRS)")
 
 
 class ScoringInputs(BaseModel):
-    """Raw numerical inputs used in the BRS scoring formulas.
-    Returned to the frontend for formula visualization."""
-    n_confirmed: int = Field(default=0, description="OSINT-confirmed claims count")
-    n_contradicted: int = Field(default=0, description="OSINT-contradicted claims count")
-    n_unverified: int = Field(default=0, description="OSINT-unverified claims count")
+    """Вхідні числові параметри для формул BRS.
+    Повертаються на фронтенд для візуалізації формул."""
+    n_confirmed: int = Field(default=0, description="Cross-verified confirmed claims count")
+    n_contradicted: int = Field(default=0, description="Cross-verified contradicted claims count")
+    n_unverified: int = Field(default=0, description="Unverified claims count")
     domain_trust: float = Field(default=0.5, description="Domain reputation base rate (0.0-1.0)")
     citations_count: int = Field(default=0, description="Named citations found by ArticleMetricsExtractor")
     emotional_words_count: int = Field(default=0, description="Manipulative phrases found by ArticleMetricsExtractor")
@@ -106,14 +106,15 @@ class ScoringInputs(BaseModel):
 
 
 class ExtractedClaimResult(BaseModel):
-    """A single claim extracted and verified through the pipeline."""
+    """Окрема теза, витягнута та верифікована через конвеєр."""
     paragraph_id: int = Field(..., description="Source paragraph ID")
     claim_text: str = Field(..., description="The extracted factual claim")
     status: str = Field(default="UNVERIFIED", description="CONFIRMED / CONTRADICTED / UNVERIFIED")
+    evidence_url: Optional[str] = Field(default=None, description="URL of the evidence found during cross-verification")
 
 
 class Highlight(BaseModel):
-    """API-level highlight for marking issues on the webpage."""
+    """Highlight API-рівня для підсвічування проблем на веб-сторінці."""
     paragraph_id: int = Field(..., description="ID of the paragraph to highlight")
     severity: Literal["warning", "risk"] = Field(..., description="Severity level")
     category: str = Field(default="", description="Short label")
@@ -121,7 +122,7 @@ class Highlight(BaseModel):
 
 
 class AnalysisResponse(BaseModel):
-    """Final API response with trust score and breakdown."""
+    """Фінальна відповідь API з рейтингом довіри та декомпозицією."""
     trust_score: float = Field(..., ge=0, le=100, description="Final BRS-weighted trust score")
     criteria: CriteriaScore = Field(..., description="Individual criterion scores")
     explainer: str = Field(default="", description="Human-readable analysis summary")
