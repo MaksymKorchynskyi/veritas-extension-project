@@ -15,3 +15,4 @@ __pycache__/
 backend/uvicorn.log
 backend/uvicorn.pid
 docs/
+backend/tests/results/
