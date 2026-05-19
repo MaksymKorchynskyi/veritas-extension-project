@@ -1,14 +1,3 @@
-#!/bin/bash
-# =============================================================================
-# VERITAS — Full Test Pipeline
-# =============================================================================
-# Usage:
-#   chmod +x tests/run_all_tests.sh
-#   ./tests/run_all_tests.sh          — Run all tests
-#   ./tests/run_all_tests.sh unit     — Only unit tests
-#   ./tests/run_all_tests.sh bench    — Only benchmark
-#   ./tests/run_all_tests.sh charts   — Only charts
-# =============================================================================
 
 set -e
 
@@ -21,7 +10,6 @@ echo ""
 
 MODE="${1:-all}"
 
-# ─── Step 1: Unit Tests ───
 if [[ "$MODE" == "all" || "$MODE" == "unit" ]]; then
     echo "━━━ Step 1: Unit Tests (scoring.py + utils.py) ━━━"
     echo ""
@@ -36,7 +24,6 @@ if [[ "$MODE" == "all" || "$MODE" == "unit" ]]; then
     echo ""
 fi
 
-# ─── Step 2: Benchmark ───
 if [[ "$MODE" == "all" || "$MODE" == "bench" ]]; then
     echo "━━━ Step 2: API Benchmark (14 articles) ━━━"
     echo ""
@@ -44,7 +31,6 @@ if [[ "$MODE" == "all" || "$MODE" == "bench" ]]; then
     echo ""
 fi
 
-# ─── Step 3: Charts ───
 if [[ "$MODE" == "all" || "$MODE" == "charts" ]]; then
     echo "━━━ Step 3: Generate Charts ━━━"
     echo ""
@@ -52,7 +38,6 @@ if [[ "$MODE" == "all" || "$MODE" == "charts" ]]; then
     echo ""
 fi
 
-# ─── Step 4: Dashboard ───
 if [[ "$MODE" == "all" ]]; then
     echo "━━━ Step 4: Chrome Test Dashboard ━━━"
     echo ""

@@ -129,7 +129,7 @@ async function performAnalysis(tabId, tabUrl) {
 
         const storage = await chrome.storage.local.get(['appLanguage']);
         const lang = storage.appLanguage || 'uk';
-        
+
         const apiResponse = await fetch(`${BASE_URL}/analyze`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -169,7 +169,7 @@ async function performAnalysis(tabId, tabUrl) {
         if (analysisResult.highlights?.length > 0) {
             try {
                 const hlSetting = await chrome.storage.local.get(['highlightsEnabled']);
-                const hlEnabled = hlSetting.highlightsEnabled !== false; // default ON
+                const hlEnabled = hlSetting.highlightsEnabled !== false;
                 if (hlEnabled) {
                     await chrome.tabs.sendMessage(tabId, {
                         action: 'applyHighlights',
@@ -213,7 +213,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
 
         sendResponse({ started: true });
-        return false; // Sync response
+        return false;
     }
 
     if (request.action === 'GET_STATE') {
@@ -221,7 +221,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         getAnalysisState(tabId).then(state => {
             sendResponse({ state });
         });
-        return true; // Async response
+        return true;
     }
 
     if (request.action === 'GET_CACHED') {
@@ -229,7 +229,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         getAnalysisResult(url).then(result => {
             sendResponse({ result });
         });
-        return true; // Async response
+        return true;
     }
 
     if (request.action === 'GET_CACHED_FULL') {
@@ -250,7 +250,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 sendResponse({ found: false });
             }
         })();
-        return true; // Async response
+        return true;
     }
 
     if (request.action === 'CLEAR_STATE') {
