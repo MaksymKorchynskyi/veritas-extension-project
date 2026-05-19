@@ -116,14 +116,14 @@ const loadingMessages = {
     "uk": [
         "Аналіз структури документа...",
         "Виявлення іменованих сутностей...",
-        "Перехресна перевірка баз OSINT...",
+        "Перехресна верифікація тез...",
         "Аналіз логічної послідовності...",
         "Синтез Veritas Trust Score..."
     ],
     "en": [
         "Parsing document structure...",
         "Extracting named entities...",
-        "Cross-referencing OSINT databases...",
+        "Cross-verifying extracted claims...",
         "Analyzing logical consistency...",
         "Synthesizing Veritas Trust Score..."
     ]

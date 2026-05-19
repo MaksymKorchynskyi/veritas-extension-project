@@ -48,77 +48,98 @@
 
     
     .header {
-      padding: 40px 0 0;
-      text-align: center;
-      position: relative;
+      padding: 40px 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 1px solid var(--border-light);
     }
+    .brand-group { text-align: left; }
     .brand {
       font-family: var(--font-display);
       font-style: italic;
       font-weight: 700;
-      font-size: 2.2rem;
+      font-size: 2.4rem;
       color: var(--text);
       letter-spacing: -0.5px;
+      line-height: 1;
     }
     .brand-sub {
       font-family: var(--font-ui);
-      font-size: 0.6rem;
+      font-size: 0.65rem;
       text-transform: uppercase;
       letter-spacing: 4px;
       color: var(--text-muted);
-      margin-top: 4px;
+      margin-top: 8px;
     }
     .header-controls {
-      position: absolute;
-      top: 40px;
-      right: 0;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
+
+    /* Navigation Buttons Style */
+    .tabs { display: flex; gap: 8px; margin: 0; border: none; }
+    .tab-btn {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--card-solid);
+      color: var(--text-sec);
+      cursor: pointer;
+      transition: all 0.25s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tab-btn:hover { 
+      border-color: var(--accent); 
+      color: var(--text); 
+      background: rgba(93,64,55,0.05);
+      transform: translateY(-1px);
+    }
+    .tab-btn.active { 
+      background: var(--accent); 
+      color: #FFFFFF; 
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(93,64,55,0.2);
+    }
+
     .lang-select {
-      padding: 6px 12px;
+      padding: 8px 12px;
       border-radius: 8px;
       border: 1px solid var(--border);
       background: var(--card-solid);
       font-family: var(--font-ui);
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: 0.72rem;
+      font-weight: 700;
       color: var(--text);
       cursor: pointer;
       transition: all 0.2s;
     }
-    .lang-select:hover { border-color: var(--accent); }
+    .lang-select:hover { border-color: var(--accent); background: rgba(93,64,55,0.05); }
+
     .btn-back {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 7px 16px;
+      padding: 8px 16px;
       border-radius: 8px;
       border: 1px solid var(--border);
       background: var(--card-solid);
       font-family: var(--font-ui);
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: 0.72rem;
+      font-weight: 700;
       color: var(--text-sec);
       text-decoration: none;
       cursor: pointer;
       transition: all 0.2s;
     }
-    .btn-back:hover { border-color: var(--accent); color: var(--text); background: rgba(93,64,55,0.06); }
+    .btn-back:hover { border-color: var(--accent); color: var(--text); background: rgba(93,64,55,0.06); transform: translateY(-1px); }
 
-    
-    .tabs { display: flex; gap: 0; margin: 28px 0 0; border-bottom: 1px solid var(--border); }
-    .tab-btn {
-      flex: 1; padding: 14px 16px; border: none; background: none; cursor: pointer;
-      font-family: var(--font-ui); font-size: 0.78rem; font-weight: 600; color: var(--text-muted);
-      border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.25s;
-      text-transform: uppercase; letter-spacing: 1.5px;
-    }
-    .tab-btn:hover { color: var(--text-sec); background: rgba(141,110,99,0.04); }
-    .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
-
-    .tab-content { display: none; padding: 28px 0; flex: 1; }
+    .tab-content { display: none; padding: 32px 0; flex: 1; }
     .tab-content.active { display: block; }
 
     
@@ -423,17 +444,16 @@
     
     .stats-footer {
       display: flex;
-      gap: 16px;
-      margin-top: 40px;
-      padding-top: 24px;
-      border-top: 1px solid var(--border-light);
+      gap: 12px;
+      margin-top: 20px;
+      padding-top: 0;
     }
     .stat-pill {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 16px;
+      padding: 12px;
       background: var(--card);
       border: 1px solid var(--border-light);
       border-radius: 12px;
@@ -530,6 +550,25 @@
     .cat-badge { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; color: #fff; font-family: var(--font-ui); }
     .cat-header h3 { font-family: var(--font-ui); font-size: 0.9rem; font-weight: 600; }
     .cat-desc { margin-left: auto; font-family: var(--font-ui); font-size: 0.7rem; color: var(--text-sec); }
+
+    .btn-dataset {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      font-family: var(--font-ui);
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-sec);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-dataset:hover { background: var(--bg-sec); }
+    .btn-dataset.active {
+      background: var(--text);
+      color: var(--bg);
+      border-color: var(--text);
+    }
 
     .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 20px 0; }
     .summary-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
@@ -974,7 +1013,7 @@
     }
 
     
-    .osint-section {
+    .cv-section {
       background: var(--card-solid);
       border: 1px solid var(--border-light);
       border-radius: var(--radius);
@@ -982,15 +1021,15 @@
       box-shadow: var(--shadow-sm);
       margin-bottom: 32px;
     }
-    .osint-claim {
+    .cv-claim {
       display: flex;
       align-items: flex-start;
       gap: 12px;
       padding: 12px 0;
       border-bottom: 1px solid var(--border-light);
     }
-    .osint-claim:last-child { border-bottom: none; }
-    .osint-badge {
+    .cv-claim:last-child { border-bottom: none; }
+    .cv-badge {
       flex-shrink: 0;
       font-family: var(--font-ui);
       font-size: 0.58rem;
@@ -1001,16 +1040,16 @@
       border-radius: 6px;
       margin-top: 2px;
     }
-    .osint-badge.confirmed { background: var(--green-bg); color: var(--green); border: 1px solid rgba(46,125,50,0.2); }
-    .osint-badge.contradicted { background: var(--red-bg); color: var(--red); border: 1px solid rgba(141,45,36,0.2); }
-    .osint-badge.unverified { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(184,134,11,0.2); }
-    .osint-claim-text {
+    .cv-badge.confirmed { background: var(--green-bg); color: var(--green); border: 1px solid rgba(46,125,50,0.2); }
+    .cv-badge.contradicted { background: var(--red-bg); color: var(--red); border: 1px solid rgba(141,45,36,0.2); }
+    .cv-badge.unverified { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(184,134,11,0.2); }
+    .cv-claim-text {
       font-family: var(--font-ui);
       font-size: 0.78rem;
       line-height: 1.5;
       color: var(--text-sec);
     }
-    .osint-claim-para {
+    .cv-claim-para {
       font-weight: 700;
       font-size: 0.65rem;
       color: var(--text-muted);
@@ -1080,11 +1119,36 @@
       margin-bottom: 4px;
       color: var(--text-sec);
     }
-    .td-explainer {
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid var(--border);
-      color: var(--text-sec);
+    .cv-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-ui);
+      font-size: 0.62rem;
+      font-weight: 800;
+      color: var(--accent);
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .cv-link:hover {
+      background: var(--accent);
+      color: #FFFFFF;
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    .cv-link svg {
+      transition: transform 0.3s ease;
+    }
+    .cv-link:hover svg {
+      transform: translate(1px, -1px);
     }
   </style>
 </head>
@@ -1093,25 +1157,33 @@
 
   
   <div class="header">
-    <h1 class="brand">Veritas</h1>
-    <p class="brand-sub" data-i18n="brand_sub">Article Analysis Reader</p>
-    <div class="header-controls">
-      <a class="btn-back" id="backToArticleBtn" href="#" title="Back to article">
-        <span>←</span>
-        <span data-i18n="back_to_article">Back to Article</span>
-      </a>
-      <select class="lang-select" id="pageLangSelect">
-        <option value="uk">🇺🇦 Укр</option>
-        <option value="en">🇬🇧 Eng</option>
-      </select>
+    <div class="brand-group">
+      <div class="brand">Veritas</div>
+      <div class="brand-sub" data-i18n="brand_sub">Article Analysis Reader</div>
     </div>
-  </div>
+    
+    <div class="header-controls">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="parsed" title="Article Reader">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+        </button>
+        <button class="tab-btn" data-tab="tests" title="Test Dashboard">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        </button>
+        <button class="tab-btn" data-tab="write" title="Write & Analyze">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div>
 
-  
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="parsed" data-i18n="tab_reader">📄 Article Reader</button>
-    <button class="tab-btn" data-tab="tests" data-i18n="tab_tests">🧪 Test Dashboard</button>
-    <button class="tab-btn" data-tab="write" data-i18n="tab_write">✍️ Write & Analyze</button>
+      <select class="lang-select" id="pageLangSelect">
+        <option value="uk">UA</option>
+        <option value="en">EN</option>
+      </select>
+      <a class="btn-back" id="backToArticleBtn" href="#">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <span data-i18n="back_to_article">Back</span>
+      </a>
+    </div>
   </div>
 
   
@@ -1194,6 +1266,10 @@
   <div class="tab-content" id="tab-tests">
 
     <div class="dash-controls">
+      <div style="display:flex; gap:4px; margin-right:auto;">
+        <button class="btn-dataset active" id="dsBtn1" title="ISOT Dataset (50 articles)">① ISOT · 50</button>
+        <button class="btn-dataset" id="dsBtn2" title="Coursework Dataset (48 articles)">② Курсова · 48</button>
+      </div>
       <button class="btn-run" id="runAllBtn" data-i18n="run_all_tests">▶ Run All Tests</button>
       <div class="progress-bar-wrap" id="progressWrap" style="display:none">
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
@@ -1273,9 +1349,10 @@ https://source2.com" data-i18n-placeholder="write_refs_placeholder"></textarea>
     </div>
   </div>
 
-  <div class="footer">Veritas • Coffee Edition • ЛНУ ім. Франка, ПМІ</div>
+  <div class="footer">Veritas</div>
 </div>
 
+<script src="coursework_articles.js"></script>
 <script src="parsed_text.js"></script>
 </body>
 </html>
