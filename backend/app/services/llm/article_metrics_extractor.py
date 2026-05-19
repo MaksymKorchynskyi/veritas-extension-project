@@ -5,9 +5,9 @@ ARTICLE_METRICS_PROMPT = """
 You are the VERITAS ArticleMetricsExtractor. You function as a strict, objective linguistic and structural analyzer for the Beta Reputation System (BRS) framework.
 Your mandate is to process the article text and extract precise quantitative variables AND the exact text evidence. Analytical rigor is required.
 
-═══════════════════════════════════════════
+
 1. CITATIONS (citations_count + found_citations)
-═══════════════════════════════════════════
+
 Calculate the total number of TRANSPARENT, EXPLICIT, and VERIFIABLE citations.
 CRITICAL DISTINCTION: Do not count mere factual statements or generic quotes as citations. A citation must point to a specific origin of information.
 
@@ -25,9 +25,9 @@ WHAT DOES NOT QUALIFY (do NOT increment):
   - [EXCLUDED] Self-referential statements (e.g., 'our editorial team', 'as we reported').
   - [EXCLUDED] Vague social media references without official status.
 
-═══════════════════════════════════════════
+
 2. EMOTIONAL WORDS (emotional_words_count + found_emotional_words)
-═══════════════════════════════════════════
+
 Calculate the frequency of MANIPULATIVE, BIASED, or EMOTIONALLY CHARGED phraseology utilized by the AUTHOR (excluding direct quotes).
 
 For EACH emotional/manipulative phrase found, add the EXACT word or short phrase to `found_emotional_words`.
@@ -48,23 +48,23 @@ WHAT DOES NOT QUALIFY (do NOT increment):
 
 IMPORTANT: `citations_count` MUST equal the length of `found_citations`. `emotional_words_count` MUST equal the length of `found_emotional_words`.
 
-═══════════════════════════════════════════
+
 3. HIGHLIGHTS (highlights)
-═══════════════════════════════════════════
+
 Provide 0 to 3 exact paragraph IDs where significant manipulation or bias is detected.
 - Assign severity="risk" for blatant propaganda, disinformation, or severe hate speech.
 - Assign severity="warning" for mild bias, sensationalism, or unverified claims.
 
-═══════════════════════════════════════════
+
 4. EXPLAINER (explainer)
-═══════════════════════════════════════════
+
 Produce a concise, clinical 2-4 sentence analytical summary in the TARGET LANGUAGE.
 Detail the volume of explicit citations identified and the presence or absence of manipulative linguistic markers.
 Maintain a strictly professional tone; do not editorialize or insert personal judgments.
 
-═══════════════════════════════════════════
+
 CHAIN OF THOUGHT
-═══════════════════════════════════════════
+
 Document your analytical process step-by-step in `raw_thoughts` before finalizing the quantitative outputs.
 Catalog each identified citation and each identified emotional phrase.
 """
@@ -72,20 +72,20 @@ Catalog each identified citation and each identified emotional phrase.
 
 async def extract_article_metrics(
     article_text: str,
-    osint_results: dict,
+    cv_results: dict,
     language: str
 ) -> JudgeEvaluation | None:
-    """Runs the ArticleMetricsExtractor to quantify citation and emotional word frequencies."""
-    osint_claims = osint_results.get("osint_claims", [])
-    osint_context = "NO OSINT DATA AVAILABLE."
-    if osint_claims:
-        osint_context = "OSINT VERIFICATION RESULTS:\n"
-        for i, snippet in enumerate(osint_claims):
-            osint_context += f"{i+1}. {snippet.get('snippet', 'No snippet')}\n"
+    """Запускає ArticleMetricsExtractor для підрахунку цитувань та маніпулятивних фраз."""
+    cv_claims = cv_results.get("verified_claims", [])
+    cv_context = "NO CROSS-VERIFICATION DATA AVAILABLE."
+    if cv_claims:
+        cv_context = "CROSS-VERIFICATION RESULTS:\n"
+        for i, snippet in enumerate(cv_claims):
+            cv_context += f"{i+1}. {snippet.get('snippet', 'No snippet')}\n"
 
     prompt = (
         f"TARGET LANGUAGE FOR OUTPUT (explainer, highlight categories/reasons): {language.upper()}\n\n"
-        f"{osint_context}\n\n"
+        f"{cv_context}\n\n"
         f"ARTICLE TEXT FOR ANALYSIS:\n{article_text}"
     )
 

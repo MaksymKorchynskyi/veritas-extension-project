@@ -13,14 +13,14 @@ from app.models.schemas import (
 )
 from app.services.llm.claim_extractor import extract_factual_claims
 from app.services.llm.article_metrics_extractor import extract_article_metrics
-from app.services.osint import verify_claims_osint, check_domain_reputation
+from app.services.cross_verification import verify_claims, check_domain_reputation
 from app.utils import get_domain
 
 logger = logging.getLogger(__name__)
 
 async def process_article(request: AnalysisRequest) -> AnalysisResponse:
     """
-    The main execution flow for the Metzger (2007) Pipeline.
+    Головний конвеєр аналізу за моделлю Metzger (2007).
     """
     logger.info(f"Starting Metzger Pipeline for: {request.title}")
     
@@ -58,45 +58,41 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
     verifiable_claims = []
     if fact_res and getattr(fact_res, "verifiable_claims", None):
         verifiable_claims = fact_res.verifiable_claims
-
-    # STEP 2: OSINT VERIFICATION (Google/DuckDuckGo)
-    osint_results = {"osint_claims": []}
+                 
+    # STEP 2: CROSS-VERIFICATION (DuckDuckGo)
+    cv_results = {"verified_claims": []}
     all_highlights = []
-    claim_statuses = {}  # paragraph_id -> status
-    
-    if verifiable_claims:
-        osint_highlights, n_conf, n_contra = await verify_claims_osint(verifiable_claims)
-        if osint_highlights:
-            all_highlights.extend(osint_highlights)
-            osint_results["osint_claims"] = [
-                {"snippet": f"Paragraph {h.paragraph_id} claim contradicted: {h.reason}"} 
-                for h in osint_highlights
-            ]
-            for h in osint_highlights:
-                claim_statuses[h.paragraph_id] = "CONTRADICTED"
-    else:
-        n_conf, n_contra = 0, 0
-        osint_highlights = []
-
-    n_unverified = len(verifiable_claims) - n_conf - n_contra if verifiable_claims else 0
     
     extracted_claims_results = []
-    for claim in verifiable_claims:
-        status = claim_statuses.get(claim.paragraph_id, "UNVERIFIED")
-        if status == "UNVERIFIED" and n_conf > 0:
-            pass
-        extracted_claims_results.append(
-            ExtractedClaimResult(
-                paragraph_id=claim.paragraph_id,
-                claim_text=claim.claim_text,
-                status=status
+    if verifiable_claims:
+        cv_highlights, n_conf, n_contra, details = await verify_claims(verifiable_claims)
+        if cv_highlights:
+            all_highlights.extend(cv_highlights)
+            cv_results["verified_claims"] = [
+                {"snippet": f"Paragraph {h.paragraph_id} claim contradicted: {h.reason}"} 
+                for h in cv_highlights
+            ]
+        
+        for d in details:
+            extracted_claims_results.append(
+                ExtractedClaimResult(
+                    paragraph_id=d["paragraph_id"],
+                    claim_text=d["claim_text"],
+                    status=d["status"],
+                    evidence_url=d["evidence_url"]
+                )
             )
-        )
+    else:
+        n_conf, n_contra = 0, 0
+        cv_highlights = []
+        
+    n_unverified = len(verifiable_claims) - n_conf - n_contra if verifiable_claims else 0
+
 
     # STEP 3: METZGER JUDGE AGENT (Accuracy & Objectivity)
     judge_res = await extract_article_metrics(
         article_text=formatted_article_text,
-        osint_results=osint_results,
+        cv_results=cv_results,
         language=request.language
     )
     
@@ -167,7 +163,7 @@ SOURCE DOMAIN: {article_domain}
 
 SCORING RESULTS:
 - Trust Score: {trust_score}/100
-- Credibility: {round(credibility, 1)}/100 (OSINT confirmed: {n_conf}, contradicted: {n_contra}, unverified: {n_unverified})
+- Credibility: {round(credibility, 1)}/100 (cross-verified confirmed: {n_conf}, contradicted: {n_contra}, unverified: {n_unverified})
 - Transparency: {round(transparency, 1)}/100 (explicit citations found: {citations_count})
 - Objectivity: {round(objectivity, 1)}/100 (manipulative phrases: {emotional_words_count}, total words: {total_words})
 - Domain trust index: {domain_trust}
@@ -188,7 +184,7 @@ PROTOCOL:
 4. Conclude with the overall trust verdict using the numerical scores provided.
 5. Maintain a clinical, professional tone. Do not editorialize. Do not use emojis.
 6. If the credibility is below 50, emphasize which specific factors dragged the score down.
-7. If OSINT contradicted claims, mention this explicitly as a critical finding."""
+7. If cross-verification contradicted claims, mention this explicitly as a critical finding."""
 
     class SummaryOutput(BaseModel):
         summary: str = Field(..., description="3-5 sentence analytical summary")
