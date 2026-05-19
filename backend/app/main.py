@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="VERITAS API",
-    description="News Credibility Analyzer - Hybrid AI Pipeline",
+    description="Аналізатор достовірності новин — гібридний AI-конвеєр",
     version="2.0.0",
     lifespan=lifespan
 )
@@ -35,7 +35,7 @@ app.add_middleware(
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
+    """Ендпоінт перевірки стану сервера."""
     return {"status": "ok", "version": "2.0.0", "algorithm": "Hybrid AI Pipeline", "phase": "Enterprise"}
 
 app.include_router(api_router)

@@ -4,7 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 def get_domain(url: str) -> str:
-    """Extracts the clean domain name from a URL."""
+    """Витягує чисте ім'я домену з URL."""
     try:
         domain = urlparse(url).netloc
         if domain.startswith("www."):

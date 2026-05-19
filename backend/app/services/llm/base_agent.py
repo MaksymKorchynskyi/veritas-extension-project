@@ -33,12 +33,12 @@ T = TypeVar("T", bound=BaseModel)
 
 async def run_agent(prompt: str, system_instruction: str, response_schema: Type[T]) -> T | None:
     """
-    Generic wrapper to run a Gemini agent with structured output.
+    Універсальна обгортка для запуску Gemini-агента зі структурованим виходом.
 
-    - Uses `instructor` for Pydantic-validated responses.
-    - Retries up to 4 times with exponential backoff.
-    - Alternates between primary and fallback model on each retry.
-    - Logs chain-of-thought if present in response.
+    - Використовує `instructor` для Pydantic-валідованих відповідей.
+    - Повторює до 4 разів з експоненційним відступом.
+    - Чергує основну та резервну моделі при кожній спробі.
+    - Логує ланцюг міркувань, якщо присутній у відповіді.
     """
     if not client:
         logger.warning("AI client not available — skipping agent call.")

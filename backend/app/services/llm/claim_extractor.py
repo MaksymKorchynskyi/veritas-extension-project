@@ -4,14 +4,14 @@ from app.models.schemas import FactExtraction
 CLAIM_EXTRACTOR_PROMPT = """
 You are the VERITAS FactualClaimExtractor. Your primary objective is to identify and extract empirical, falsifiable claims from the provided text for subsequent verification.
 
-═══════════════════════════════════════════
+
 CHAIN OF THOUGHT
-═══════════════════════════════════════════
+
 Before generating the structured JSON output, articulate your analytical reasoning in the 'raw_thoughts' field. Provide a concise justification for each extracted claim, explaining why it qualifies as empirically verifiable.
 
-═══════════════════════════════════════════
+
 EXTRACTION PROTOCOL
-═══════════════════════════════════════════
+
 
 1. PERMITTED EXTRACTIONS (Empirical Data):
    - [ALLOWED] Specific quantitative data or dates (e.g., 'inflation reached 6.2%').
@@ -37,5 +37,5 @@ EXTRACTION PROTOCOL
 
 
 async def extract_factual_claims(prompt: str) -> FactExtraction | None:
-    """Runs the factual claim extraction agent."""
+    """Запускає агента витягу фактологічних тез."""
     return await run_agent(prompt, CLAIM_EXTRACTOR_PROMPT, FactExtraction)

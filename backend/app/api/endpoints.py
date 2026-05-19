@@ -15,7 +15,7 @@ CACHE_TTL = 3600 * 12  # 12 hours
 @router.post("/analyze", response_model=AnalysisResponse) 
 async def analyze_article(request: AnalysisRequest):
     """
-    Analyze article credibility using the VERITAS Hybrid AI Pipeline.
+    Аналіз достовірності статті через гібридний AI-конвеєр VERITAS.
     """
     headline = request.title.strip()
     
