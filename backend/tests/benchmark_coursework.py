@@ -1,15 +1,8 @@
 """
-VERITAS Algorithm Benchmark
-============================
-Dataset: ISOT Fake News Dataset (Ahmed et al., 2018)
-  https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset
-
-Categories:
-  A — Quality journalism (Reuters wire stories)        Expected: 60–100
-  B — Biased / low quality (political opinion/clickbait) Expected: 25–60
-  C — Manipulative / fake (conspiracy / fabricated)    Expected: 0–30
-
-Total: 50 articles
+VERITAS Coursework Benchmark Runner
+=====================================
+Runs 48 curated articles through the VERITAS API and saves results
+to coursework_results.json / coursework_results.csv for the dashboard.
 """
 
 import asyncio
@@ -26,7 +19,7 @@ except ImportError:
     print("❌ httpx not installed. Run: pip install httpx")
     exit(1)
 
-from tests.benchmark_articles_isot import ARTICLES
+from tests.benchmark_articles_coursework import COURSEWORK_ARTICLES
 
 API_URL = "http://127.0.0.1:8000/analyze"
 RESULTS_DIR = Path(__file__).parent / "results"
@@ -87,35 +80,13 @@ async def analyze_one(client: httpx.AsyncClient, article: dict) -> dict:
                 "error": str(e)[:200], "elapsed_s": round(time.time() - start, 2)}
 
 
-async def run_stability_test(client: httpx.AsyncClient, article: dict, n: int = 3) -> dict:
-    """Run same article N times, measure standard deviation."""
-    scores = []
-    for i in range(n):
-        result = await analyze_one(client, article)
-        if result.get("status") == "OK":
-            scores.append(result["trust_score"])
-        await asyncio.sleep(2)
-
-    if len(scores) < 2:
-        return {"id": article["id"], "runs": len(scores), "std": "N/A"}
-
-    return {
-        "id": article["id"],
-        "runs": len(scores),
-        "scores": scores,
-        "mean": round(statistics.mean(scores), 1),
-        "std": round(statistics.stdev(scores), 1),
-        "stable": "✅" if statistics.stdev(scores) < 8 else "❌",
-    }
-
-
 async def main():
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     print()
     print("=" * 65)
-    print(f"  🧪 VERITAS ALGORITHM BENCHMARK (ISOT) — {timestamp}")
-    print(f"  Articles: {len(ARTICLES)}")
+    print(f"  🎓 VERITAS COURSEWORK BENCHMARK — {timestamp}")
+    print(f"  Articles: {len(COURSEWORK_ARTICLES)} (16×A + 16×B + 16×C)")
     print("=" * 65)
 
     async with httpx.AsyncClient() as client:
@@ -132,7 +103,7 @@ async def main():
 
     results = []
     async with httpx.AsyncClient() as client:
-        for article in ARTICLES:
+        for article in COURSEWORK_ARTICLES:
             tag = f"[{article['id']}|{article['category']}]"
             title_preview = article["title"][:45]
             print(f"\n  {tag} {title_preview}...")
@@ -145,9 +116,8 @@ async def main():
                 rng = result["expected_range"]
                 ok = result["in_range"]
                 t = result["elapsed_s"]
-                res = result
                 print(f"         Score: {ts} (expected {rng}) {ok}  [{t}s]")
-                print(f"         Cred:{res['credibility']:.1f} Trans:{res['transparency']:.1f} Obj:{res['objectivity']:.1f} "
+                print(f"         Cred:{result['credibility']:.1f} Trans:{result['transparency']:.1f} Obj:{result['objectivity']:.1f} "
                       f"Highlights:{result['highlights']}")
             else:
                 print(f"         ❌ {result.get('error', 'Unknown')[:80]}")
@@ -164,7 +134,7 @@ async def main():
         cat_scores.setdefault(cat, []).append(r["trust_score"])
 
     print("\n" + "=" * 65)
-    print("  📊 BENCHMARK SUMMARY")
+    print("  📊 COURSEWORK BENCHMARK SUMMARY")
     print("=" * 65)
     print(f"  Total articles:     {len(results)}")
     print(f"  Successful:         {len(ok_results)}")
@@ -208,17 +178,8 @@ async def main():
         print(f"  F1 Score:   {f1:.3f}")
         print(f"  Accuracy:   {accuracy:.3f}")
 
-    print("\n" + "-" * 65)
-    print("  🔄 STABILITY TEST (running A1 x3)...")
-    async with httpx.AsyncClient() as client:
-        stab = await run_stability_test(client, ARTICLES[0], n=3)
-        if stab.get("std") != "N/A":
-            print(f"    Scores: {stab['scores']}")
-            print(f"    Mean: {stab['mean']}, Std Dev: {stab['std']} {stab['stable']}")
-        else:
-            print(f"    Could not complete stability test")
-
-    csv_path = RESULTS_DIR / f"benchmark_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+    # ── Save results ────────────────────────────────────────────────
+    csv_path = RESULTS_DIR / f"coursework_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
     csv_fields = ["id", "category", "title", "expected_range", "trust_score",
                   "in_range", "credibility", "transparency", "objectivity",
                   "highlights", "elapsed_s", "status"]
@@ -227,28 +188,28 @@ async def main():
             writer = csv.DictWriter(f, fieldnames=csv_fields, extrasaction='ignore')
             writer.writeheader()
             writer.writerows(ok_results)
-        print(f"\n  💾 Results saved: {csv_path}")
+        print(f"\n  💾 CSV saved: {csv_path}")
 
-    latest_json_path = RESULTS_DIR / "latest_results.json"
+    json_path = RESULTS_DIR / "coursework_results.json"
     json_results = []
     for r in ok_results:
         entry = {k: v for k, v in r.items() if k != "full_response"}
         entry["full_response"] = r.get("full_response", {})
         json_results.append(entry)
 
-    with open(latest_json_path, "w", encoding="utf-8") as f:
+    with open(json_path, "w", encoding="utf-8") as f:
         json.dump(json_results, f, ensure_ascii=False, indent=2)
-    print(f"  💾 JSON saved: {latest_json_path}")
+    print(f"  💾 JSON saved: {json_path}")
 
-    latest_path = RESULTS_DIR / "latest_results.csv"
+    latest_csv = RESULTS_DIR / "coursework_results.csv"
     if ok_results:
-        with open(latest_path, "w", newline="", encoding="utf-8") as f:
+        with open(latest_csv, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=csv_fields, extrasaction='ignore')
             writer.writeheader()
             writer.writerows(ok_results)
 
     print("\n" + "=" * 65)
-    print("  ✅ Benchmark complete!")
+    print("  ✅ Coursework benchmark complete!")
     print("=" * 65 + "\n")
 
 

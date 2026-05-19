@@ -1,7 +1,7 @@
 <div align="center">
   <img src="veritas-landing/public/favicon.svg" alt="Veritas Logo" width="120" height="120">
-  <h1>Veritas News Analyzer</h1>
-  <p><strong>A Hybrid AI Browser Extension for Automated News Credibility Analysis</strong></p>
+  <h1>Veritas — Аналізатор Достовірності Новин</h1>
+  <p><strong>Гібридне AI-розширення для браузера з автоматичним аналізом достовірності новинних статей</strong></p>
 
   [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
   [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg)](https://fastapi.tiangolo.com/)
@@ -11,81 +11,201 @@
 
 ---
 
-## 📖 Overview
+## 📖 Огляд
 
-**Veritas** is a powerful, AI-driven browser extension designed to help users navigate the modern information space by automatically analyzing the credibility and objectivity of news articles. 
+**Veritas** — це потужне AI-розширення для браузера, яке допомагає користувачам орієнтуватися в сучасному інформаційному просторі. Розширення автоматично аналізує достовірність та об'єктивність новинних статей безпосередньо під час читання.
 
-By combining **Large Language Models (LLMs)**, **OSINT (Open-Source Intelligence) techniques**, and a **BRS-based Metzger Model scoring pipeline**, Veritas evaluates articles directly in the browser and highlights potentially manipulative, biased, or unverified claims.
+Система поєднує **великі мовні моделі (LLM)** для семантичного аналізу, **модуль перехресної верифікації** для перевірки фактологічних тез через зовнішні джерела, та **математичну модель скорингу BRS** (Beta Reputation System за Jøsang & Ismail, 2002) для формування прозорого та детермінованого рейтингу довіри.
 
-## ✨ Key Features
+## ✨ Ключові можливості
 
-- **🛡️ Real-Time Credibility Analysis**: Evaluates news articles on the fly as you read them.
-- **🧠 Hybrid AI Pipeline**: Combines LLMs for semantic extraction with deterministic scoring (BRS-based Metzger model) for transparent evaluation.
-- **🔍 Automated Fact-Checking (OSINT)**: Verifies claims against external, trusted sources and databases.
-- **🎨 Intuitive UI**: Seamless browser popup and in-page highlight overlays that don't interrupt the reading experience.
-- **📊 Detailed Metrics**: Breaks down scores by Objectivity, Tone, Claim Verifiability, and Source Credibility.
+- 🛡️ **Аналіз достовірності в реальному часі** — оцінка статей на льоту під час читання.
+- 🧠 **Гібридний AI-конвеєр** — LLM-агенти для семантичного витягу + детерміновані формули BRS для прозорого оцінювання.
+- 🔍 **Автоматична перехресна верифікація** — перевірка фактологічних тез через DuckDuckGo та зіставлення з зовнішніми довіреними джерелами.
+- 🌐 **Оцінка репутації домену** — локальна база ~55 відомих медіа-доменів + динамічний аналіз через AI.
+- 🎨 **Інтуїтивний інтерфейс** — попап розширення та підсвічування проблемних абзаців прямо на сторінці.
+- 📊 **Детальна декомпозиція** — розбивка на Достовірність, Прозорість та Об'єктивність з формулами BRS.
+- 🌍 **Двомовність** — повна підтримка українською та англійською мовами.
+- ✍️ **Режим "Написати & Аналіз"** — можливість вставити довільний текст для аналізу без відвідування сайту.
 
-## 🏗️ Architecture
+## 🏗️ Архітектура
 
-The project is divided into three main components:
+Проєкт складається з трьох основних компонентів:
 
-1. **Browser Extension (`/extension`)**: 
-   A lightweight JavaScript/HTML extension that extracts article text, communicates with the backend, and injects credibility overlays (highlights) back into the DOM.
-   
-2. **Analysis Backend (`/backend`)**:
-   A high-performance Python **FastAPI** server that orchestrates the credibility pipeline. It includes:
-   - **LLM Agents**: Extract claims, detect manipulation, and evaluate tone.
-   - **OSINT Service**: Cross-references claims with trusted external sources.
-   - **Scoring Pipeline**: Aggregates all signals using a deterministic BRS (Believability, Reliability, Source credibility) model based on Miriam Metzger's framework to produce a final "Veritas Score".
+### 1. Браузерне розширення (`/extension`)
+Легковагий JavaScript/HTML-розширення для Chromium-браузерів (Chrome, Edge, Brave, Opera), яке:
+- Витягує текст статті за допомогою **Readability.js**
+- Відправляє дані на бекенд для аналізу
+- Відображає результат у попапі (Trust Score, радарна діаграма, деталі)
+- Підсвічує проблемні абзаци безпосередньо на веб-сторінці
+- Надає окрему сторінку аналітики з повною декомпозицією формул BRS
 
-3. **Landing Page (`/veritas-landing`)**:
-   A sleek, responsive promotional website built with React + Vite, showcasing the features and installation instructions for the extension.
+### 2. Аналітичний бекенд (`/backend`)
+Високопродуктивний Python-сервер на **FastAPI**, який оркеструє конвеєр аналізу:
 
-## 🚀 Quick Start
+| Модуль | Опис |
+|--------|------|
+| **Витяг тез** (`claim_extractor.py`) | LLM-агент витягує до 5 ключових фактологічних тез зі статті |
+| **Перехресна верифікація** (`cross_verification.py`) | Генерує пошукові запити → DuckDuckGo → порівняння з оригінальною тезою |
+| **Оцінка репутації домену** (`domain_reputation.py`) | Локальна база ~55 доменів + AI-аналіз для невідомих доменів |
+| **Метрики статті** (`article_metrics_extractor.py`) | Підрахунок цитувань, маніпулятивних фраз, генерація highlights |
+| **Математичний скоринг** (`scoring.py`) | Формули BRS: Достовірність, Прозорість, Об'єктивність → Trust Score |
+| **AI-підсумок** (`pipeline.py`) | Генерація фінального аналітичного резюме мовою статті |
 
-### 1. Backend Setup
+### 3. Лендінг (`/veritas-landing`)
+Промо-сайт на React + Vite з описом функцій та інструкціями встановлення.
 
-Navigate to the backend directory and install the required dependencies:
+## 🚀 Інструкція з запуску
+
+### Передумови
+
+- **Python 3.11+** — [завантажити](https://www.python.org/downloads/)
+- **Node.js** (опціонально, лише для лендінгу)
+- **Браузер на основі Chromium** — Chrome, Edge, Brave, Opera
+- **API-ключ Gemini** — [отримати безкоштовно](https://aistudio.google.com/apikey)
+
+### Крок 1: Клонування репозиторію
 
 ```bash
+git clone https://github.com/your-username/veritas-extension-project.git
+cd veritas-extension-project
+```
+
+### Крок 2: Налаштування бекенду
+
+```bash
+# Перехід до директорії бекенду
 cd backend
+
+# Створення віртуального середовища
 python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+
+# Активація (macOS / Linux)
+source venv/bin/activate
+
+# Активація (Windows)
+# venv\Scripts\activate
+
+# Встановлення залежностей
 pip install -r requirements.txt
 ```
 
-Create a `.env` file in the `backend/` directory and add your API keys:
+### Крок 3: Налаштування змінних середовища
+
+Створіть файл `.env` у директорії `backend/`:
+
 ```env
-OPENAI_API_KEY=your_openai_api_key
-# Add other required keys...
+GEMINI_API_KEY=ваш_api_ключ_gemini
 ```
 
-Start the FastAPI server:
-```bash
-uvicorn app.main:app --reload
-```
+> **Примітка:** Gemini API-ключ можна безкоштовно отримати на [Google AI Studio](https://aistudio.google.com/apikey). Проєкт використовує моделі `gemini-2.5-flash` (основна) та `gemini-3-flash-preview` (fallback).
 
-### 2. Extension Installation
+### Крок 4: Запуск серверу
 
-1. Open your Chromium-based browser (Chrome, Edge, Brave).
-2. Navigate to `chrome://extensions/`.
-3. Enable **Developer mode** in the top right corner.
-4. Click **Load unpacked** and select the `/extension` folder from this repository.
-
-### 3. Running Benchmark Tests
-
-To validate the model's accuracy on known datasets:
 ```bash
 cd backend
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Після запуску сервер доступний за адресою `http://127.0.0.1:8000`. Перевірити роботу можна відкривши `http://127.0.0.1:8000/health` — має повернути:
+
+```json
+{"status": "ok", "version": "2.0.0", "algorithm": "Hybrid AI Pipeline", "phase": "Enterprise"}
+```
+
+### Крок 5: Встановлення розширення у браузер
+
+1. Відкрийте **Chrome** (або Edge / Brave / Opera).
+2. Перейдіть за адресою `chrome://extensions/` (або `edge://extensions/` для Edge).
+3. Увімкніть **Режим розробника** (Developer Mode) — перемикач у правому верхньому куті.
+4. Натисніть **Завантажити розпаковане** (Load unpacked).
+5. Оберіть папку `/extension` з клонованого репозиторію.
+6. Розширення з'явиться у панелі розширень — закріпіть його для зручності (іконка шпильки).
+
+### Крок 6: Використання
+
+1. **Переконайтесь**, що бекенд-сервер працює (крок 4).
+2. Відкрийте **будь-яку новинну статтю** у браузері.
+3. Натисніть на **іконку Veritas** у панелі розширень.
+4. Натисніть **«Аналізувати Цю Статтю»**.
+5. Дочекайтесь завершення аналізу (зазвичай 5–15 секунд).
+6. Отримайте:
+   - **Trust Score** — загальний рейтинг довіри (0–100)
+   - **Розбивку критеріїв** — Достовірність, Прозорість, Об'єктивність
+   - **Підсвічування** — проблемні абзаци виділяються прямо на сторінці
+   - **AI-підсумок** — аналітичне резюме від AI
+
+7. Натисніть **іконку документа** у попапі для переходу на **сторінку повного аналізу** з:
+   - Текстом статті з підсвіченими абзацами
+   - Аналітичною декомпозицією формул BRS
+   - Витягнутими тезами та результатами їх перехресної верифікації
+   - Знайденими цитуваннями та маніпулятивними фразами
+
+## 📐 Математична модель
+
+Система використовує **Beta Reputation System** (Jøsang & Ismail, 2002) для обчислення рейтингів:
+
+```
+E(p) = (r + W · a) / (r + s + W)
+```
+
+| Параметр | Значення |
+|----------|----------|
+| `r` | Позитивні свідчення (підтверджені тези, цитування) |
+| `s` | Негативні свідчення (спростовані тези, маніпулятивні фрази) |
+| `W` | Вага апріорної інформації (за замовчуванням 2) |
+| `a` | Базова ставка (репутація домену для Достовірності) |
+
+**Фінальний Trust Score** = 50% × Достовірність + 30% × Прозорість + 20% × Об'єктивність
+
+## 📈 Тестування та бенчмарки
+
+Для валідації точності моделі на відомих датасетах:
+
+```bash
+cd backend
+
+# Запуск повного набору тестів
 python -m pytest tests/
-# or run the specific benchmark suite
+
+# Або окремий бенчмарк
 python tests/benchmark_articles.py
 ```
 
-## 📈 Evaluation & Benchmarks
+Veritas використовує курований датасет реальних новинних статей різних категорій достовірності (Reliable, Mixed, Fake) для безперервного бенчмаркінгу. Результати тестів зберігаються у `backend/tests/results/`.
 
-Veritas uses a curated dataset of real-world news articles across different credibility categories (Reliable, Mixed, Fake) to continuously benchmark the accuracy of the Hybrid AI Pipeline. Test results and visualizers can be found in `backend/tests/results/`.
+## 📁 Структура проєкту
 
-## 📄 License
+```
+veritas-extension-project/
+├── backend/                        # Аналітичний бекенд (FastAPI)
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── endpoints.py        # API-ендпоінти (/analyze, /health)
+│   │   ├── models/
+│   │   │   └── schemas.py          # Pydantic-схеми даних
+│   │   ├── services/
+│   │   │   ├── llm/
+│   │   │   │   ├── base_agent.py           # Базовий LLM-агент (Gemini + instructor)
+│   │   │   │   ├── claim_extractor.py      # Витяг фактологічних тез
+│   │   │   │   └── article_metrics_extractor.py  # Метрики статті
+│   │   │   ├── cross_verification.py  # Модуль перехресної верифікації
+│   │   │   ├── domain_reputation.py   # Локальна база репутацій доменів
+│   │   │   ├── scoring.py             # Математичний скоринг (BRS)
+│   │   │   └── pipeline.py            # Головний конвеєр аналізу
+│   │   ├── utils.py
+│   │   └── main.py                    # Точка входу FastAPI
+│   ├── tests/                         # Тести та бенчмарки
+│   └── requirements.txt
+├── extension/                         # Браузерне розширення
+│   ├── manifest.json                  # Маніфест розширення (MV3)
+│   ├── popup.html / popup.js          # Попап розширення
+│   ├── parsed_text.html / .js         # Сторінка детального аналізу
+│   ├── content.js                     # Content script (підсвічування)
+│   └── background.js                  # Service Worker
+└── veritas-landing/                   # Промо-лендінг (React + Vite)
+```
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 📄 Ліцензія
+
+Цей проєкт ліцензовано під MIT License — див. файл LICENSE для деталей.
