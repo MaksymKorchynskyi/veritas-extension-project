@@ -14,21 +14,9 @@ from google.genai import types
 
 from app.models.schemas import VerifiableClaim, GeminiHighlight, QueryGenerationResult, CrossReferenceResult, DomainReputationResult
 from app.services.llm.base_agent import client, MODEL_NAME, FALLBACK_MODEL_NAME
+from app.services.domain_reputation import LOCAL_DOMAINS_REPUTATION
 
 logger = logging.getLogger(__name__)
-
-LOCAL_DOMAINS_REPUTATION = {
-    "pravda.com.ua": {"trust_index": 0.9, "summary": "Надійне українське видання (Українська правда)."},
-    "truha.ua": {"trust_index": 0.2, "summary": "Telegram-канал/агрегатор з низькою репутацією (Труха). Часто публікує неперевірені дані."},
-    "tsn.ua": {"trust_index": 0.7, "summary": "Популярне українське медіа (ТСН), інколи використовує клікбейт."},
-    "suspilne.media": {"trust_index": 0.95, "summary": "Суспільне мовлення України. Високий стандарт журналістики."},
-    "unian.ua": {"trust_index": 0.6, "summary": "Українське інформаційне агентство (УНІАН). Часто публікує емоційні заголовки."},
-    "nv.ua": {"trust_index": 0.85, "summary": "Надійне українське видання (New Voice)."},
-    "bbc.com": {"trust_index": 0.95, "summary": "Глобальне авторитетне медіа (BBC). Високий стандарт фактчекінгу."},
-    "ukrinform.ua": {"trust_index": 0.9, "summary": "Державне інформаційне агентство України. Висока достовірність офіційних даних."},
-    "liga.net": {"trust_index": 0.9, "summary": "Одне з найякісніших ділових та суспільно-політичних видань України."},
-    "reuters.com": {"trust_index": 0.95, "summary": "Провідне світове новинне агентство з бездоганною репутацією."}
-}
 
 QUERY_AGENT_PROMPT = """
 You are the VERITAS SearchQueryGenerator. Your objective is to process a factual claim and generate a concise search query optimized for DuckDuckGo.
@@ -106,11 +94,10 @@ async def run_query_agent(claim_text: str) -> str:
         logger.error(f"QueryGenerator fatal error: {e}")
         return ""
 
-def _do_duckduckgo_search(query: str) -> List[str]:
+def _do_duckduckgo_search(query: str) -> List[dict]:
     try:
         results = DDGS().text(query, max_results=3)
-        snippets = [r.get('body', '') for r in results if 'body' in r]
-        return snippets
+        return [{"body": r.get('body', ''), "href": r.get('href', '')} for r in results if 'body' in r]
     except RatelimitException:
         logger.warning(f"DuckDuckGo RateLimit hit for query: {query}")
         return []
@@ -118,7 +105,7 @@ def _do_duckduckgo_search(query: str) -> List[str]:
         logger.error(f"DuckDuckGo error: {e}")
         return []
 
-async def search_duckduckgo(query: str) -> List[str]:
+async def search_duckduckgo(query: str) -> List[dict]:
     if not query:
         return []
     try:
@@ -134,11 +121,11 @@ async def search_duckduckgo(query: str) -> List[str]:
         logger.error(f"search_duckduckgo error: {e}")
         return []
 
-async def run_cross_agent(claim_text: str, snippets: List[str]) -> CrossReferenceResult | None:
+async def run_cross_agent(claim_text: str, snippets: List[dict]) -> CrossReferenceResult | None:
     if not client or not snippets:
         return None
         
-    snippets_text = "\n".join([f"- {s}" for s in snippets])
+    snippets_text = "\n".join([f"- {s['body']}" for s in snippets])
     prompt = f"ORIGINAL CLAIM: {claim_text}\n\nSEARCH RESULTS (SNIPPETS):\n{snippets_text}"
     
     try:
@@ -169,49 +156,53 @@ async def run_cross_agent(claim_text: str, snippets: List[str]) -> CrossReferenc
         logger.error(f"CrossReference fatal error: {e}")
         return None
 
-async def process_single_claim(claim: VerifiableClaim) -> tuple[str, GeminiHighlight | None]:
-    """Process a single verifiable claim end-to-end to see if it is contradicted or confirmed."""
-    logger.info(f"[OSINT] Evaluating claim ID {claim.paragraph_id}: {claim.claim_text}")
+async def process_single_claim(claim: VerifiableClaim) -> tuple[str, GeminiHighlight | None, str | None]:
+    """Обробляє одну фактологічну тезу: генерація запиту → пошук → перехресна верифікація."""
+    logger.info(f"[CrossVerify] Evaluating claim ID {claim.paragraph_id}: {claim.claim_text}")
     
     query = await run_query_agent(claim.claim_text)
     if not query:
-        return "UNVERIFIED", None
+        return "UNVERIFIED", None, None
         
-    logger.info(f"[OSINT] Query generated: {query}")
+    logger.info(f"[CrossVerify] Query generated: {query}")
     
     snippets = await search_duckduckgo(query)
     if not snippets:
-        return "UNVERIFIED", None
+        return "UNVERIFIED", None, None
         
     verdict = await run_cross_agent(claim.claim_text, snippets)
     if not verdict:
-        return "UNVERIFIED", None
+        return "UNVERIFIED", None, None
         
-    logger.info(f"[OSINT] Claim ID {claim.paragraph_id} Verdict: {verdict.status}")
+    logger.info(f"[CrossVerify] Claim ID {claim.paragraph_id} Verdict: {verdict.status}")
     
+    evidence_url = None
+    if verdict.status in ["CONFIRMED", "CONTRADICTED"]:
+        evidence_url = snippets[0]['href'] if snippets else None
+
     if verdict.status == "CONTRADICTED":
         hl = GeminiHighlight(
             paragraph_id=claim.paragraph_id,
             severity="risk",
-            category="Спростовано OSINT",
+            category="Спростовано перехресною верифікацією",
             reason=verdict.reason
         )
-        return "CONTRADICTED", hl
+        return "CONTRADICTED", hl, evidence_url
         
     if verdict.status == "CONFIRMED":
-        return "CONFIRMED", None
+        return "CONFIRMED", None, evidence_url
         
-    return "UNVERIFIED", None
+    return "UNVERIFIED", None, None
 
-async def verify_claims_osint(claims: List[VerifiableClaim]) -> tuple[List[GeminiHighlight], int, int]:
-    """Orchestrates parallel OSINT RAG over maximum top 3 claims.
-    Returns: (highlights, n_conf, n_contra)
+async def verify_claims(claims: List[VerifiableClaim]) -> tuple[List[GeminiHighlight], int, int, List[dict]]:
+    """Оркеструє паралельну перехресну верифікацію для максимум 5 тез.
+    Returns: (highlights, n_conf, n_contra, verified_claims_details)
     """
     if not claims:
-        return [], 0, 0
+        return [], 0, 0, []
         
     target_claims = claims[:5]
-    logger.info(f"[OSINT] Starting parallel verification for {len(target_claims)} claims.")
+    logger.info(f"[CrossVerify] Starting parallel verification for {len(target_claims)} claims.")
     
     tasks = [process_single_claim(c) for c in target_claims]
     results = await asyncio.gather(*tasks)
@@ -219,25 +210,34 @@ async def verify_claims_osint(claims: List[VerifiableClaim]) -> tuple[List[Gemin
     highlights = []
     n_conf = 0
     n_contra = 0
+    details = []
     
-    for status, hl in results:
+    for i, (status, hl, evidence_url) in enumerate(results):
+        claim = target_claims[i]
         if status == "CONFIRMED":
             n_conf += 1
         elif status == "CONTRADICTED":
             n_contra += 1
             if hl:
                 highlights.append(hl)
+        
+        details.append({
+            "paragraph_id": claim.paragraph_id,
+            "claim_text": claim.claim_text,
+            "status": status,
+            "evidence_url": evidence_url
+        })
                 
-    return highlights, n_conf, n_contra
+    return highlights, n_conf, n_contra, details
 
 async def check_domain_reputation(domain: str) -> DomainReputationResult:
-    """Uses LOCAL_DOMAINS_REPUTATION first, then Google Custom Search + Gemini to check media watchdog statements."""
+    """Перевіряє репутацію домену: спочатку локальна база, потім пошук + Gemini для аналізу медіа-репутації."""
     if not domain:
         return DomainReputationResult(trust_index=0.5, background_summary="Оцінка неможлива (пустий домен)")
         
     domain_lower = domain.lower().replace("www.", "")
     if domain_lower in LOCAL_DOMAINS_REPUTATION:
-        logger.info(f"[OSINT] Domain '{domain_lower}' found in LOCAL_DOMAINS_REPUTATION.")
+        logger.info(f"[CrossVerify] Domain '{domain_lower}' found in LOCAL_DOMAINS_REPUTATION.")
         local_data = LOCAL_DOMAINS_REPUTATION[domain_lower]
         return DomainReputationResult(
             trust_index=local_data["trust_index"],
@@ -248,12 +248,12 @@ async def check_domain_reputation(domain: str) -> DomainReputationResult:
         return DomainReputationResult(trust_index=0.5, background_summary="Оцінка неможлива (AI offline)")
         
     query = f"{domain} bias fact-check reliability credibility"
-    logger.info(f"[OSINT] Querying reputation for domain: {domain}")
+    logger.info(f"[CrossVerify] Querying reputation for domain: {domain}")
     
     snippets = await search_duckduckgo(query)
     
     if not snippets:
-        logger.info(f"[OSINT] No watchdog data for {domain}. Defaulting to 0.5.")
+        logger.info(f"[CrossVerify] No watchdog data for {domain}. Defaulting to 0.5.")
         return DomainReputationResult(
             trust_index=0.5, 
             background_summary="Локальне або маловідоме видання. Прямих підтверджень упередженості не знайдено."
