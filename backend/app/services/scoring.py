@@ -1,37 +1,37 @@
 """
-Mathematical Scoring Module for VERITAS
-========================================
-All formulas are derived from a single source:
+Модуль математичного скорингу VERITAS
+======================================
+Усі формули базуються на єдиному джерелі:
 
     Jøsang, A. & Ismail, R. (2002).
     "The Beta Reputation System."
     Proceedings of the 15th Bled Electronic Commerce Conference, pp. 324-337.
 
-Core BRS formula used throughout (Eq. 3 in the paper):
+Базова формула BRS (Рівняння 3):
 
     E(p) = (r + W · a) / (r + s + W)
 
-Where:
-    r  — positive evidence count (weighted)
-    s  — negative evidence count (weighted)
-    W  — prior weight (default 2, uninformative Bayesian prior)
-    a  — base rate (prior probability, domain-specific)
+Де:
+    r  — кількість позитивних свідчень (зважена)
+    s  — кількість негативних свідчень (зважена)
+    W  — вага апріорної інформації (за замовчуванням 2, неінформативний баєсівський пріор)
+    a  — базова ставка (апріорна ймовірність, специфічна для домену)
 
-Evidence Weighting (BRS Section 4 — Combining Evidence):
-    - OSINT confirmation/contradiction: weight 1.0 (direct verification)
-    - Named citation in article text:    weight 0.5 (indirect positive evidence)
-    - Emotional/manipulative phrase:     weight 0.3 (indirect negative evidence)
+Ваги свідчень (BRS Розділ 4 — Комбінування свідчень):
+    - Підтвердження/спростування перехресною верифікацією: вага 1.0 (пряма верифікація)
+    - Іменоване цитування в тексті статті:               вага 0.5 (непряме позитивне свідчення)
+    - Емоційна/маніпулятивна фраза:                      вага 0.3 (непряме негативне свідчення)
 """
 
 
 def _brs_expected(r: float, s: float, a: float = 0.5, W: float = 2.0) -> float:
     """
-    Jøsang's Beta Reputation System — Expected Belief.
+    Очікувана довіра за Beta Reputation System Jøsang.
 
     E(p) = (r + W * a) / (r + s + W)
 
-    With W=2 and a=0.5, this is equivalent to the Bayesian expected value
-    of a Beta(α, β) distribution: E = α / (α + β), where α=r+1, β=s+1.
+    При W=2 та a=0.5 це еквівалент баєсівського очікуваного значення
+    Beta(α, β) розподілу: E = α / (α + β), де α=r+1, β=s+1.
     """
     return (r + W * a) / (r + s + W)
 
@@ -45,21 +45,21 @@ def calculate_credibility(
     n_unverified: int = 0,
 ) -> float:
     """
-    Credibility via BRS with multi-source evidence fusion.
+    Достовірність через BRS з об'єднанням багатоджерельних свідчень.
 
-    Evidence sources (weighted per BRS Section 4):
+    Джерела свідчень (зважені за BRS Розділ 4):
         r = n_conf * 1.0  +  citations_count * 0.2
         s = n_contra * 1.0  +  emotional_words_count * 0.3 + n_unverified * 0.4
-        a = domain_trust (base rate from domain reputation)
+        a = domain_trust (базова ставка з репутації домену)
 
-    This ensures credibility is responsive even when OSINT is unavailable:
-    - Quality article (5 citations, 0 emotional): credibility ≈ 65%
-    - Propaganda (0 citations, 6 emotional):       credibility ≈ 26%
-    - Unverified specific claims (n_unverified):   reduces credibility slightly per claim
+    Це забезпечує чутливість достовірності навіть коли перехресна верифікація недоступна:
+    - Якісна стаття (5 цитувань, 0 емоційних): достовірність ≈ 65%
+    - Пропаганда (0 цитувань, 6 емоційних):    достовірність ≈ 26%
+    - Неперевірені конкретні тези (n_unverified): знижує достовірність
 
-    Reference: Jøsang & Ismail 2002, Eq. 3 + Section 4
+    Джерело: Jøsang & Ismail 2002, Eq. 3 + Section 4
     """
-    # Primary evidence: OSINT (weight 1.0 per observation)
+    # Primary evidence: cross-verification (weight 1.0 per observation)
     r = float(n_conf)
     s = float(n_contra)
 
@@ -78,14 +78,14 @@ def calculate_credibility(
 
 def calculate_transparency(citations_count: int) -> float:
     """
-    Transparency via BRS with conservative prior.
+    Прозорість через BRS з консервативним пріором.
 
-    Each named source / citation is positive evidence (r).
-    No counter-evidence (s=0).
-    Base rate a=0.3 — an article must *prove* its transparency
-    through citations; absence of citations yields a low score.
+    Кожне іменоване джерело / цитування — позитивне свідчення (r).
+    Контр-свідчення відсутні (s=0).
+    Базова ставка a=0.3 — стаття повинна *довести* свою прозорість
+    через цитування; відсутність цитувань дає низький бал.
 
-    Reference: Jøsang & Ismail 2002, Eq. 3
+    Джерело: Jøsang & Ismail 2002, Eq. 3
     """
     score = _brs_expected(r=citations_count, s=0, a=0.3) * 100.0
     return max(0.0, min(100.0, score))
@@ -93,17 +93,17 @@ def calculate_transparency(citations_count: int) -> float:
 
 def calculate_objectivity(emotional_words_count: int, total_words: int) -> float:
     """
-    Objectivity via BRS with dynamic observation-window model.
+    Об'єктивність через BRS з динамічною моделлю вікна спостережень.
 
-    The Agent evaluates the article and counts manipulative phrases.
-    We model this as K independent observations, where K scales with article length
-    (1 observation per 50 words, minimum 8).
-    Each emotional word is negative evidence (s), the remaining
-    slots are positive evidence (r = K - s).
+    Агент аналізує статтю та підраховує маніпулятивні фрази.
+    Моделюємо як K незалежних спостережень, де K масштабується з довжиною статті
+    (1 спостереження на 50 слів, мінімум 8).
+    Кожне емоційне слово — негативне свідчення (s), решта
+    слотів — позитивне свідчення (r = K - s).
 
-    a = 0.5 (uninformative prior)
+    a = 0.5 (неінформативний пріор)
 
-    Reference: Jøsang & Ismail 2002, Eq. 3
+    Джерело: Jøsang & Ismail 2002, Eq. 3
     """
     K = max(8, total_words // 50)  # dynamic observation window
     s = min(emotional_words_count, K)
@@ -114,16 +114,16 @@ def calculate_objectivity(emotional_words_count: int, total_words: int) -> float
 
 def aggregate_trust_score(credibility: float, transparency: float, objectivity: float) -> float:
     """
-    Final Trust Score via Simple Additive Weighting (SAW).
+    Фінальний Trust Score через просте адитивне зважування (SAW).
 
-    Weights: Credibility 50%, Transparency 30%, Objectivity 20%.
+    Ваги: Достовірність 50%, Прозорість 30%, Об'єктивність 20%.
 
-    When credibility < 50 (below the uninformative prior), evidence
-    is net-negative. A soft BRS-inspired discount models Jøsang's
-    trust transitivity: if the factual basis is weak, the other
-    metrics carry less overall meaning.
+    Коли достовірність < 50 (нижче неінформативного пріору), свідчення
+    мають нетто-негативний характер. М'яка BRS-знижка моделює
+    транзитивність довіри Jøsang: якщо фактологічна база слабка,
+    інші метрики мають менше загальне значення.
 
-    Reference: Jøsang & Ismail 2002, Section 5 (Trust Transitivity)
+    Джерело: Jøsang & Ismail 2002, Section 5 (Trust Transitivity)
     """
     trust = 0.50 * credibility + 0.30 * transparency + 0.20 * objectivity
 
@@ -133,3 +133,5 @@ def aggregate_trust_score(credibility: float, transparency: float, objectivity: 
         trust *= discount
 
     return max(0.0, min(100.0, round(trust, 1)))
+
+
