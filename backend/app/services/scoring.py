@@ -59,17 +59,13 @@ def calculate_credibility(
 
     Джерело: Jøsang & Ismail 2002, Eq. 3 + Section 4
     """
-    # Primary evidence: cross-verification (weight 1.0 per observation)
     r = float(n_conf)
     s = float(n_contra)
 
-    # Secondary evidence: citations as weak positive (0.2 each)
     r += citations_count * 0.2
 
-    # Secondary evidence: emotional language as weak negative (0.3 each)
     s += emotional_words_count * 0.3
 
-    # Secondary evidence: unverified specific claims as weak negative (0.4 each)
     s += n_unverified * 0.4
 
     score = _brs_expected(r=r, s=s, a=domain_trust) * 100.0
@@ -105,7 +101,7 @@ def calculate_objectivity(emotional_words_count: int, total_words: int) -> float
 
     Джерело: Jøsang & Ismail 2002, Eq. 3
     """
-    K = max(8, total_words // 50)  # dynamic observation window
+    K = max(8, total_words // 50)  
     s = min(emotional_words_count, K)
     r = K - s
     score = _brs_expected(r=r, s=s, a=0.5) * 100.0
@@ -127,7 +123,6 @@ def aggregate_trust_score(credibility: float, transparency: float, objectivity: 
     """
     trust = 0.50 * credibility + 0.30 * transparency + 0.20 * objectivity
 
-    # Soft discount when net evidence is negative (credibility below prior)
     if credibility < 50.0:
         discount = 0.5 + (credibility / 100.0)
         trust *= discount
