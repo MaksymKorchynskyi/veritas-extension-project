@@ -1,75 +1,120 @@
-# Veritas — Аналізатор Достовірності Новин
+**English** | [Українська](README.uk.md)
 
-**Гібридне AI-розширення для браузера з автоматичним аналізом достовірності новинних статей**
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Veritas: hybrid AI news credibility analyzer" width="100%">
+</p>
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg)](https://fastapi.tiangolo.com/)
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<p align="center">
+  <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-3776AB.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-yellow.svg"></a>
+  <a href="https://github.com/MaksymKorchynskyi/veritas-extension-project/commits"><img alt="Last commit" src="https://img.shields.io/github/last-commit/MaksymKorchynskyi/veritas-extension-project"></a>
+  <a href="https://github.com/astral-sh/ruff"><img alt="Code style: ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json"></a>
+  <img alt="Status: in development" src="https://img.shields.io/badge/status-in%20development-orange.svg">
+</p>
 
----
+# Veritas
 
-## Огляд
+A hybrid AI browser extension that estimates the credibility and objectivity of a news article while you read it.
 
-**Veritas** — AI-розширення для браузера, яке автоматично аналізує достовірність та об'єктивність новинних статей безпосередньо під час читання.
+## Overview
 
-Система поєднує **великі мовні моделі (LLM)** для семантичного аналізу, **модуль перехресної верифікації** для перевірки фактологічних тез через зовнішні джерела, та **математичну модель скорингу BRS** (Beta Reputation System за Jøsang & Ismail, 2002) для формування прозорого та детермінованого рейтингу довіри.
+Veritas combines three ideas:
 
-## Ключові можливості
+- **Large language models (LLMs)** for semantic work: extracting factual claims, counting citations and manipulative phrases.
+- **Cross-verification** of those claims against external sources found through DuckDuckGo.
+- **A deterministic scoring model** based on the Beta Reputation System (Jøsang & Ismail, 2002), so the final Trust Score is transparent and reproducible from the numbers the LLM agents extracted.
 
-- **Аналіз достовірності в реальному часі** — оцінка статей на льоту під час читання.
-- **Гібридний AI-конвеєр** — LLM-агенти для семантичного витягу + детерміновані формули BRS для прозорого оцінювання.
-- **Автоматична перехресна верифікація** — перевірка фактологічних тез через DuckDuckGo та зіставлення з зовнішніми довіреними джерелами.
-- **Оцінка репутації домену** — локальна база ~55 відомих медіа-доменів + динамічний аналіз через AI.
-- **Інтуїтивний інтерфейс** — попап розширення та підсвічування проблемних абзаців прямо на сторінці.
-- **Детальна декомпозиція** — розбивка на Достовірність, Прозорість та Об'єктивність з формулами BRS.
-- **Двомовність** — повна підтримка українською та англійською мовами.
-- **Режим «Написати & Аналіз»** — можливість вставити довільний текст для аналізу без відвідування сайту.
+The extension parses the page with Readability.js, sends the article to a local FastAPI backend, and shows the result in a popup, on the page itself (highlighted paragraphs) and on a dedicated analytics page.
 
-## Архітектура
+## Features
 
-Проєкт складається з трьох основних компонентів:
+- Real-time analysis of the article you are reading.
+- Hybrid pipeline: LLM agents extract evidence, BRS formulas turn it into scores.
+- Automatic cross-verification of up to 5 key factual claims.
+- Domain reputation: a local table of about 55 known outlets, with an LLM-assisted lookup for unknown domains.
+- Score decomposition into Credibility, Transparency and Objectivity, with the formula inputs exposed.
+- In-page highlighting of problematic paragraphs.
+- Ukrainian and English interface and summaries.
+- "Write and analyze" mode for pasting arbitrary text.
 
-### 1. Браузерне розширення (`/extension`)
-Легковагий JavaScript/HTML-розширення для Chromium-браузерів (Chrome, Edge, Brave, Opera), яке:
-- Витягує текст статті за допомогою Readability.js
-- Відправляє дані на бекенд для аналізу
-- Відображає результат у попапі (Trust Score, радарна діаграма, деталі)
-- Підсвічує проблемні абзаци безпосередньо на веб-сторінці
-- Надає окрему сторінку аналітики з повною декомпозицією формул BRS
+## Architecture
 
-### 2. Аналітичний бекенд (`/backend`)
-Високопродуктивний Python-сервер на FastAPI, який оркеструє конвеєр аналізу:
+```
+Browser extension (Readability.js)
+        |  POST /analyze  (url, title, paragraphs, language)
+        v
+FastAPI backend
+  1. Claim extraction (LLM)        \  run in parallel
+  2. Domain reputation             /
+  3. Cross-verification of claims  (query agent -> DuckDuckGo -> verdict agent)
+  4. Article metrics (LLM): citations, manipulative phrases, highlights
+  5. BRS scoring: Credibility, Transparency, Objectivity -> Trust Score
+  6. Final AI summary
+        |
+        v
+Popup / in-page highlights / analytics page
+```
 
-| Модуль | Опис |
+| Component | Description |
+|-----------|-------------|
+| `extension/` | Manifest V3 extension for Chromium browsers: popup, content script, background worker, analytics page. |
+| `backend/` | FastAPI service that orchestrates the analysis pipeline. |
+| `veritas-landing/` | Promotional landing page (React + Vite). |
+
+### Backend modules
+
+| Module | Role |
 |--------|------|
-| `claim_extractor.py` | LLM-агент витягує до 5 ключових фактологічних тез зі статті |
-| `cross_verification.py` | Генерує пошукові запити, DuckDuckGo, порівняння з оригінальною тезою |
-| `domain_reputation.py` | Локальна база ~55 доменів + AI-аналіз для невідомих доменів |
-| `article_metrics_extractor.py` | Підрахунок цитувань, маніпулятивних фраз, генерація highlights |
-| `scoring.py` | Формули BRS: Достовірність, Прозорість, Об'єктивність, Trust Score |
-| `pipeline.py` | Головний конвеєр аналізу та генерація фінального AI-підсумку |
+| `app/main.py` | FastAPI application, CORS, `/health`. |
+| `app/api/endpoints.py` | `POST /analyze` with an in-memory cache (12 hours). |
+| `app/services/pipeline.py` | Orchestrates the whole analysis. |
+| `app/services/llm/base_agent.py` | Gemini client with structured outputs, retries and model fallback. |
+| `app/services/llm/claim_extractor.py` | Extracts up to 5 verifiable factual claims. |
+| `app/services/llm/article_metrics_extractor.py` | Counts citations and manipulative phrases, produces highlights. |
+| `app/services/cross_verification.py` | Search query generation, DuckDuckGo search, claim verdicts, domain lookup. |
+| `app/services/domain_reputation.py` | Local domain reputation table. |
+| `app/services/scoring.py` | BRS formulas and Trust Score aggregation. |
+| `app/models/schemas.py` | Pydantic request, response and agent schemas. |
 
-### 3. Лендінг (`/veritas-landing`)
-Промо-сайт на React + Vite з описом функцій та інструкціями встановлення.
+### Repository layout
 
-## Інструкція з запуску
+```
+.
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   ├── models/
+│   │   ├── services/
+│   │   │   └── llm/
+│   │   ├── utils.py
+│   │   └── main.py
+│   ├── tests/              # benchmark scripts and dashboard
+│   └── requirements.txt
+├── extension/
+├── veritas-landing/
+├── docs/assets/banner.svg
+├── LICENSE
+├── README.md
+└── README.uk.md
+```
 
-### Передумови
+## Installation
 
-- **Python 3.11+** — [завантажити](https://www.python.org/downloads/)
-- **Node.js** (опціонально, лише для лендінгу)
-- **Браузер на основі Chromium** — Chrome, Edge, Brave, Opera
-- **API-ключ Gemini** — [отримати безкоштовно](https://aistudio.google.com/apikey)
+### Requirements
 
-### Крок 1. Клонування репозиторію
+- Python 3.11 or newer
+- A Chromium-based browser (Chrome, Edge, Brave, Opera)
+- A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
+- Node.js, only if you want to run the landing page
+
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/veritas-extension-project.git
+git clone https://github.com/MaksymKorchynskyi/veritas-extension-project.git
 cd veritas-extension-project
 ```
 
-### Крок 2. Налаштування бекенду
+### 2. Set up the backend
 
 ```bash
 cd backend
@@ -79,107 +124,120 @@ source venv/bin/activate        # macOS / Linux
 pip install -r requirements.txt
 ```
 
-### Крок 3. Налаштування змінних середовища
+### 3. Configure the API key
 
-Створіть файл `.env` у директорії `backend/`:
+Create `backend/.env`:
 
 ```env
-GEMINI_API_KEY=ваш_api_ключ_gemini
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-Gemini API-ключ можна безкоштовно отримати на [Google AI Studio](https://aistudio.google.com/apikey). Проєкт використовує моделі `gemini-2.5-flash` (основна) та `gemini-3-flash-preview` (резервна).
+Without a key the server still starts, but the AI agents are disabled and the analysis returns neutral results.
 
-### Крок 4. Запуск серверу
+### 4. Run the server
 
 ```bash
 cd backend
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Перевірка роботи: `http://127.0.0.1:8000/health`
+Check that it is running: `http://127.0.0.1:8000/health`
 
-```json
-{"status": "ok", "version": "2.0.0", "algorithm": "Hybrid AI Pipeline", "phase": "Enterprise"}
+### 5. Load the extension
+
+1. Open `chrome://extensions/` (or `edge://extensions/`).
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and select the `extension/` folder.
+4. Pin the extension to the toolbar.
+
+## Usage
+
+### In the browser
+
+1. Make sure the backend is running.
+2. Open a news article.
+3. Click the Veritas icon and press the analyze button.
+4. Wait 5 to 15 seconds. The popup shows the Trust Score (0 to 100), the three criteria, highlighted paragraphs and an AI summary.
+5. Open the analytics page from the popup to see the formula inputs, extracted claims and cross-verification results.
+
+### Through the API
+
+```bash
+curl -X POST http://127.0.0.1:8000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/news/article",
+    "title": "Example headline",
+    "html_content": "<p>First paragraph of the article ...</p>",
+    "paragraphs": [
+      {"id": 1, "text": "First paragraph of the article, long enough to analyze ..."},
+      {"id": 2, "text": "Second paragraph ..."}
+    ],
+    "language": "en"
+  }'
 ```
 
-### Крок 5. Встановлення розширення у браузер
+The response contains `trust_score`, `criteria` (`credibility`, `transparency`, `objectivity`), `explainer`, `highlights`, `scoring_inputs` and `extracted_claims`. The article text must be at least 50 characters long and the title must not be empty.
 
-1. Відкрийте Chrome (або Edge / Brave / Opera).
-2. Перейдіть за адресою `chrome://extensions/` (або `edge://extensions/` для Edge).
-3. Увімкніть **Режим розробника** (Developer Mode) — перемикач у правому верхньому куті.
-4. Натисніть **Завантажити розпаковане** (Load unpacked).
-5. Оберіть папку `/extension` з клонованого репозиторію.
-6. Закріпіть розширення у панелі браузера (іконка шпильки).
+## Configuration
 
-### Крок 6. Використання
+| Setting | Where | Default |
+|---------|-------|---------|
+| `GEMINI_API_KEY` | `backend/.env` | none (AI agents disabled) |
+| Primary model | `MODEL_NAME` in `app/services/llm/base_agent.py` | `gemini-2.5-flash` |
+| Fallback model | `FALLBACK_MODEL_NAME` in the same file | `gemini-3-flash-preview` |
+| Response cache TTL | `CACHE_TTL` in `app/api/endpoints.py` | 12 hours |
+| Backend URL used by the extension | `BASE_URL` in `extension/background.js` (the health check in `popup.js` is hardcoded too) | `http://127.0.0.1:8000` |
 
-1. Переконайтесь, що бекенд-сервер працює (крок 4).
-2. Відкрийте будь-яку новинну статтю у браузері.
-3. Натисніть на іконку Veritas у панелі розширень.
-4. Натисніть «Аналізувати Цю Статтю».
-5. Дочекайтесь завершення аналізу (5–15 секунд).
-6. Результат включає: Trust Score (0–100), розбивку критеріїв (Достовірність, Прозорість, Об'єктивність), підсвічування проблемних абзаців та AI-підсумок.
-7. Натисніть іконку документа у попапі для переходу на сторінку повного аналізу з декомпозицією формул BRS, витягнутими тезами та результатами перехресної верифікації.
+## Scoring model
 
-## Математична модель
-
-Система використовує Beta Reputation System (Jøsang & Ismail, 2002):
+Each criterion is an expected value of the Beta Reputation System:
 
 ```
 E(p) = (r + W * a) / (r + s + W)
 ```
 
-| Параметр | Значення |
-|----------|----------|
-| `r` | Позитивні свідчення (підтверджені тези, цитування) |
-| `s` | Негативні свідчення (спростовані тези, маніпулятивні фрази) |
-| `W` | Вага апріорної інформації (за замовчуванням 2) |
-| `a` | Базова ставка (репутація домену для Достовірності) |
+| Symbol | Meaning |
+|--------|---------|
+| `r` | Positive evidence (confirmed claims, citations) |
+| `s` | Negative evidence (contradicted claims, manipulative phrases, unverified claims) |
+| `W` | Weight of the prior, 2 by default |
+| `a` | Base rate (the domain reputation for Credibility) |
 
-Фінальний Trust Score = 50% Достовірність + 30% Прозорість + 20% Об'єктивність
+```
+Trust Score = 0.5 * Credibility + 0.3 * Transparency + 0.2 * Objectivity
+```
 
-## Тестування та бенчмарки
+When Credibility is below 50, the result is multiplied by a discount of `0.5 + Credibility / 100`. The implementation is in `backend/app/services/scoring.py`.
+
+## Testing and benchmarks
+
+The repository ships benchmark scripts rather than unit tests. They send curated article sets (reliable, mixed, fake) to a running backend and write results to `backend/tests/results/`, which is not tracked by git. They call the Gemini API, so a valid key and available quota are required.
 
 ```bash
 cd backend
-python -m pytest tests/
 python tests/benchmark_articles.py
+python tests/visualize_results.py
 ```
 
-Veritas використовує курований датасет реальних новинних статей різних категорій достовірності (Reliable, Mixed, Fake) для безперервного бенчмаркінгу. Результати тестів генеруються у `backend/tests/results/`.
+Benchmark numbers are not published in this README. Run the scripts to reproduce them.
 
-## Структура проєкту
+## Roadmap
 
-```
-veritas-extension-project/
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   └── endpoints.py
-│   │   ├── models/
-│   │   │   └── schemas.py
-│   │   ├── services/
-│   │   │   ├── llm/
-│   │   │   │   ├── base_agent.py
-│   │   │   │   ├── claim_extractor.py
-│   │   │   │   └── article_metrics_extractor.py
-│   │   │   ├── cross_verification.py
-│   │   │   ├── domain_reputation.py
-│   │   │   ├── scoring.py
-│   │   │   └── pipeline.py
-│   │   ├── utils.py
-│   │   └── main.py
-│   ├── tests/
-│   └── requirements.txt
-├── extension/
-│   ├── manifest.json
-│   ├── popup.html / popup.js
-│   ├── parsed_text.html / parsed_text.js
-│   ├── content.js
-│   └── background.js
-└── veritas-landing/
-```
+- Offline unit tests for the scoring module and utilities.
+- Pinned dependencies and a continuous integration workflow.
+- Linting and formatting configuration (`pyproject.toml`).
+- A persistent, bounded response cache.
+- Configurable CORS and request timeouts for LLM calls.
 
-## Ліцензія
+## Contributing
 
-Цей проєкт ліцензовано під MIT License — див. файл LICENSE для деталей.
+Issues and pull requests are welcome. For larger changes, please open an issue first to discuss the idea. Keep changes focused, follow PEP 8, and do not commit API keys or `.env` files.
+
+## License
+
+Released under the [MIT License](LICENSE).
+
+## Reference
+
+Jøsang, A. and Ismail, R. (2002). "The Beta Reputation System." Proceedings of the 15th Bled Electronic Commerce Conference, pp. 324-337.
