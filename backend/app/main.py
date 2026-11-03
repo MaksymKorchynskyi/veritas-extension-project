@@ -1,5 +1,8 @@
+"""Точка входу FastAPI: створення застосунку, CORS та службові маршрути."""
+
 import logging
 import os
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,25 +11,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as api_router
 from app.services.cache import AnalysisCache
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-    datefmt="%H:%M:%S"
-)
-
 logger = logging.getLogger(__name__)
 
 API_VERSION = "2.0.0"
 
-# Розширення браузера та локальні сторінки. Змінюється через змінну VERITAS_CORS_ORIGIN_REGEX.
+# Розширення браузера та локальні сторінки. Змінюється через VERITAS_CORS_ORIGIN_REGEX.
 DEFAULT_CORS_ORIGIN_REGEX = (
-    r"^(chrome-extension|moz-extension)://[^/]+$"
-    r"|^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+    r"^(chrome-extension|moz-extension)://[^/]+$|^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 )
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Логує запуск і зупинку сервера."""
     logger.info("Starting up VERITAS API...")
     yield
     logger.info("Shutting down VERITAS API...")
@@ -34,11 +31,17 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Створює застосунок FastAPI з CORS, кешем аналізу та маршрутами."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
     application = FastAPI(
         title="VERITAS API",
         description="Аналізатор достовірності новин — гібридний AI-конвеєр",
         version=API_VERSION,
-        lifespan=lifespan
+        lifespan=lifespan,
     )
     application.state.analysis_cache = AnalysisCache()
 
@@ -53,7 +56,12 @@ def create_app() -> FastAPI:
     @application.get("/health")
     async def health_check() -> dict[str, str]:
         """Ендпоінт перевірки стану сервера."""
-        return {"status": "ok", "version": API_VERSION, "algorithm": "Hybrid AI Pipeline", "phase": "Enterprise"}
+        return {
+            "status": "ok",
+            "version": API_VERSION,
+            "algorithm": "Hybrid AI Pipeline",
+            "phase": "Enterprise",
+        }
 
     application.include_router(api_router)
     return application

@@ -1,6 +1,8 @@
+"""Перехресна верифікація тез через DuckDuckGo та оцінка репутації домену."""
+
 import asyncio
 import logging
-from typing import List
+from typing import Literal, TypedDict
 
 from ddgs import DDGS
 from ddgs.exceptions import RatelimitException
@@ -24,6 +26,25 @@ MAX_SEARCH_RESULTS = 3
 MAX_CLAIMS_TO_VERIFY = 5
 AGENT_MAX_RETRIES = 2
 AGENT_RETRY_DELAY_S = 1.0
+
+ClaimStatus = Literal["CONFIRMED", "CONTRADICTED", "UNVERIFIED"]
+
+
+class Snippet(TypedDict):
+    """Сніпет результату пошуку."""
+
+    body: str
+    href: str
+
+
+class ClaimDetail(TypedDict):
+    """Результат верифікації однієї тези."""
+
+    paragraph_id: int
+    claim_text: str
+    status: ClaimStatus
+    evidence_url: str | None
+
 
 QUERY_AGENT_PROMPT = """
 You are the VERITAS SearchQueryGenerator. Your objective is to process a factual claim and generate a concise search query optimized for DuckDuckGo.
@@ -70,6 +91,7 @@ CRITICAL CONSTRAINT: If the provided snippets do not explicitly categorize the p
 Output a concise 'background_summary' detailing the institutional profile in 1-2 sentences.
 """
 
+
 def _agent_config() -> types.GenerateContentConfig:
     return types.GenerateContentConfig(temperature=0.05)
 
@@ -87,19 +109,20 @@ async def run_query_agent(claim_text: str) -> str:
     return result.english_query if result else ""
 
 
-def _do_duckduckgo_search(query: str) -> List[dict]:
+def _do_duckduckgo_search(query: str) -> list[Snippet]:
     try:
         results = DDGS(timeout=DDGS_HTTP_TIMEOUT_S).text(query, max_results=MAX_SEARCH_RESULTS)
-        return [{"body": r.get("body", ""), "href": r.get("href", "")} for r in results if "body" in r]
+        return [
+            Snippet(body=r.get("body", ""), href=r.get("href", "")) for r in results if "body" in r
+        ]
     except RatelimitException:
-        logger.warning(f"DuckDuckGo RateLimit hit for query: {query}")
-        return []
-    except Exception as e:
-        logger.error(f"DuckDuckGo error: {e}")
-        return []
+        logger.warning("DuckDuckGo RateLimit hit for query: %s", query)
+    except Exception as exc:  # noqa: BLE001 - бібліотека пошуку кидає довільні помилки
+        logger.error("DuckDuckGo error: %s", exc)
+    return []
 
 
-async def search_duckduckgo(query: str) -> List[dict]:
+async def search_duckduckgo(query: str) -> list[Snippet]:
     """Асинхронний пошук у DuckDuckGo з обмеженням за часом; при будь-якій помилці повертає []."""
     if not query:
         return []
@@ -108,21 +131,25 @@ async def search_duckduckgo(query: str) -> List[dict]:
             asyncio.to_thread(_do_duckduckgo_search, query),
             timeout=SEARCH_TIMEOUT_S,
         )
-    except asyncio.TimeoutError:
-        logger.warning(f"DuckDuckGo search timed out for query: {query}")
-        return []
-    except Exception as e:
-        logger.error(f"search_duckduckgo error: {e}")
-        return []
+    except TimeoutError:
+        logger.warning("DuckDuckGo search timed out for query: %s", query)
+    except Exception as exc:  # noqa: BLE001 - пошук не має ламати конвеєр
+        logger.error("search_duckduckgo error: %s", exc)
+    return []
 
 
-async def run_cross_agent(claim_text: str, snippets: List[dict]) -> CrossReferenceResult | None:
+def _format_snippets(snippets: list[Snippet]) -> str:
+    return "\n".join(f"- {s['body']}" for s in snippets)
+
+
+async def run_cross_agent(claim_text: str, snippets: list[Snippet]) -> CrossReferenceResult | None:
     """Порівнює тезу зі сніпетами пошуку й повертає вердикт; None, якщо агент недоступний."""
     if not ai_available() or not snippets:
         return None
 
-    snippets_text = "\n".join([f"- {s['body']}" for s in snippets])
-    prompt = f"ORIGINAL CLAIM: {claim_text}\n\nSEARCH RESULTS (SNIPPETS):\n{snippets_text}"
+    prompt = (
+        f"ORIGINAL CLAIM: {claim_text}\n\nSEARCH RESULTS (SNIPPETS):\n{_format_snippets(snippets)}"
+    )
     return await run_agent(
         prompt,
         CROSS_AGENT_PROMPT,
@@ -133,110 +160,123 @@ async def run_cross_agent(claim_text: str, snippets: List[dict]) -> CrossReferen
     )
 
 
-async def process_single_claim(claim: VerifiableClaim) -> tuple[str, GeminiHighlight | None, str | None]:
-    """Обробляє одну фактологічну тезу: генерація запиту → пошук → перехресна верифікація."""
-    logger.info(f"[CrossVerify] Evaluating claim ID {claim.paragraph_id}: {claim.claim_text}")
-    
+async def process_single_claim(
+    claim: VerifiableClaim,
+) -> tuple[ClaimStatus, GeminiHighlight | None, str | None]:
+    """Обробляє одну тезу: генерація запиту, пошук і перехресна верифікація.
+
+    Returns:
+        Кортеж (статус, highlight для спростованої тези, URL доказу).
+    """
+    logger.info("[CrossVerify] Evaluating claim ID %s: %s", claim.paragraph_id, claim.claim_text)
+
     query = await run_query_agent(claim.claim_text)
     if not query:
         return "UNVERIFIED", None, None
-        
-    logger.info(f"[CrossVerify] Query generated: {query}")
-    
+
+    logger.info("[CrossVerify] Query generated: %s", query)
+
     snippets = await search_duckduckgo(query)
     if not snippets:
         return "UNVERIFIED", None, None
-        
+
     verdict = await run_cross_agent(claim.claim_text, snippets)
     if not verdict:
         return "UNVERIFIED", None, None
-        
-    logger.info(f"[CrossVerify] Claim ID {claim.paragraph_id} Verdict: {verdict.status}")
-    
-    evidence_url = None
-    if verdict.status in ["CONFIRMED", "CONTRADICTED"]:
-        evidence_url = snippets[0]['href'] if snippets else None
+
+    logger.info("[CrossVerify] Claim ID %s Verdict: %s", claim.paragraph_id, verdict.status)
+
+    evidence_url = snippets[0]["href"]
 
     if verdict.status == "CONTRADICTED":
-        hl = GeminiHighlight(
+        highlight = GeminiHighlight(
             paragraph_id=claim.paragraph_id,
             severity="risk",
             category="Спростовано перехресною верифікацією",
-            reason=verdict.reason
+            reason=verdict.reason,
         )
-        return "CONTRADICTED", hl, evidence_url
-        
+        return "CONTRADICTED", highlight, evidence_url
+
     if verdict.status == "CONFIRMED":
         return "CONFIRMED", None, evidence_url
-        
+
     return "UNVERIFIED", None, None
 
-async def verify_claims(claims: List[VerifiableClaim]) -> tuple[List[GeminiHighlight], int, int, List[dict]]:
-    """Оркеструє паралельну перехресну верифікацію для максимум 5 тез.
-    Returns: (highlights, n_conf, n_contra, verified_claims_details)
+
+async def verify_claims(
+    claims: list[VerifiableClaim],
+) -> tuple[list[GeminiHighlight], int, int, list[ClaimDetail]]:
+    """Оркеструє паралельну перехресну верифікацію (до MAX_CLAIMS_TO_VERIFY тез).
+
+    Returns:
+        Кортеж (highlights, кількість підтверджених, кількість спростованих, деталі по тезах).
     """
     if not claims:
         return [], 0, 0, []
-        
+
     target_claims = claims[:MAX_CLAIMS_TO_VERIFY]
-    logger.info(f"[CrossVerify] Starting parallel verification for {len(target_claims)} claims.")
-    
-    tasks = [process_single_claim(c) for c in target_claims]
-    results = await asyncio.gather(*tasks)
-    
-    highlights = []
+    logger.info("[CrossVerify] Starting parallel verification for %d claims.", len(target_claims))
+
+    results = await asyncio.gather(*(process_single_claim(c) for c in target_claims))
+
+    highlights: list[GeminiHighlight] = []
     n_conf = 0
     n_contra = 0
-    details = []
-    
-    for i, (status, hl, evidence_url) in enumerate(results):
-        claim = target_claims[i]
+    details: list[ClaimDetail] = []
+
+    for claim, (status, highlight, evidence_url) in zip(target_claims, results, strict=True):
         if status == "CONFIRMED":
             n_conf += 1
         elif status == "CONTRADICTED":
             n_contra += 1
-            if hl:
-                highlights.append(hl)
-        
-        details.append({
-            "paragraph_id": claim.paragraph_id,
-            "claim_text": claim.claim_text,
-            "status": status,
-            "evidence_url": evidence_url
-        })
-                
+            if highlight:
+                highlights.append(highlight)
+
+        details.append(
+            ClaimDetail(
+                paragraph_id=claim.paragraph_id,
+                claim_text=claim.claim_text,
+                status=status,
+                evidence_url=evidence_url,
+            )
+        )
+
     return highlights, n_conf, n_contra, details
 
+
 async def check_domain_reputation(domain: str) -> DomainReputationResult:
-    """Перевіряє репутацію домену: спочатку локальна база, потім пошук + Gemini для аналізу медіа-репутації."""
+    """Оцінює репутацію домену: локальна база, а для невідомих — пошук і аналіз Gemini."""
     if not domain:
-        return DomainReputationResult(trust_index=0.5, background_summary="Оцінка неможлива (пустий домен)")
+        return DomainReputationResult(
+            trust_index=0.5, background_summary="Оцінка неможлива (пустий домен)"
+        )
 
     local_data = find_local_reputation(domain)
     if local_data:
-        logger.info(f"[CrossVerify] Domain '{domain}' found in LOCAL_DOMAINS_REPUTATION.")
+        logger.info("[CrossVerify] Domain '%s' found in LOCAL_DOMAINS_REPUTATION.", domain)
         return DomainReputationResult(
             trust_index=local_data["trust_index"],
             background_summary=local_data["summary"],
         )
 
     if not ai_available():
-        return DomainReputationResult(trust_index=0.5, background_summary="Оцінка неможлива (AI offline)")
+        return DomainReputationResult(
+            trust_index=0.5, background_summary="Оцінка неможлива (AI offline)"
+        )
 
     query = f"{domain} bias fact-check reliability credibility"
-    logger.info(f"[CrossVerify] Querying reputation for domain: {domain}")
+    logger.info("[CrossVerify] Querying reputation for domain: %s", domain)
 
     snippets = await search_duckduckgo(query)
 
     if not snippets:
-        logger.info(f"[CrossVerify] No watchdog data for {domain}. Defaulting to 0.5.")
+        logger.info("[CrossVerify] No watchdog data for %s. Defaulting to 0.5.", domain)
         return DomainReputationResult(
             trust_index=0.5,
             background_summary="Локальне або маловідоме видання. Прямих підтверджень упередженості не знайдено.",
         )
 
-    snippets_text = "\n".join([f"- {s['body']}" for s in snippets])
-    prompt = f"TARGET DOMAIN: {domain}\n\nREPUTATION SNIPPETS:\n{snippets_text}"
+    prompt = f"TARGET DOMAIN: {domain}\n\nREPUTATION SNIPPETS:\n{_format_snippets(snippets)}"
 
     result = await run_agent(
         prompt,

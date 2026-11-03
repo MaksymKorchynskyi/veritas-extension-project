@@ -1,5 +1,7 @@
-from app.services.llm.base_agent import run_agent
+"""Агент витягу перевірюваних фактологічних тез зі статті."""
+
 from app.models.schemas import FactExtraction
+from app.services.llm.base_agent import run_agent
 
 CLAIM_EXTRACTOR_PROMPT = """
 You are the VERITAS FactualClaimExtractor. Your primary objective is to identify and extract empirical, falsifiable claims from the provided text for subsequent verification.

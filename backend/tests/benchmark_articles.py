@@ -1,255 +1,110 @@
-"""
-VERITAS Algorithm Benchmark
-============================
-Dataset: ISOT Fake News Dataset (Ahmed et al., 2018)
-  https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset
+"""Бенчмарк алгоритму VERITAS на датасеті ISOT Fake News (Ahmed et al., 2018).
 
-Categories:
-  A — Quality journalism (Reuters wire stories)        Expected: 60–100
-  B — Biased / low quality (political opinion/clickbait) Expected: 25–60
-  C — Manipulative / fake (conspiracy / fabricated)    Expected: 0–30
+Датасет: https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset
 
-Total: 50 articles
+Категорії:
+  A — якісна журналістика (Reuters)        очікувано: 60-100
+  B — упереджені / низької якості          очікувано: 25-60
+  C — маніпулятивні / фейкові              очікувано: 0-30
+
+Запуск (з каталогу backend, сервер має працювати)::
+
+    python -m tests.benchmark_articles
 """
 
 import asyncio
-import json
-import time
-import csv
+import logging
 import statistics
-from pathlib import Path
 from datetime import datetime
+from typing import Any
 
-try:
-    import httpx
-except ImportError:
-    print("❌ httpx not installed. Run: pip install httpx")
-    exit(1)
+import httpx
 
 from tests.benchmark_articles_isot import ARTICLES
+from tests.benchmark_common import (
+    RULE,
+    Article,
+    analyze_one,
+    backend_is_healthy,
+    configure_logging,
+    log_summary,
+    run_articles,
+    save_results,
+)
 
-API_URL = "http://127.0.0.1:8000/analyze"
-RESULTS_DIR = Path(__file__).parent / "results"
-RESULTS_DIR.mkdir(exist_ok=True)
+logger = logging.getLogger(__name__)
 
-
-async def analyze_one(client: httpx.AsyncClient, article: dict) -> dict:
-    """Send one article to the API and return structured result."""
-    paragraphs = [{"id": i + 1, "text": p} for i, p in enumerate(article["paragraphs"])]
-    html = " ".join(f"<p>{p}</p>" for p in article["paragraphs"])
-
-    payload = {
-        "url": article["url"],
-        "title": article["title"],
-        "html_content": html,
-        "paragraphs": paragraphs,
-        "language": "en",
-    }
-
-    start = time.time()
-    try:
-        resp = await client.post(API_URL, json=payload, timeout=120.0)
-        elapsed = round(time.time() - start, 2)
-
-        if resp.status_code != 200:
-            return {
-                "id": article["id"], "category": article["category"],
-                "status": "HTTP_ERROR", "http_code": resp.status_code,
-                "error": resp.text[:200], "elapsed_s": elapsed,
-            }
-
-        data = resp.json()
-        lo, hi = article["expected"]
-        trust = data["trust_score"]
-        in_range = lo <= trust <= hi
-
-        return {
-            "id": article["id"],
-            "category": article["category"],
-            "title": article["title"],
-            "expected_range": f"{lo}–{hi}",
-            "trust_score": trust,
-            "in_range": "✅" if in_range else "❌",
-            "credibility": data["criteria"]["credibility"],
-            "transparency": data["criteria"]["transparency"],
-            "objectivity": data["criteria"]["objectivity"],
-            "highlights": len(data.get("highlights", [])),
-            "explainer": data.get("explainer", "")[:150],
-            "elapsed_s": elapsed,
-            "status": "OK",
-            "full_response": data,
-        }
-    except httpx.ConnectError:
-        return {"id": article["id"], "status": "CONNECTION_ERROR",
-                "error": "Cannot connect to backend. Is uvicorn running?"}
-    except Exception as e:
-        return {"id": article["id"], "status": "EXCEPTION",
-                "error": str(e)[:200], "elapsed_s": round(time.time() - start, 2)}
+STABILITY_RUNS = 3
+STABILITY_DELAY_S = 2
+STABILITY_MAX_STD = 8
 
 
-async def run_stability_test(client: httpx.AsyncClient, article: dict, n: int = 3) -> dict:
-    """Run same article N times, measure standard deviation."""
-    scores = []
-    for i in range(n):
+async def run_stability_test(
+    client: httpx.AsyncClient, article: Article, runs: int = STABILITY_RUNS
+) -> dict[str, Any]:
+    """Аналізує одну статтю кілька разів і рахує стандартне відхилення оцінок."""
+    scores: list[float] = []
+    for _ in range(runs):
         result = await analyze_one(client, article)
         if result.get("status") == "OK":
             scores.append(result["trust_score"])
-        await asyncio.sleep(2)
+        await asyncio.sleep(STABILITY_DELAY_S)
 
     if len(scores) < 2:
         return {"id": article["id"], "runs": len(scores), "std": "N/A"}
 
+    std = statistics.stdev(scores)
     return {
         "id": article["id"],
         "runs": len(scores),
         "scores": scores,
         "mean": round(statistics.mean(scores), 1),
-        "std": round(statistics.stdev(scores), 1),
-        "stable": "✅" if statistics.stdev(scores) < 8 else "❌",
+        "std": round(std, 1),
+        "stable": "stable" if std < STABILITY_MAX_STD else "unstable",
     }
 
 
-async def main():
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+async def main() -> None:
+    """Запускає бенчмарк, тест стабільності та зберігає результати."""
+    configure_logging()
+    logger.info("\n%s", RULE)
+    logger.info(
+        "  VERITAS ALGORITHM BENCHMARK (ISOT) - %s", datetime.now().strftime("%Y-%m-%d %H:%M")
+    )
+    logger.info("  Articles: %d", len(ARTICLES))
+    logger.info(RULE)
 
-    print()
-    print("=" * 65)
-    print(f"  🧪 VERITAS ALGORITHM BENCHMARK (ISOT) — {timestamp}")
-    print(f"  Articles: {len(ARTICLES)}")
-    print("=" * 65)
+    if not await backend_is_healthy():
+        return
 
+    results = await run_articles(ARTICLES)
+    log_summary("BENCHMARK SUMMARY", results)
+
+    logger.info("\n%s", "-" * 65)
+    logger.info("  STABILITY TEST (running %s x%d)...", ARTICLES[0]["id"], STABILITY_RUNS)
     async with httpx.AsyncClient() as client:
-        try:
-            health = await client.get("http://127.0.0.1:8000/health", timeout=5.0)
-            if health.status_code != 200:
-                print("\n  ❌ Backend not healthy. Start with: uvicorn app.main:app --reload")
-                return
-            print(f"  ✅ Backend online: {health.json()}")
-        except httpx.ConnectError:
-            print("\n  ❌ Cannot connect to http://127.0.0.1:8000")
-            print("     Start backend: cd backend && uvicorn app.main:app --reload")
-            return
+        stability = await run_stability_test(client, ARTICLES[0])
+    if stability.get("std") != "N/A":
+        logger.info("    Scores: %s", stability["scores"])
+        logger.info(
+            "    Mean: %s, Std Dev: %s (%s)",
+            stability["mean"],
+            stability["std"],
+            stability["stable"],
+        )
+    else:
+        logger.info("    Could not complete stability test")
 
-    results = []
-    async with httpx.AsyncClient() as client:
-        for article in ARTICLES:
-            tag = f"[{article['id']}|{article['category']}]"
-            title_preview = article["title"][:45]
-            print(f"\n  {tag} {title_preview}...")
+    save_results(
+        results,
+        timestamped_csv_prefix="benchmark",
+        json_name="latest_results.json",
+        latest_csv_name="latest_results.csv",
+    )
 
-            result = await analyze_one(client, article)
-            results.append(result)
-
-            if result["status"] == "OK":
-                ts = result["trust_score"]
-                rng = result["expected_range"]
-                ok = result["in_range"]
-                t = result["elapsed_s"]
-                res = result
-                print(f"         Score: {ts} (expected {rng}) {ok}  [{t}s]")
-                print(f"         Cred:{res['credibility']:.1f} Trans:{res['transparency']:.1f} Obj:{res['objectivity']:.1f} "
-                      f"Highlights:{result['highlights']}")
-            else:
-                print(f"         ❌ {result.get('error', 'Unknown')[:80]}")
-
-            await asyncio.sleep(3)  # Rate limiting
-
-    ok_results = [r for r in results if r.get("status") == "OK"]
-    errors = len(results) - len(ok_results)
-    correct = sum(1 for r in ok_results if r.get("in_range") == "✅")
-
-    cat_scores = {}
-    for r in ok_results:
-        cat = r["category"]
-        cat_scores.setdefault(cat, []).append(r["trust_score"])
-
-    print("\n" + "=" * 65)
-    print("  📊 BENCHMARK SUMMARY")
-    print("=" * 65)
-    print(f"  Total articles:     {len(results)}")
-    print(f"  Successful:         {len(ok_results)}")
-    print(f"  Errors:             {errors}")
-    print(f"  In expected range:  {correct}/{len(ok_results)} "
-          f"({correct / max(1, len(ok_results)) * 100:.0f}%)")
-
-    if ok_results:
-        times = [r["elapsed_s"] for r in ok_results]
-        print(f"  Avg response time:  {statistics.mean(times):.1f}s "
-              f"(min={min(times):.1f}s, max={max(times):.1f}s)")
-
-    for cat in sorted(cat_scores):
-        s = cat_scores[cat]
-        label = {"A": "Quality", "B": "Biased", "C": "Fake/Manipulative"}.get(cat, cat)
-        print(f"  Category {cat} ({label}):  "
-              f"avg={statistics.mean(s):.1f}, "
-              f"min={min(s):.0f}, max={max(s):.0f}")
-
-    if "A" in cat_scores and "C" in cat_scores:
-        gap = statistics.mean(cat_scores["A"]) - statistics.mean(cat_scores["C"])
-        print(f"  Separation A vs C:  {gap:.1f} points {'✅' if gap > 25 else '⚠️'}")
-
-    # ── Classification metrics ──────────────────────────────────────
-    if ok_results:
-        THRESHOLD = 40
-        tp = sum(1 for r in ok_results if r["category"] in ("B", "C") and r["trust_score"] < THRESHOLD)
-        fp = sum(1 for r in ok_results if r["category"] == "A" and r["trust_score"] < THRESHOLD)
-        tn = sum(1 for r in ok_results if r["category"] == "A" and r["trust_score"] >= THRESHOLD)
-        fn = sum(1 for r in ok_results if r["category"] in ("B", "C") and r["trust_score"] >= THRESHOLD)
-
-        precision = tp / max(1, tp + fp)
-        recall = tp / max(1, tp + fn)
-        f1 = 2 * precision * recall / max(0.001, precision + recall)
-        accuracy = (tp + tn) / max(1, len(ok_results))
-
-        print(f"\n  ── Classification Metrics (threshold={THRESHOLD}) ──")
-        print(f"  TP={tp}  FP={fp}  TN={tn}  FN={fn}")
-        print(f"  Precision:  {precision:.3f}")
-        print(f"  Recall:     {recall:.3f}")
-        print(f"  F1 Score:   {f1:.3f}")
-        print(f"  Accuracy:   {accuracy:.3f}")
-
-    print("\n" + "-" * 65)
-    print("  🔄 STABILITY TEST (running A1 x3)...")
-    async with httpx.AsyncClient() as client:
-        stab = await run_stability_test(client, ARTICLES[0], n=3)
-        if stab.get("std") != "N/A":
-            print(f"    Scores: {stab['scores']}")
-            print(f"    Mean: {stab['mean']}, Std Dev: {stab['std']} {stab['stable']}")
-        else:
-            print(f"    Could not complete stability test")
-
-    csv_path = RESULTS_DIR / f"benchmark_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
-    csv_fields = ["id", "category", "title", "expected_range", "trust_score",
-                  "in_range", "credibility", "transparency", "objectivity",
-                  "highlights", "elapsed_s", "status"]
-    if ok_results:
-        with open(csv_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=csv_fields, extrasaction='ignore')
-            writer.writeheader()
-            writer.writerows(ok_results)
-        print(f"\n  💾 Results saved: {csv_path}")
-
-    latest_json_path = RESULTS_DIR / "latest_results.json"
-    json_results = []
-    for r in ok_results:
-        entry = {k: v for k, v in r.items() if k != "full_response"}
-        entry["full_response"] = r.get("full_response", {})
-        json_results.append(entry)
-
-    with open(latest_json_path, "w", encoding="utf-8") as f:
-        json.dump(json_results, f, ensure_ascii=False, indent=2)
-    print(f"  💾 JSON saved: {latest_json_path}")
-
-    latest_path = RESULTS_DIR / "latest_results.csv"
-    if ok_results:
-        with open(latest_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=csv_fields, extrasaction='ignore')
-            writer.writeheader()
-            writer.writerows(ok_results)
-
-    print("\n" + "=" * 65)
-    print("  ✅ Benchmark complete!")
-    print("=" * 65 + "\n")
+    logger.info("\n%s", RULE)
+    logger.info("  Benchmark complete!")
+    logger.info("%s\n", RULE)
 
 
 if __name__ == "__main__":

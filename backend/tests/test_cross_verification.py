@@ -1,5 +1,5 @@
 import time
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 from ddgs.exceptions import RatelimitException
@@ -7,12 +7,15 @@ from ddgs.exceptions import RatelimitException
 from app.models.schemas import (
     CrossReferenceResult,
     DomainReputationResult,
+    GeminiHighlight,
     QueryGenerationResult,
     VerifiableClaim,
 )
 from app.services import cross_verification as cv
+from app.services.cross_verification import Snippet
+from app.services.domain_reputation import find_local_reputation
 
-SNIPPETS = [
+SNIPPETS: list[Snippet] = [
     {"body": "snippet one", "href": "https://first.example/a"},
     {"body": "snippet two", "href": "https://second.example/b"},
 ]
@@ -26,16 +29,16 @@ def _stub_pipeline_steps(
     monkeypatch: pytest.MonkeyPatch,
     *,
     query: str = "search query",
-    snippets: list[dict] | None = None,
+    snippets: list[Snippet] | None = None,
     verdict: CrossReferenceResult | None = None,
 ) -> None:
     async def run_query_agent(_: str) -> str:
         return query
 
-    async def search_duckduckgo(_: str) -> list[dict]:
+    async def search_duckduckgo(_: str) -> list[Snippet]:
         return SNIPPETS if snippets is None else snippets
 
-    async def run_cross_agent(_: str, __: list[dict]) -> CrossReferenceResult | None:
+    async def run_cross_agent(_: str, __: list[Snippet]) -> CrossReferenceResult | None:
         return verdict
 
     monkeypatch.setattr(cv, "run_query_agent", run_query_agent)
@@ -71,7 +74,11 @@ async def test_contradicted_claim_produces_risk_highlight(monkeypatch: pytest.Mo
     assert status == "CONTRADICTED"
     assert url == "https://first.example/a"
     assert highlight is not None
-    assert (highlight.paragraph_id, highlight.severity, highlight.reason) == (7, "risk", "numbers differ")
+    assert (highlight.paragraph_id, highlight.severity, highlight.reason) == (
+        7,
+        "risk",
+        "numbers differ",
+    )
 
 
 async def test_unverified_verdict_drops_evidence_url(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -84,7 +91,9 @@ async def test_verify_claims_with_no_claims() -> None:
     assert await cv.verify_claims([]) == ([], 0, 0, [])
 
 
-async def test_verify_claims_aggregates_statuses_and_limits_to_five(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_verify_claims_aggregates_statuses_and_limits_to_five(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     seen: list[int] = []
     statuses = {0: "CONFIRMED", 1: "CONTRADICTED", 2: "UNVERIFIED"}
 
@@ -92,7 +101,7 @@ async def test_verify_claims_aggregates_statuses_and_limits_to_five(monkeypatch:
         seen.append(claim.paragraph_id)
         status = statuses.get(claim.paragraph_id, "UNVERIFIED")
         if status == "CONTRADICTED":
-            highlight = cv.GeminiHighlight(
+            highlight = GeminiHighlight(
                 paragraph_id=claim.paragraph_id, severity="risk", category="c", reason="r"
             )
             return status, highlight, "https://e.example"
@@ -114,14 +123,14 @@ async def test_verify_claims_aggregates_statuses_and_limits_to_five(monkeypatch:
 class FakeDDGS:
     """Stands in for ddgs.DDGS."""
 
-    results: list[dict] = []
+    results: ClassVar[list[dict[str, str]]] = []
     error: Exception | None = None
-    timeouts: list[float] = []
+    timeouts: ClassVar[list[float]] = []
 
     def __init__(self, timeout: float) -> None:
         FakeDDGS.timeouts.append(timeout)
 
-    def text(self, query: str, max_results: int) -> list[dict]:
+    def text(self, query: str, max_results: int) -> list[dict[str, str]]:
         assert max_results == cv.MAX_SEARCH_RESULTS
         if FakeDDGS.error:
             raise FakeDDGS.error
@@ -131,7 +140,11 @@ class FakeDDGS:
 def test_duckduckgo_results_are_normalised(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cv, "DDGS", FakeDDGS)
     FakeDDGS.error = None
-    FakeDDGS.results = [{"body": "b", "href": "h", "title": "ignored"}, {"title": "no body"}, {"body": "only body"}]
+    FakeDDGS.results = [
+        {"body": "b", "href": "h", "title": "ignored"},
+        {"title": "no body"},
+        {"body": "only body"},
+    ]
     assert cv._do_duckduckgo_search("q") == [
         {"body": "b", "href": "h"},
         {"body": "only body", "href": ""},
@@ -140,7 +153,9 @@ def test_duckduckgo_results_are_normalised(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.mark.parametrize("error", [RatelimitException("slow down"), RuntimeError("boom")])
-def test_duckduckgo_errors_yield_no_results(monkeypatch: pytest.MonkeyPatch, error: Exception) -> None:
+def test_duckduckgo_errors_yield_no_results(
+    monkeypatch: pytest.MonkeyPatch, error: Exception
+) -> None:
     monkeypatch.setattr(cv, "DDGS", FakeDDGS)
     FakeDDGS.error = error
     assert cv._do_duckduckgo_search("q") == []
@@ -150,9 +165,14 @@ async def test_search_skips_empty_query() -> None:
     assert await cv.search_duckduckgo("") == []
 
 
+def _slow_search(_: str) -> list[Snippet]:
+    time.sleep(0.2)
+    return SNIPPETS
+
+
 async def test_search_times_out_gracefully(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cv, "SEARCH_TIMEOUT_S", 0.01)
-    monkeypatch.setattr(cv, "_do_duckduckgo_search", lambda _: time.sleep(0.2) or SNIPPETS)
+    monkeypatch.setattr(cv, "_do_duckduckgo_search", _slow_search)
     assert await cv.search_duckduckgo("q") == []
 
 
@@ -167,7 +187,7 @@ class AgentRecorder:
     def __init__(self, result: Any) -> None:
         self.result = result
         self.prompts: list[str] = []
-        self.kwargs: list[dict] = []
+        self.kwargs: list[dict[str, Any]] = []
 
     async def __call__(self, prompt: str, system: str, schema: type, **kwargs: Any) -> Any:
         self.prompts.append(prompt)
@@ -196,7 +216,9 @@ async def test_cross_agent_needs_ai_and_snippets(monkeypatch: pytest.MonkeyPatch
 
     result = await cv.run_cross_agent("claim", SNIPPETS)
     assert result is not None
-    assert recorder.prompts == ["ORIGINAL CLAIM: claim\n\nSEARCH RESULTS (SNIPPETS):\n- snippet one\n- snippet two"]
+    assert recorder.prompts == [
+        "ORIGINAL CLAIM: claim\n\nSEARCH RESULTS (SNIPPETS):\n- snippet one\n- snippet two"
+    ]
 
 
 async def test_reputation_empty_domain() -> None:
@@ -206,8 +228,10 @@ async def test_reputation_empty_domain() -> None:
 
 @pytest.mark.parametrize("domain", ["bbc.com", "www.bbc.com", "m.bbc.com"])
 async def test_reputation_uses_local_table_including_subdomains(domain: str) -> None:
+    expected = find_local_reputation("bbc.com")
+    assert expected is not None
     result = await cv.check_domain_reputation(domain)
-    assert result.trust_index == cv.find_local_reputation("bbc.com")["trust_index"]  # type: ignore[index]
+    assert result.trust_index == expected["trust_index"]
 
 
 async def test_reputation_without_ai_is_neutral() -> None:
@@ -216,10 +240,12 @@ async def test_reputation_without_ai_is_neutral() -> None:
     assert "AI offline" in result.background_summary
 
 
-async def test_reputation_without_search_results_is_neutral(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_reputation_without_search_results_is_neutral(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(cv, "ai_available", lambda: True)
 
-    async def no_results(_: str) -> list[dict]:
+    async def no_results(_: str) -> list[Snippet]:
         return []
 
     monkeypatch.setattr(cv, "search_duckduckgo", no_results)
@@ -227,12 +253,14 @@ async def test_reputation_without_search_results_is_neutral(monkeypatch: pytest.
     assert result.trust_index == 0.5
 
 
-async def test_reputation_prompt_contains_snippet_text_only(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_reputation_prompt_contains_snippet_text_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(cv, "ai_available", lambda: True)
     recorder = AgentRecorder(DomainReputationResult(trust_index=0.2, background_summary="doubtful"))
     monkeypatch.setattr(cv, "run_agent", recorder)
 
-    async def results(_: str) -> list[dict]:
+    async def results(_: str) -> list[Snippet]:
         return SNIPPETS
 
     monkeypatch.setattr(cv, "search_duckduckgo", results)
@@ -244,11 +272,13 @@ async def test_reputation_prompt_contains_snippet_text_only(monkeypatch: pytest.
     ]
 
 
-async def test_reputation_agent_failure_falls_back_to_neutral(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_reputation_agent_failure_falls_back_to_neutral(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(cv, "ai_available", lambda: True)
     monkeypatch.setattr(cv, "run_agent", AgentRecorder(None))
 
-    async def results(_: str) -> list[dict]:
+    async def results(_: str) -> list[Snippet]:
         return SNIPPETS
 
     monkeypatch.setattr(cv, "search_duckduckgo", results)

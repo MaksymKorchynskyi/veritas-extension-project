@@ -1,4 +1,7 @@
-from typing import List, Literal, Optional
+"""Pydantic-схеми: запит і відповідь API, а також структуровані виходи LLM-агентів."""
+
+from typing import Any, Literal
+
 from pydantic import BaseModel, Field
 
 MAX_PARAGRAPHS = 2000
@@ -8,21 +11,26 @@ MAX_HTML_CHARS = 10_000_000
 
 class VerifiableClaim(BaseModel):
     """Фактологічна теза, витягнута агентом FactExtractionAgent."""
+
     paragraph_id: int = Field(..., description="The ID of the paragraph where the claim is located")
-    claim_text: str = Field(..., description="The exact factual claim (dates, statistics, quotes, actions)")
+    claim_text: str = Field(
+        ..., description="The exact factual claim (dates, statistics, quotes, actions)"
+    )
 
 
 class FactExtraction(BaseModel):
     """Результат роботи агента витягу фактологічних тез."""
-    verifiable_claims: List[VerifiableClaim] = Field(
+
+    verifiable_claims: list[VerifiableClaim] = Field(
         default_factory=list,
         description="Max 5 hard, concrete claims extracted from the article",
     )
-    raw_thoughts: Optional[str] = Field(default=None, description="Chain-of-thought reasoning")
+    raw_thoughts: str | None = Field(default=None, description="Chain-of-thought reasoning")
 
 
 class GeminiHighlight(BaseModel):
     """Проблемний сегмент тексту, ідентифікований AI-агентом."""
+
     paragraph_id: int = Field(..., description="The exact paragraph ID (from [ID: X] markers)")
     severity: Literal["warning", "risk"] = Field(
         ...,
@@ -34,58 +42,71 @@ class GeminiHighlight(BaseModel):
 
 class JudgeEvaluation(BaseModel):
     """Результат роботи ArticleMetricsExtractor — вхідні дані для формул BRS."""
+
     citations_count: int = Field(..., ge=0, description="Number of verifiable named citations")
-    emotional_words_count: int = Field(..., ge=0, description="Number of manipulative/emotional phrases")
-    found_citations: List[str] = Field(
+    emotional_words_count: int = Field(
+        ..., ge=0, description="Number of manipulative/emotional phrases"
+    )
+    found_citations: list[str] = Field(
         default_factory=list,
         description="Exact text snippets of each identified citation (e.g. 'Minister X stated...')",
     )
-    found_emotional_words: List[str] = Field(
+    found_emotional_words: list[str] = Field(
         default_factory=list,
         description="Exact manipulative/emotional words or phrases found",
     )
-    highlights: List[GeminiHighlight] = Field(
+    highlights: list[GeminiHighlight] = Field(
         default_factory=list,
         description="0-3 problematic text segments",
     )
     explainer: str = Field(..., description="2-4 sentence editorial summary in target language")
-    raw_thoughts: Optional[str] = Field(default=None, description="Chain-of-thought reasoning")
+    raw_thoughts: str | None = Field(default=None, description="Chain-of-thought reasoning")
 
 
 class QueryGenerationResult(BaseModel):
     """Результат роботи генератора пошукових запитів."""
-    english_query: str = Field(..., description="Short search query (3-7 keywords in the claim's language)")
+
+    english_query: str = Field(
+        ..., description="Short search query (3-7 keywords in the claim's language)"
+    )
 
 
 class CrossReferenceResult(BaseModel):
     """Результат роботи агента перехресної верифікації (CrossReferenceAgent)."""
+
     status: Literal["CONFIRMED", "CONTRADICTED", "UNVERIFIED"] = Field(
         ..., description="Verdict based on search snippets vs original claim"
     )
-    reason: str = Field(..., description="Short explanation in the language of the original article")
+    reason: str = Field(
+        ..., description="Short explanation in the language of the original article"
+    )
 
 
 class DomainReputationResult(BaseModel):
     """Результат роботи агента оцінки репутації домену (ReputationAgent)."""
+
     trust_index: float = Field(..., description="0.0 to 1.0 trust index for the domain")
     background_summary: str = Field(..., description="Short description of the domain's reputation")
 
 
-
 class ParagraphModel(BaseModel):
     """Окремий абзац, витягнутий клієнтським Readability.js."""
+
     id: int = Field(..., description="Unique index of the paragraph")
-    text: str = Field(..., max_length=MAX_PARAGRAPH_CHARS, description="Text content of the paragraph")
+    text: str = Field(
+        ..., max_length=MAX_PARAGRAPH_CHARS, description="Text content of the paragraph"
+    )
 
 
 class AnalysisRequest(BaseModel):
     """Модель запиту — дані статті, розпарсені на клієнтській стороні."""
+
     url: str = Field(..., max_length=2048, description="URL of the article")
     title: str = Field(..., max_length=2000, description="Article title from Readability.js")
     html_content: str = Field(
         ..., max_length=MAX_HTML_CHARS, description="Clean article HTML (for link extraction)"
     )
-    paragraphs: List[ParagraphModel] = Field(
+    paragraphs: list[ParagraphModel] = Field(
         ..., max_length=MAX_PARAGRAPHS, description="Indexed paragraphs"
     )
     language: str = Field(default="uk", description="Target response language (uk/en)")
@@ -93,35 +114,55 @@ class AnalysisRequest(BaseModel):
 
 class CriteriaScore(BaseModel):
     """Індивідуальні BRS-бали для кожного критерію аналізу."""
-    credibility: float = Field(..., ge=0, le=100, description="Cross-verification-based credibility (BRS)")
+
+    credibility: float = Field(
+        ..., ge=0, le=100, description="Cross-verification-based credibility (BRS)"
+    )
     transparency: float = Field(..., ge=0, le=100, description="Citation-based transparency (BRS)")
-    objectivity: float = Field(..., ge=0, le=100, description="Emotional analysis objectivity (BRS)")
+    objectivity: float = Field(
+        ..., ge=0, le=100, description="Emotional analysis objectivity (BRS)"
+    )
 
 
 class ScoringInputs(BaseModel):
     """Вхідні числові параметри для формул BRS.
-    Повертаються на фронтенд для візуалізації формул."""
+
+    Повертаються на фронтенд для візуалізації формул.
+    """
+
     n_confirmed: int = Field(default=0, description="Cross-verified confirmed claims count")
     n_contradicted: int = Field(default=0, description="Cross-verified contradicted claims count")
     n_unverified: int = Field(default=0, description="Unverified claims count")
     domain_trust: float = Field(default=0.5, description="Domain reputation base rate (0.0-1.0)")
-    citations_count: int = Field(default=0, description="Named citations found by ArticleMetricsExtractor")
-    emotional_words_count: int = Field(default=0, description="Manipulative phrases found by ArticleMetricsExtractor")
+    citations_count: int = Field(
+        default=0, description="Named citations found by ArticleMetricsExtractor"
+    )
+    emotional_words_count: int = Field(
+        default=0, description="Manipulative phrases found by ArticleMetricsExtractor"
+    )
     total_words: int = Field(default=0, description="Total word count of article text")
-    found_citations: List[str] = Field(default_factory=list, description="Exact citation text snippets")
-    found_emotional_words: List[str] = Field(default_factory=list, description="Exact emotional/manipulative phrases")
+    found_citations: list[str] = Field(
+        default_factory=list, description="Exact citation text snippets"
+    )
+    found_emotional_words: list[str] = Field(
+        default_factory=list, description="Exact emotional/manipulative phrases"
+    )
 
 
 class ExtractedClaimResult(BaseModel):
     """Окрема теза, витягнута та верифікована через конвеєр."""
+
     paragraph_id: int = Field(..., description="Source paragraph ID")
     claim_text: str = Field(..., description="The extracted factual claim")
     status: str = Field(default="UNVERIFIED", description="CONFIRMED / CONTRADICTED / UNVERIFIED")
-    evidence_url: Optional[str] = Field(default=None, description="URL of the evidence found during cross-verification")
+    evidence_url: str | None = Field(
+        default=None, description="URL of the evidence found during cross-verification"
+    )
 
 
 class Highlight(BaseModel):
     """Highlight API-рівня для підсвічування проблем на веб-сторінці."""
+
     paragraph_id: int = Field(..., description="ID of the paragraph to highlight")
     severity: Literal["warning", "risk"] = Field(..., description="Severity level")
     category: str = Field(default="", description="Short label")
@@ -130,10 +171,19 @@ class Highlight(BaseModel):
 
 class AnalysisResponse(BaseModel):
     """Фінальна відповідь API з рейтингом довіри та декомпозицією."""
+
     trust_score: float = Field(..., ge=0, le=100, description="Final BRS-weighted trust score")
     criteria: CriteriaScore = Field(..., description="Individual criterion scores")
     explainer: str = Field(default="", description="Human-readable analysis summary")
-    highlights: List[Highlight] = Field(default_factory=list, description="Problematic text segments")
-    scoring_inputs: Optional[ScoringInputs] = Field(default=None, description="Raw inputs used in BRS formulas")
-    extracted_claims: List[ExtractedClaimResult] = Field(default_factory=list, description="Claims extracted and verified")
-    ml_metrics: dict = Field(default_factory=dict, description="Reserved for future ML metrics")
+    highlights: list[Highlight] = Field(
+        default_factory=list, description="Problematic text segments"
+    )
+    scoring_inputs: ScoringInputs | None = Field(
+        default=None, description="Raw inputs used in BRS formulas"
+    )
+    extracted_claims: list[ExtractedClaimResult] = Field(
+        default_factory=list, description="Claims extracted and verified"
+    )
+    ml_metrics: dict[str, Any] = Field(
+        default_factory=dict, description="Reserved for future ML metrics"
+    )

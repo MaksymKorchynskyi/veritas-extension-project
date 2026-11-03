@@ -38,13 +38,14 @@ def sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     async def fake_sleep(delay: float) -> None:
         recorded.append(delay)
 
-    monkeypatch.setattr(base_agent.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr("app.services.llm.base_agent.asyncio.sleep", fake_sleep)
     return recorded
 
 
 def _install(monkeypatch: pytest.MonkeyPatch, outcomes: list[Any]) -> FakeCompletions:
     completions = FakeCompletions(outcomes)
-    monkeypatch.setattr(base_agent, "client", SimpleNamespace(chat=SimpleNamespace(completions=completions)))
+    client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+    monkeypatch.setattr(base_agent, "get_client", lambda: client)
     return completions
 
 
@@ -73,7 +74,9 @@ async def test_retries_alternate_models_with_growing_delay(
     assert sleeps == [2, 4]
 
 
-async def test_gives_up_after_max_retries(monkeypatch: pytest.MonkeyPatch, sleeps: list[float]) -> None:
+async def test_gives_up_after_max_retries(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
     completions = _install(monkeypatch, [RuntimeError("x")] * 4)
     assert await base_agent.run_agent("p", "s", Answer) is None
     assert len(completions.models) == 4
@@ -97,7 +100,12 @@ async def test_custom_generation_config_is_forwarded(monkeypatch: pytest.MonkeyP
 
 async def test_default_generation_config_values() -> None:
     config = base_agent.default_generation_config()
-    assert (config.temperature, config.top_p, config.top_k, config.max_output_tokens) == (0.05, 0.8, 40, 8192)
+    assert (config.temperature, config.top_p, config.top_k, config.max_output_tokens) == (
+        0.05,
+        0.8,
+        40,
+        8192,
+    )
 
 
 async def test_hanging_call_times_out_and_is_retried(

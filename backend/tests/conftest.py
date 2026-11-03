@@ -11,7 +11,7 @@ from app.services.llm import base_agent
 @pytest.fixture(autouse=True)
 def _no_ai(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Disable the real Gemini client regardless of the developer's .env file."""
-    monkeypatch.setattr(base_agent, "client", None)
+    monkeypatch.setattr(base_agent, "get_client", lambda: None)
     yield
 
 

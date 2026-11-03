@@ -1,7 +1,6 @@
 import pytest
 
 from app.models.schemas import AnalysisResponse, CriteriaScore
-from app.services import cache as cache_module
 from app.services.cache import AnalysisCache
 
 
@@ -25,7 +24,9 @@ def test_key_depends_on_every_part() -> None:
 
 
 def test_key_parts_cannot_collide_by_concatenation() -> None:
-    assert AnalysisCache.make_key("ab", "c", "en", "t") != AnalysisCache.make_key("a", "bc", "en", "t")
+    assert AnalysisCache.make_key("ab", "c", "en", "t") != AnalysisCache.make_key(
+        "a", "bc", "en", "t"
+    )
 
 
 def test_get_returns_stored_response_and_none_for_missing() -> None:
@@ -38,7 +39,7 @@ def test_get_returns_stored_response_and_none_for_missing() -> None:
 
 def test_entries_expire_after_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
     now = [1000.0]
-    monkeypatch.setattr(cache_module.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr("app.services.cache.time.monotonic", lambda: now[0])
     cache = AnalysisCache(ttl_s=60)
     cache.set("k", _response())
     now[0] += 59

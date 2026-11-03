@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,7 +12,9 @@ PAYLOAD = {
     "url": "https://www.example.com/news/1",
     "title": "A headline",
     "html_content": "<p>x</p>",
-    "paragraphs": [{"id": 1, "text": "A paragraph that is comfortably longer than fifty characters."}],
+    "paragraphs": [
+        {"id": 1, "text": "A paragraph that is comfortably longer than fifty characters."}
+    ],
     "language": "en",
 }
 
@@ -72,7 +75,7 @@ def test_analyze_returns_pipeline_result(client: TestClient, pipeline: PipelineS
     ],
 )
 def test_invalid_input_is_rejected_with_400(
-    client: TestClient, pipeline: PipelineStub, change: dict, message: str
+    client: TestClient, pipeline: PipelineStub, change: dict[str, Any], message: str
 ) -> None:
     response = client.post("/analyze", json={**PAYLOAD, **change})
     assert response.status_code == 400
@@ -93,8 +96,15 @@ def test_identical_request_is_served_from_cache(client: TestClient, pipeline: Pi
     assert pipeline.calls == 1
 
 
-def test_different_text_with_same_title_is_not_a_cache_hit(client: TestClient, pipeline: PipelineStub) -> None:
-    other = {**PAYLOAD, "paragraphs": [{"id": 1, "text": "Completely different article body, also long enough to pass."}]}
+def test_different_text_with_same_title_is_not_a_cache_hit(
+    client: TestClient, pipeline: PipelineStub
+) -> None:
+    other = {
+        **PAYLOAD,
+        "paragraphs": [
+            {"id": 1, "text": "Completely different article body, also long enough to pass."}
+        ],
+    }
     client.post("/analyze", json=PAYLOAD)
     client.post("/analyze", json=other)
     assert pipeline.calls == 2
@@ -111,7 +121,11 @@ def test_degraded_results_are_not_cached(client: TestClient, pipeline: PipelineS
 
 @pytest.mark.parametrize(
     "origin",
-    ["chrome-extension://abcdefghijklmnopabcdefghijklmnop", "http://localhost:3000", "http://127.0.0.1:8000"],
+    [
+        "chrome-extension://abcdefghijklmnopabcdefghijklmnop",
+        "http://localhost:3000",
+        "http://127.0.0.1:8000",
+    ],
 )
 def test_cors_allows_extension_and_localhost(client: TestClient, origin: str) -> None:
     response = client.get("/health", headers={"Origin": origin})
@@ -119,7 +133,9 @@ def test_cors_allows_extension_and_localhost(client: TestClient, origin: str) ->
     assert "access-control-allow-credentials" not in response.headers
 
 
-@pytest.mark.parametrize("origin", ["https://evil.example", "http://localhost.evil.example", "null"])
+@pytest.mark.parametrize(
+    "origin", ["https://evil.example", "http://localhost.evil.example", "null"]
+)
 def test_cors_rejects_other_origins(client: TestClient, origin: str) -> None:
     response = client.get("/health", headers={"Origin": origin})
     assert "access-control-allow-origin" not in response.headers

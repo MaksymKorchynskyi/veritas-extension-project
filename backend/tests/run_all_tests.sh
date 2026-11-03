@@ -1,52 +1,35 @@
-
-set -e
+#!/usr/bin/env bash
+# Запускає тести та бенчмарки VERITAS з каталогу backend.
+#
+#   tests/run_all_tests.sh [all|unit|bench|charts]
+#
+# unit   - офлайн юніт-тести (pytest), ключ Gemini не потрібен
+# bench  - бенчмарк на 50 статтях ISOT (потрібні запущений сервер і GEMINI_API_KEY)
+# charts - графіки за останніми результатами бенчмарку
+set -euo pipefail
 
 cd "$(dirname "$0")/.."
-echo ""
-echo "╔══════════════════════════════════════════════════╗"
-echo "║        🧪 VERITAS Full Test Pipeline             ║"
-echo "╚══════════════════════════════════════════════════╝"
-echo ""
 
-MODE="${1:-all}"
+mode="${1:-all}"
 
-if [[ "$MODE" == "all" || "$MODE" == "unit" ]]; then
-    echo "━━━ Step 1: Unit Tests (scoring.py + utils.py) ━━━"
-    echo ""
-    python -m pytest tests/test_scoring.py tests/test_utils.py -v --tb=short -q
-    if [ $? -ne 0 ]; then
-        echo ""
-        echo "❌ Unit tests FAILED! Fix before proceeding."
-        exit 1
-    fi
-    echo ""
-    echo "✅ Unit tests passed!"
-    echo ""
+if [[ "$mode" == "all" || "$mode" == "unit" ]]; then
+    echo "--- Step 1: unit tests ---"
+    python -m pytest -q
 fi
 
-if [[ "$MODE" == "all" || "$MODE" == "bench" ]]; then
-    echo "━━━ Step 2: API Benchmark (14 articles) ━━━"
-    echo ""
-    python tests/benchmark_articles.py
-    echo ""
+if [[ "$mode" == "all" || "$mode" == "bench" ]]; then
+    echo "--- Step 2: API benchmark (ISOT, 50 articles) ---"
+    python -m tests.benchmark_articles
 fi
 
-if [[ "$MODE" == "all" || "$MODE" == "charts" ]]; then
-    echo "━━━ Step 3: Generate Charts ━━━"
-    echo ""
-    python tests/visualize_results.py
-    echo ""
+if [[ "$mode" == "all" || "$mode" == "charts" ]]; then
+    echo "--- Step 3: charts ---"
+    python -m tests.visualize_results
 fi
 
-if [[ "$MODE" == "all" ]]; then
-    echo "━━━ Step 4: Chrome Test Dashboard ━━━"
-    echo ""
-    echo "  Open this file in Chrome for manual E2E testing:"
-    echo "  file://$(pwd)/tests/test_dashboard.html"
-    echo ""
+if [[ "$mode" == "all" ]]; then
+    echo "--- Step 4: manual E2E dashboard ---"
+    echo "Open in a browser: file://$(pwd)/tests/test_dashboard.html"
 fi
 
-echo "╔══════════════════════════════════════════════════╗"
-echo "║           ✅ Test pipeline complete!              ║"
-echo "╚══════════════════════════════════════════════════╝"
-echo ""
+echo "Done."

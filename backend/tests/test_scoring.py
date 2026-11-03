@@ -22,7 +22,9 @@ def test_credibility_quality_article_and_propaganda_match_documented_values() ->
 
 def test_credibility_evidence_weights() -> None:
     # r = 1 + 0.2 * 5 = 2, s = 1 + 0.3 * 2 + 0.4 * 3 = 2.8, a = 0.5
-    score = calculate_credibility(1, 1, 0.5, citations_count=5, emotional_words_count=2, n_unverified=3)
+    score = calculate_credibility(
+        1, 1, 0.5, citations_count=5, emotional_words_count=2, n_unverified=3
+    )
     assert score == pytest.approx((2 + 1) / (2 + 2.8 + 2) * 100)
 
 
@@ -48,7 +50,9 @@ def test_objectivity_window_scales_with_length_and_caps_negative_evidence() -> N
 @pytest.mark.parametrize("value", [0.0, 25.0, 50.0, 100.0])
 def test_scores_are_within_bounds(value: float) -> None:
     for score in (
-        calculate_credibility(int(value), int(value), value / 100, int(value), int(value), int(value)),
+        calculate_credibility(
+            int(value), int(value), value / 100, int(value), int(value), int(value)
+        ),
         calculate_transparency(int(value)),
         calculate_objectivity(int(value), int(value) * 10),
         aggregate_trust_score(value, value, value),

@@ -1,3 +1,64 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["venv"]
+
+[tool.ruff.lint]
+select = [
+    "A",     # flake8-builtins
+    "ANN",   # flake8-annotations
+    "ASYNC", # flake8-async
+    "B",     # flake8-bugbear
+    "BLE",   # flake8-blind-except
+    "C4",    # flake8-comprehensions
+    "D",     # pydocstyle
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "G",     # flake8-logging-format
+    "I",     # isort
+    "LOG",   # flake8-logging
+    "N",     # pep8-naming
+    "PERF",  # perflint
+    "PTH",   # flake8-use-pathlib
+    "RET",   # flake8-return
+    "RUF",   # ruff-specific
+    "S",     # flake8-bandit
+    "SIM",   # flake8-simplify
+    "T20",   # flake8-print
+    "UP",    # pyupgrade
+    "W",     # pycodestyle warnings
+]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # Ukrainian text legitimately uses Cyrillic look-alike letters
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Prompts and the reputation table are long string literals that must stay byte-identical.
+"app/services/llm/*.py" = ["E501"]
+"app/services/cross_verification.py" = ["E501"]
+"app/services/pipeline.py" = ["E501"]
+"app/services/domain_reputation.py" = ["E501"]
+# Benchmark datasets are article text.
+"tests/benchmark_articles*.py" = ["E501"]
+"tests/test_*.py" = ["D", "S101", "ANN401", "E501"]
+"tests/conftest.py" = ["D"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["app", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["instructor.*", "ddgs.*", "matplotlib.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

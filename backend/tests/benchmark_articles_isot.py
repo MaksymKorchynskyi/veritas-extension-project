@@ -1,6 +1,5 @@
-"""
-VERITAS Benchmark Dataset (ISOT-based)
-========================================
+"""VERITAS Benchmark Dataset (ISOT-based).
+
 Source: Ahmed H., Traore I., Saad S. (2018).
   "Detecting opinion spams and fake news using text classification."
   Security and Privacy, 1(1), e9.
@@ -14,7 +13,9 @@ Total articles: 50
   Category C (manipulative / fake):    15
 """
 
-ARTICLES = [
+from typing import Any
+
+ARTICLES: list[dict[str, Any]] = [
     {
         "id": "A1",
         "category": "A",

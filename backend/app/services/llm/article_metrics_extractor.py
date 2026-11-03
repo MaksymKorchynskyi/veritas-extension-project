@@ -1,5 +1,7 @@
-from app.services.llm.base_agent import run_agent
+"""Агент метрик статті: цитування, маніпулятивні фрази та підсвічування абзаців."""
+
 from app.models.schemas import JudgeEvaluation
+from app.services.llm.base_agent import run_agent
 
 ARTICLE_METRICS_PROMPT = """
 You are the VERITAS ArticleMetricsExtractor. You function as a strict, objective linguistic and structural analyzer for the Beta Reputation System (BRS) framework.
@@ -71,17 +73,21 @@ Catalog each identified citation and each identified emotional phrase.
 
 
 async def extract_article_metrics(
-    article_text: str,
-    cv_results: dict,
-    language: str
+    article_text: str, cv_results: dict[str, list[dict[str, str]]], language: str
 ) -> JudgeEvaluation | None:
-    """Запускає ArticleMetricsExtractor для підрахунку цитувань та маніпулятивних фраз."""
+    """Запускає ArticleMetricsExtractor для підрахунку цитувань та маніпулятивних фраз.
+
+    Args:
+        article_text: Текст статті з маркерами `[ID: n]` перед абзацами.
+        cv_results: Результати перехресної верифікації (ключ `verified_claims`).
+        language: Мова відповіді (`uk` або `en`).
+    """
     cv_claims = cv_results.get("verified_claims", [])
     cv_context = "NO CROSS-VERIFICATION DATA AVAILABLE."
     if cv_claims:
         cv_context = "CROSS-VERIFICATION RESULTS:\n"
         for i, snippet in enumerate(cv_claims):
-            cv_context += f"{i+1}. {snippet.get('snippet', 'No snippet')}\n"
+            cv_context += f"{i + 1}. {snippet.get('snippet', 'No snippet')}\n"
 
     prompt = (
         f"TARGET LANGUAGE FOR OUTPUT (explainer, highlight categories/reasons): {language.upper()}\n\n"

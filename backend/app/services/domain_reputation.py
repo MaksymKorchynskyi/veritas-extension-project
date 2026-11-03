@@ -1,11 +1,20 @@
-"""
-LOCAL_DOMAINS_REPUTATION — локальна база репутацій відомих медіа-доменів.
+"""LOCAL_DOMAINS_REPUTATION — локальна база репутацій відомих медіа-доменів.
 
 Використовується модулем перехресної верифікації для швидкого визначення trust_index
 без зовнішніх запитів до пошукових систем.
 """
 
-LOCAL_DOMAINS_REPUTATION: dict[str, dict] = {
+from typing import TypedDict
+
+
+class DomainRecord(TypedDict):
+    """Запис про репутацію домену."""
+
+    trust_index: float
+    summary: str
+
+
+LOCAL_DOMAINS_REPUTATION: dict[str, DomainRecord] = {
     "pravda.com.ua": {
         "trust_index": 0.9,
         "summary": "Надійне українське видання (Українська правда). Одне з найвпливовіших онлайн-медіа в Україні.",
@@ -74,7 +83,6 @@ LOCAL_DOMAINS_REPUTATION: dict[str, dict] = {
         "trust_index": 0.85,
         "summary": "Економічна правда. Якісне ділове видання, частина медіагрупи Української правди.",
     },
-
     "reuters.com": {
         "trust_index": 0.95,
         "summary": "Провідне світове інформаційне агентство Reuters. Бездоганна репутація фактчекінгу.",
@@ -163,7 +171,6 @@ LOCAL_DOMAINS_REPUTATION: dict[str, dict] = {
         "trust_index": 0.85,
         "summary": "Time Magazine — культове американське видання з тривалою історією якісної журналістики.",
     },
-
     "snopes.com": {
         "trust_index": 0.9,
         "summary": "Snopes — одна з найстаріших фактчекінгових платформ у світі.",
@@ -184,7 +191,6 @@ LOCAL_DOMAINS_REPUTATION: dict[str, dict] = {
         "trust_index": 0.85,
         "summary": "StopFake — український проєкт з протидії дезінформації. Спеціалізується на викритті фейків.",
     },
-
     "lemonde.fr": {
         "trust_index": 0.9,
         "summary": "Le Monde — провідне французьке видання з високою репутацією та аналітичним підходом.",
@@ -201,7 +207,6 @@ LOCAL_DOMAINS_REPUTATION: dict[str, dict] = {
         "trust_index": 0.8,
         "summary": "Corriere della Sera — провідне італійське видання з великою історією та надійною репутацією.",
     },
-
     "rt.com": {
         "trust_index": 0.1,
         "summary": "RT (Russia Today) — російське державне медіа, визнане інструментом пропаганди у багатьох країнах.",
@@ -229,14 +234,15 @@ LOCAL_DOMAINS_REPUTATION: dict[str, dict] = {
 }
 
 
-def find_local_reputation(domain: str) -> dict | None:
+def find_local_reputation(domain: str) -> DomainRecord | None:
+    """Шукає домен у локальній базі, піднімаючись від піддомену до батьківського.
+
+    Наприклад, `m.bbc.com` -> `bbc.com`. Префікс `www.` ігнорується.
+
+    Returns:
+        Запис репутації або None, якщо домен невідомий.
     """
-    Шукає домен у локальній базі, піднімаючись від піддомену до батьківського
-    (наприклад, `m.bbc.com` -> `bbc.com`). Повертає запис або None.
-    """
-    host = domain.lower().strip(".")
-    if host.startswith("www."):
-        host = host[4:]
+    host = domain.lower().strip(".").removeprefix("www.")
 
     labels = host.split(".")
     for start in range(len(labels) - 1):

@@ -1,6 +1,5 @@
-"""
-VERITAS Coursework Benchmark Dataset
-======================================
+"""VERITAS Coursework Benchmark Dataset.
+
 Curated dataset for academic evaluation of the VERITAS algorithm.
 
 Categories:
@@ -11,7 +10,9 @@ Categories:
 Total articles: 48 (16 per category)
 """
 
-COURSEWORK_ARTICLES = [
+from typing import Any
+
+COURSEWORK_ARTICLES: list[dict[str, Any]] = [
     # ═══════════════════════════════════════════════════════════════
     # CATEGORY A — Quality Journalism (Expected: 60–100)
     # ═══════════════════════════════════════════════════════════════

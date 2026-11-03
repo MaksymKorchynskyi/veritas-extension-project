@@ -1,3 +1,5 @@
+"""Кеш результатів аналізу в пам'яті."""
+
 import hashlib
 import time
 from collections import OrderedDict
@@ -9,16 +11,24 @@ DEFAULT_MAX_ENTRIES = 512
 
 
 class AnalysisCache:
-    """Кеш результатів аналізу в пам'яті: обмежений за розміром (LRU) та часом життя запису."""
+    """Кеш результатів аналізу: обмежений за розміром (LRU) та часом життя запису."""
 
-    def __init__(self, ttl_s: float = DEFAULT_TTL_S, max_entries: int = DEFAULT_MAX_ENTRIES) -> None:
+    def __init__(
+        self, ttl_s: float = DEFAULT_TTL_S, max_entries: int = DEFAULT_MAX_ENTRIES
+    ) -> None:
+        """Створює порожній кеш.
+
+        Args:
+            ttl_s: Час життя запису в секундах.
+            max_entries: Максимальна кількість записів; найстаріші витісняються першими.
+        """
         self._ttl_s = ttl_s
         self._max_entries = max_entries
         self._items: OrderedDict[str, tuple[float, AnalysisResponse]] = OrderedDict()
 
     @staticmethod
     def make_key(domain: str, headline: str, language: str, text: str) -> str:
-        """Ключ кешу залежить від домену, заголовка, мови та повного тексту статті."""
+        """Будує ключ кешу з домену, заголовка, мови та повного тексту статті."""
         raw = "\x1f".join((domain, headline, language, text))
         return hashlib.sha256(raw.encode()).hexdigest()
 
@@ -42,4 +52,5 @@ class AnalysisCache:
             self._items.popitem(last=False)
 
     def __len__(self) -> int:
+        """Кількість записів у кеші."""
         return len(self._items)

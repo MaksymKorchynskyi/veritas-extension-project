@@ -7,12 +7,16 @@ def test_exact_match() -> None:
     assert find_local_reputation("bbc.com") is LOCAL_DOMAINS_REPUTATION["bbc.com"]
 
 
-@pytest.mark.parametrize("domain", ["www.bbc.com", "WWW.BBC.COM", "m.bbc.com", "a.b.bbc.com", "bbc.com."])
+@pytest.mark.parametrize(
+    "domain", ["www.bbc.com", "WWW.BBC.COM", "m.bbc.com", "a.b.bbc.com", "bbc.com."]
+)
 def test_prefix_and_subdomains_resolve_to_registered_domain(domain: str) -> None:
     assert find_local_reputation(domain) is LOCAL_DOMAINS_REPUTATION["bbc.com"]
 
 
-@pytest.mark.parametrize("domain", ["", "com", "unknown-site.example", "notbbc.com", "bbc.com.evil.org"])
+@pytest.mark.parametrize(
+    "domain", ["", "com", "unknown-site.example", "notbbc.com", "bbc.com.evil.org"]
+)
 def test_unknown_domains_return_none(domain: str) -> None:
     assert find_local_reputation(domain) is None
 
