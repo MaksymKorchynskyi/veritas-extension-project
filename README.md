@@ -30,6 +30,7 @@ A browser extension that estimates the credibility and objectivity of a news art
 - **Resilience:** retries with backoff, primary/fallback model switching, search timeouts and graceful degradation to neutral scores when an agent or the search fails.
 - **Cross-verification:** each claim goes through query generation, a DuckDuckGo search and an evidence-based verdict (confirmed, contradicted, unverified).
 - **Evaluation harness:** benchmark scripts run curated article sets (including the ISOT Fake News dataset) through the API and produce charts and a test dashboard.
+- **Quality gates:** offline unit tests with every external service stubbed, `mypy --strict`, `ruff` (lint and format) and pinned dependency ranges.
 - **Full stack:** Manifest V3 extension (Readability.js, content script, service worker), Python backend and a React + Vite landing page.
 
 ## Architecture
@@ -68,9 +69,10 @@ The claim extractor and the domain lookup run in parallel. Everything the LLM re
 backend/
 ├── app/
 │   ├── main.py                       # FastAPI app, CORS, /health
-│   ├── api/endpoints.py              # POST /analyze + in-memory cache
+│   ├── api/endpoints.py              # POST /analyze
 │   ├── models/schemas.py             # Pydantic request/response/agent schemas
 │   ├── services/
+│   │   ├── cache.py                  # bounded response cache (LRU + TTL)
 │   │   ├── pipeline.py               # orchestrates the analysis
 │   │   ├── cross_verification.py     # search queries, DuckDuckGo, claim verdicts
 │   │   ├── domain_reputation.py      # local domain reputation table
@@ -80,11 +82,14 @@ backend/
 │   │       ├── claim_extractor.py    # up to 5 verifiable claims
 │   │       └── article_metrics_extractor.py  # citations, manipulative phrases
 │   └── utils.py
-├── tests/                            # benchmark scripts and test dashboard
-└── requirements.txt
+├── tests/                            # unit tests, benchmark scripts, test dashboard
+├── pyproject.toml                    # ruff, mypy and pytest configuration
+├── requirements.txt
+└── requirements-dev.txt
 
 extension/                            # Manifest V3, Chromium browsers
 ├── manifest.json
+├── config.js                         # backend URL
 ├── background.js                     # service worker, talks to the backend
 ├── content.js + Readability.js       # article parsing and in-page highlights
 ├── popup.html / popup.js             # popup UI
@@ -124,7 +129,7 @@ Open a news article, click the Veritas icon and press analyze. The result takes 
 
 `GET /health` returns the service status; interactive docs are available at `/docs`.
 
-`POST /analyze` request:
+`POST /analyze` request (article text is limited to 200,000 characters):
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -162,8 +167,9 @@ Invalid input returns HTTP 400.
 |---------|-------|---------|
 | `GEMINI_API_KEY` | `backend/.env` | none (agents disabled) |
 | Models | `MODEL_NAME`, `FALLBACK_MODEL_NAME` in `app/services/llm/base_agent.py` | `gemini-2.5-flash`, `gemini-3-flash-preview` |
-| Cache TTL | `CACHE_TTL` in `app/api/endpoints.py` | 12 hours |
-| Backend URL | `BASE_URL` in `extension/background.js` | `http://127.0.0.1:8000` |
+| Cache | `DEFAULT_TTL_S`, `DEFAULT_MAX_ENTRIES` in `app/services/cache.py` | 12 hours, 512 entries |
+| Allowed CORS origins | `VERITAS_CORS_ORIGIN_REGEX` environment variable | browser extensions and `localhost` |
+| Backend URL | `extension/config.js` | `http://127.0.0.1:8000` |
 
 ## Scoring model
 
@@ -181,12 +187,26 @@ Trust Score = 0.5 * Credibility + 0.3 * Transparency + 0.2 * Objectivity
 
 If Credibility is below 50, the result is multiplied by `0.5 + Credibility / 100`. The implementation is in `backend/app/services/scoring.py`.
 
-## Benchmarks
-
-`backend/tests/` contains benchmark scripts, not unit tests. They send curated article sets to a running backend and write results to `backend/tests/results/` (not tracked by git). They call the Gemini API, so a key and quota are required. No benchmark numbers are published here; run the scripts to reproduce them.
+## Testing
 
 ```bash
-cd backend && python tests/benchmark_articles.py && python tests/visualize_results.py
+cd backend
+pip install -r requirements-dev.txt
+python -m pytest            # offline unit tests, no API key needed
+ruff check . && ruff format --check . && mypy
+```
+
+The suite covers the scoring formulas, the pipeline wiring, cross-verification, the cache, the API (including CORS and validation) and the retry logic of the LLM wrapper. All external services are stubbed.
+
+## Benchmarks
+
+`backend/tests/` also contains benchmark scripts. They send curated article sets (ISOT Fake News and a coursework set) to a running backend and write results to `backend/tests/results/` (not tracked by git). They call the Gemini API, so a key and quota are required. No benchmark numbers are published here; run the scripts to reproduce them.
+
+```bash
+cd backend
+python -m tests.benchmark_articles      # ISOT, 50 articles
+python -m tests.benchmark_coursework    # coursework set, 48 articles
+python -m tests.visualize_results       # charts from the latest results
 ```
 
 ## Limitations
@@ -194,19 +214,20 @@ cd backend && python tests/benchmark_articles.py && python tests/visualize_resul
 - Verdicts rest on three search snippets, not on full source pages. They are a signal to check further, not a fact-check.
 - Quality depends on DuckDuckGo results and Gemini. A search timeout or rate limit yields UNVERIFIED, which lowers Credibility.
 - The local domain table covers 54 outlets; other domains rely on a search plus an LLM judgement or the neutral default.
+- Article text and search snippets are passed to the LLMs as-is, so a crafted article can try to steer the agents (prompt injection). The scores are heuristic and should not be treated as ground truth.
 - The backend is designed to run locally. The cache lives in process memory and is lost on restart.
 - Scores estimate credibility signals; they do not decide what is true.
 
 ## Roadmap
 
-- Offline unit tests for scoring and utilities.
-- Pinned dependencies, linting configuration (`pyproject.toml`) and CI.
-- A persistent, bounded response cache.
-- Configurable CORS and timeouts for LLM calls.
+- Continuous integration running the tests, ruff and mypy.
+- Separating "could not verify" (search or LLM failure) from "no evidence found" in the Credibility score.
+- Prompt-injection hardening of the LLM inputs, validated against the benchmark sets.
+- Narrower extension permissions (on-demand content script injection).
 
 ## Contributing
 
-Issues and pull requests are welcome. For larger changes, open an issue first. Keep changes focused, follow PEP 8, and never commit API keys or `.env` files.
+Issues and pull requests are welcome. For larger changes, open an issue first. Keep changes focused, run `ruff`, `mypy` and `pytest` before opening a pull request, and never commit API keys or `.env` files.
 
 ## License
 
