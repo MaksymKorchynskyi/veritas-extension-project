@@ -5,11 +5,15 @@
 </p>
 
 <p align="center">
-  <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-3776AB.svg"></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-yellow.svg"></a>
-  <a href="https://github.com/MaksymKorchynskyi/veritas-extension-project/commits"><img alt="Last commit" src="https://img.shields.io/github/last-commit/MaksymKorchynskyi/veritas-extension-project"></a>
+  <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white"></a>
+  <a href="https://fastapi.tiangolo.com/"><img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white"></a>
+  <a href="https://docs.pydantic.dev/"><img alt="Pydantic" src="https://img.shields.io/badge/Pydantic-v2-E92063?logo=pydantic&logoColor=white"></a>
+  <a href="https://ai.google.dev/"><img alt="Google Gemini" src="https://img.shields.io/badge/Google%20Gemini-LLM-8E75B2?logo=googlegemini&logoColor=white"></a>
+  <a href="https://python.useinstructor.com/"><img alt="Instructor" src="https://img.shields.io/badge/Instructor-structured%20outputs-1F2937"></a>
+  <a href="https://pypi.org/project/ddgs/"><img alt="DuckDuckGo search" src="https://img.shields.io/badge/DuckDuckGo-cross--verification-DE5833?logo=duckduckgo&logoColor=white"></a>
+  <a href="https://developer.chrome.com/docs/extensions/mv3/intro/"><img alt="Chrome Extension MV3" src="https://img.shields.io/badge/Chrome%20Extension-MV3-4285F4?logo=googlechrome&logoColor=white"></a>
   <a href="https://github.com/astral-sh/ruff"><img alt="Code style: ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json"></a>
-  <img alt="Status: in development" src="https://img.shields.io/badge/status-in%20development-orange.svg">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-yellow.svg"></a>
 </p>
 
 # Veritas
@@ -17,6 +21,16 @@
 A browser extension that estimates the credibility and objectivity of a news article while you read it. LLM agents extract claims, citations and manipulative phrases, the claims are cross-verified through DuckDuckGo, and a deterministic Beta Reputation System model (Jøsang & Ismail, 2002) turns that evidence into a transparent Trust Score.
 
 **Features:** real-time analysis, cross-verification of up to 5 claims, domain reputation (about 55 known outlets plus an LLM lookup), Credibility / Transparency / Objectivity breakdown with visible formula inputs, in-page highlights, Ukrainian and English UI, and a "write and analyze" mode for pasted text.
+
+## Engineering highlights
+
+- **Hybrid design:** LLMs only extract evidence (claims, citations, manipulative phrases); every score is computed by a deterministic, unit-testable BRS model, so results are explainable and reproducible.
+- **Async pipeline:** FastAPI + `asyncio.gather` run independent agents in parallel; claim verification fans out one task per claim.
+- **Typed LLM I/O:** Gemini responses are parsed through `instructor` into Pydantic v2 models, so malformed output fails validation instead of leaking into scoring.
+- **Resilience:** retries with backoff, primary/fallback model switching, search timeouts and graceful degradation to neutral scores when an agent or the search fails.
+- **Cross-verification:** each claim goes through query generation, a DuckDuckGo search and an evidence-based verdict (confirmed, contradicted, unverified).
+- **Evaluation harness:** benchmark scripts run curated article sets (including the ISOT Fake News dataset) through the API and produce charts and a test dashboard.
+- **Full stack:** Manifest V3 extension (Readability.js, content script, service worker), Python backend and a React + Vite landing page.
 
 ## Architecture
 

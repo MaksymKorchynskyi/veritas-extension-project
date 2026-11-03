@@ -5,11 +5,15 @@
 </p>
 
 <p align="center">
-  <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-3776AB.svg"></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-yellow.svg"></a>
-  <a href="https://github.com/MaksymKorchynskyi/veritas-extension-project/commits"><img alt="Last commit" src="https://img.shields.io/github/last-commit/MaksymKorchynskyi/veritas-extension-project"></a>
+  <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white"></a>
+  <a href="https://fastapi.tiangolo.com/"><img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white"></a>
+  <a href="https://docs.pydantic.dev/"><img alt="Pydantic" src="https://img.shields.io/badge/Pydantic-v2-E92063?logo=pydantic&logoColor=white"></a>
+  <a href="https://ai.google.dev/"><img alt="Google Gemini" src="https://img.shields.io/badge/Google%20Gemini-LLM-8E75B2?logo=googlegemini&logoColor=white"></a>
+  <a href="https://python.useinstructor.com/"><img alt="Instructor" src="https://img.shields.io/badge/Instructor-structured%20outputs-1F2937"></a>
+  <a href="https://pypi.org/project/ddgs/"><img alt="DuckDuckGo search" src="https://img.shields.io/badge/DuckDuckGo-cross--verification-DE5833?logo=duckduckgo&logoColor=white"></a>
+  <a href="https://developer.chrome.com/docs/extensions/mv3/intro/"><img alt="Chrome Extension MV3" src="https://img.shields.io/badge/Chrome%20Extension-MV3-4285F4?logo=googlechrome&logoColor=white"></a>
   <a href="https://github.com/astral-sh/ruff"><img alt="Code style: ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json"></a>
-  <img alt="Status: in development" src="https://img.shields.io/badge/status-in%20development-orange.svg">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-yellow.svg"></a>
 </p>
 
 # Veritas
@@ -17,6 +21,16 @@
 Розширення для браузера, яке оцінює достовірність та об'єктивність новинної статті під час читання. LLM-агенти витягують тези, цитування та маніпулятивні фрази, тези перевіряються перехресно через DuckDuckGo, а детермінована модель Beta Reputation System (Jøsang & Ismail, 2002) перетворює ці свідчення на прозорий Trust Score.
 
 **Можливості:** аналіз у реальному часі, перехресна верифікація до 5 тез, репутація домену (близько 55 відомих медіа плюс пошук через LLM), розбивка на Достовірність / Прозорість / Об'єктивність з видимими вхідними даними формул, підсвічування на сторінці, інтерфейс українською та англійською, режим «Написати & Аналіз» для вставленого тексту.
+
+## Технічні особливості
+
+- **Гібридний дизайн:** LLM лише витягують свідчення (тези, цитування, маніпулятивні фрази); усі бали рахує детермінована модель BRS, яку можна тестувати, тож результат пояснюваний і відтворюваний.
+- **Асинхронний конвеєр:** FastAPI + `asyncio.gather` паралельно запускають незалежні агенти; верифікація тез розгортається окремою задачею на кожну тезу.
+- **Типізований вхід/вихід LLM:** відповіді Gemini парсяться через `instructor` у моделі Pydantic v2, тож некоректний вивід падає на валідації і не потрапляє у скоринг.
+- **Стійкість:** повтори з відступом, перемикання основної та резервної моделі, таймаути пошуку та м'яка деградація до нейтральних балів, якщо агент чи пошук не спрацювали.
+- **Перехресна верифікація:** кожна теза проходить генерацію запиту, пошук у DuckDuckGo і вердикт на основі доказів (підтверджено, спростовано, не перевірено).
+- **Інструменти оцінювання:** бенчмарк-скрипти проганяють куровані набори статей (зокрема датасет ISOT Fake News) через API та формують графіки й тестовий дашборд.
+- **Повний стек:** розширення Manifest V3 (Readability.js, content script, service worker), бекенд на Python і лендінг на React + Vite.
 
 ## Архітектура
 
