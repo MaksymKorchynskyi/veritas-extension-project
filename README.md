@@ -20,7 +20,7 @@
 
 A browser extension that estimates the credibility and objectivity of a news article while you read it. LLM agents extract claims, citations and manipulative phrases, the claims are cross-verified through DuckDuckGo, and a deterministic Beta Reputation System model (Jøsang & Ismail, 2002) turns that evidence into a transparent Trust Score.
 
-**Features:** real-time analysis, cross-verification of up to 5 claims, domain reputation (about 55 known outlets plus an LLM lookup), Credibility / Transparency / Objectivity breakdown with visible formula inputs, in-page highlights, Ukrainian and English UI, and a "write and analyze" mode for pasted text.
+**Features:** real-time analysis, cross-verification of up to 5 claims, domain reputation (54 known outlets plus an LLM lookup), Credibility / Transparency / Objectivity breakdown with visible formula inputs, in-page highlights, Ukrainian and English UI, and a "write and analyze" mode for pasted text.
 
 ## Engineering highlights
 
@@ -49,6 +49,18 @@ flowchart LR
 ```
 
 The claim extractor and the domain lookup run in parallel. Everything the LLM returns is a count or a label; the scores themselves come only from the formulas in `scoring.py`.
+
+## How an analysis works
+
+1. **Parse.** The content script turns the page into id-indexed paragraphs with Readability.js. The service worker sends them to `POST /analyze` together with the UI language.
+2. **Validate and cache.** The backend rejects an empty headline or fewer than 50 characters of text, then checks an in-memory cache (key: domain + headline + language, TTL 12 hours).
+3. **Gather evidence in parallel.**
+   - The claim extractor returns up to 5 verifiable claims (figures, dates, concrete events) with their paragraph IDs. Predictions, opinions and intentions are excluded by the prompt.
+   - Domain reputation comes from the local table of 54 outlets. For unknown domains the backend searches DuckDuckGo for watchdog evaluations and asks the LLM to rate them; with no evidence the value stays at the neutral 0.5.
+4. **Cross-verify each claim** (claims run concurrently). A query agent produces a 3 to 7 keyword search query, DuckDuckGo returns the top 3 snippets (8 s timeout), and a cross-reference agent answers CONFIRMED, CONTRADICTED or UNVERIFIED. Ambiguous cases default to UNVERIFIED. A contradicted claim becomes a `risk` highlight; confirmed and contradicted claims keep an evidence URL.
+5. **Extract article metrics.** A metrics agent receives the article and the contradicted claims and returns the citation count, the manipulative-phrase count (with the exact snippets) and paragraph highlights. Direct quotes, wartime terminology and neutral attribution ("reports", "according to") are not counted.
+6. **Score** with the BRS formulas (see below).
+7. **Summarize.** A summary agent writes 3 to 5 sentences in the requested language from the final numbers. If the metrics agent fails completely, the API returns a neutral 50 / 50 / 50 result instead of an error.
 
 ## Project structure
 
@@ -84,6 +96,13 @@ veritas-landing/                      # promo site (React + Vite)
 docs/assets/banner.svg
 ```
 
+## Browser extension
+
+- `content.js` with `Readability.js` extracts the article and draws the in-page highlights.
+- `background.js` injects the content script when needed, calls the backend, keeps results per tab in `chrome.storage.local` and stores the language and highlight settings.
+- `popup.html` / `popup.js` show the Trust Score ring, the three criteria, the summary and the re-analyze controls.
+- `parsed_text.html` / `parsed_text.js` is the analytics page: formula inputs, extracted claims and evidence links.
+
 ## Quick start
 
 Requirements: Python 3.11+, a Chromium-based browser, and a [Gemini API key](https://aistudio.google.com/apikey).
@@ -101,7 +120,19 @@ Check `http://127.0.0.1:8000/health`, then load the extension: open `chrome://ex
 
 Open a news article, click the Veritas icon and press analyze. The result takes 5 to 15 seconds. Without an API key the server still starts, but the AI agents are disabled and the analysis returns neutral results.
 
-### API example
+### API
+
+`GET /health` returns the service status; interactive docs are available at `/docs`.
+
+`POST /analyze` request:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `url` | string | used to derive the domain |
+| `title` | string | must not be empty |
+| `html_content` | string | cleaned article HTML |
+| `paragraphs` | `[{id, text}]` | at least 50 characters in total |
+| `language` | `"uk"` or `"en"` | language of the summary, default `uk` |
 
 ```bash
 curl -X POST http://127.0.0.1:8000/analyze \
@@ -112,7 +143,18 @@ curl -X POST http://127.0.0.1:8000/analyze \
        "language": "en"}'
 ```
 
-The response has `trust_score`, `criteria`, `explainer`, `highlights`, `scoring_inputs` and `extracted_claims`.
+Response:
+
+| Field | Description |
+|-------|-------------|
+| `trust_score` | 0 to 100 |
+| `criteria` | `credibility`, `transparency`, `objectivity` (0 to 100 each) |
+| `explainer` | short AI summary |
+| `highlights` | `[{paragraph_id, severity: "warning" or "risk", category, reason}]` |
+| `scoring_inputs` | counts and matched phrases that fed the formulas |
+| `extracted_claims` | `[{paragraph_id, claim_text, status, evidence_url}]` |
+
+Invalid input returns HTTP 400.
 
 ## Configuration
 
@@ -125,13 +167,19 @@ The response has `trust_score`, `criteria`, `explainer`, `highlights`, `scoring_
 
 ## Scoring model
 
-Each criterion is a Beta Reputation System expectation, `E(p) = (r + W * a) / (r + s + W)`, where `r` is positive evidence (confirmed claims, citations), `s` is negative evidence (contradicted or unverified claims, manipulative phrases), `W = 2` is the prior weight and `a` is the base rate (domain reputation for Credibility).
+Each criterion is a Beta Reputation System expectation, `E(p) = (r + W * a) / (r + s + W)`, with prior weight `W = 2`:
+
+| Criterion | Positive evidence `r` | Negative evidence `s` | Base rate `a` |
+|-----------|----------------------|-----------------------|---------------|
+| Credibility | confirmed claims + 0.2 x citations | contradicted claims + 0.3 x manipulative phrases + 0.4 x unverified claims | domain reputation |
+| Transparency | citations | none | 0.3 (an article has to earn it) |
+| Objectivity | K - s | min(manipulative phrases, K), where K = max(8, words / 50) | 0.5 |
 
 ```
 Trust Score = 0.5 * Credibility + 0.3 * Transparency + 0.2 * Objectivity
 ```
 
-If Credibility is below 50, the result is multiplied by `0.5 + Credibility / 100`. See `backend/app/services/scoring.py`.
+If Credibility is below 50, the result is multiplied by `0.5 + Credibility / 100`. The implementation is in `backend/app/services/scoring.py`.
 
 ## Benchmarks
 
@@ -140,6 +188,14 @@ If Credibility is below 50, the result is multiplied by `0.5 + Credibility / 100
 ```bash
 cd backend && python tests/benchmark_articles.py && python tests/visualize_results.py
 ```
+
+## Limitations
+
+- Verdicts rest on three search snippets, not on full source pages. They are a signal to check further, not a fact-check.
+- Quality depends on DuckDuckGo results and Gemini. A search timeout or rate limit yields UNVERIFIED, which lowers Credibility.
+- The local domain table covers 54 outlets; other domains rely on a search plus an LLM judgement or the neutral default.
+- The backend is designed to run locally. The cache lives in process memory and is lost on restart.
+- Scores estimate credibility signals; they do not decide what is true.
 
 ## Roadmap
 
