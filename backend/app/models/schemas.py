@@ -1,6 +1,9 @@
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
+MAX_PARAGRAPHS = 2000
+MAX_PARAGRAPH_CHARS = 100_000
+MAX_HTML_CHARS = 10_000_000
 
 
 class VerifiableClaim(BaseModel):
@@ -72,15 +75,19 @@ class DomainReputationResult(BaseModel):
 class ParagraphModel(BaseModel):
     """Окремий абзац, витягнутий клієнтським Readability.js."""
     id: int = Field(..., description="Unique index of the paragraph")
-    text: str = Field(..., description="Text content of the paragraph")
+    text: str = Field(..., max_length=MAX_PARAGRAPH_CHARS, description="Text content of the paragraph")
 
 
 class AnalysisRequest(BaseModel):
     """Модель запиту — дані статті, розпарсені на клієнтській стороні."""
-    url: str = Field(..., description="URL of the article")
-    title: str = Field(..., description="Article title from Readability.js")
-    html_content: str = Field(..., description="Clean article HTML (for link extraction)")
-    paragraphs: List[ParagraphModel] = Field(..., description="Indexed paragraphs")
+    url: str = Field(..., max_length=2048, description="URL of the article")
+    title: str = Field(..., max_length=2000, description="Article title from Readability.js")
+    html_content: str = Field(
+        ..., max_length=MAX_HTML_CHARS, description="Clean article HTML (for link extraction)"
+    )
+    paragraphs: List[ParagraphModel] = Field(
+        ..., max_length=MAX_PARAGRAPHS, description="Indexed paragraphs"
+    )
     language: str = Field(default="uk", description="Target response language (uk/en)")
 
 

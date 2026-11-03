@@ -1,10 +1,9 @@
-fastapi
-uvicorn[standard]
-beautifulsoup4
-lxml
-google-genai
-python-dotenv
-pydantic
-ddgs
-instructor
-jsonref
+# Runtime dependencies. Lower bounds are the versions the project was verified against
+# (they also carry the latest security fixes); upper bounds protect against breaking majors.
+fastapi>=0.162.0,<1.0
+uvicorn[standard]>=0.54.0,<1.0
+pydantic>=2.14.2,<3.0
+python-dotenv>=1.2.4,<2.0
+google-genai>=1.75.0,<2.0
+instructor[google-genai]>=1.17.0,<2.0
+ddgs>=9.16.1,<10.0

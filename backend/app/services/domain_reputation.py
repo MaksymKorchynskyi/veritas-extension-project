@@ -227,3 +227,20 @@ LOCAL_DOMAINS_REPUTATION: dict[str, dict] = {
         "summary": "Breitbart — американське ультраправе медіа з документованим ухилом та маніпулятивними заголовками.",
     },
 }
+
+
+def find_local_reputation(domain: str) -> dict | None:
+    """
+    Шукає домен у локальній базі, піднімаючись від піддомену до батьківського
+    (наприклад, `m.bbc.com` -> `bbc.com`). Повертає запис або None.
+    """
+    host = domain.lower().strip(".")
+    if host.startswith("www."):
+        host = host[4:]
+
+    labels = host.split(".")
+    for start in range(len(labels) - 1):
+        record = LOCAL_DOMAINS_REPUTATION.get(".".join(labels[start:]))
+        if record:
+            return record
+    return None

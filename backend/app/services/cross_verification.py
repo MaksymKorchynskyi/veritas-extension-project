@@ -1,22 +1,29 @@
-import os
-import logging
 import asyncio
-import json
+import logging
 from typing import List
 
-try:
-    from ddgs import DDGS
-    from ddgs.exceptions import RatelimitException
-except ImportError:
-    from duckduckgo_search import DDGS
-    from duckduckgo_search.exceptions import RatelimitException
+from ddgs import DDGS
+from ddgs.exceptions import RatelimitException
 from google.genai import types
 
-from app.models.schemas import VerifiableClaim, GeminiHighlight, QueryGenerationResult, CrossReferenceResult, DomainReputationResult
-from app.services.llm.base_agent import client, MODEL_NAME, FALLBACK_MODEL_NAME
-from app.services.domain_reputation import LOCAL_DOMAINS_REPUTATION
+from app.models.schemas import (
+    CrossReferenceResult,
+    DomainReputationResult,
+    GeminiHighlight,
+    QueryGenerationResult,
+    VerifiableClaim,
+)
+from app.services.domain_reputation import find_local_reputation
+from app.services.llm.base_agent import ai_available, run_agent
 
 logger = logging.getLogger(__name__)
+
+SEARCH_TIMEOUT_S = 8.0
+DDGS_HTTP_TIMEOUT_S = 5
+MAX_SEARCH_RESULTS = 3
+MAX_CLAIMS_TO_VERIFY = 5
+AGENT_MAX_RETRIES = 2
+AGENT_RETRY_DELAY_S = 1.0
 
 QUERY_AGENT_PROMPT = """
 You are the VERITAS SearchQueryGenerator. Your objective is to process a factual claim and generate a concise search query optimized for DuckDuckGo.
@@ -63,41 +70,27 @@ CRITICAL CONSTRAINT: If the provided snippets do not explicitly categorize the p
 Output a concise 'background_summary' detailing the institutional profile in 1-2 sentences.
 """
 
+def _agent_config() -> types.GenerateContentConfig:
+    return types.GenerateContentConfig(temperature=0.05)
+
+
 async def run_query_agent(claim_text: str) -> str:
-    if not client:
-        return ""
-    try:
-        max_retries = 2
-        current_model = MODEL_NAME
-        for attempt in range(max_retries):
-            try:
-                response = await client.chat.completions.create(
-                    model=current_model,
-                    response_model=QueryGenerationResult,
-                    messages=[
-                        {"role": "system", "content": QUERY_AGENT_PROMPT},
-                        {"role": "user", "content": f"ORIGINAL CLAIM: {claim_text}"}
-                    ],
-                    config=types.GenerateContentConfig(temperature=0.05)
-                )
-                return response.english_query
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"QueryGenerator error with {current_model}: {e}. Retrying...")
-                    if current_model == MODEL_NAME:
-                        current_model = FALLBACK_MODEL_NAME
-                    await asyncio.sleep(1)
-                else:
-                    logger.error(f"QueryGenerator failed: {e}")
-                    return ""
-    except Exception as e:
-        logger.error(f"QueryGenerator fatal error: {e}")
-        return ""
+    """Генерує короткий пошуковий запит для тези; порожній рядок, якщо агент не відповів."""
+    result = await run_agent(
+        f"ORIGINAL CLAIM: {claim_text}",
+        QUERY_AGENT_PROMPT,
+        QueryGenerationResult,
+        max_retries=AGENT_MAX_RETRIES,
+        retry_delay=AGENT_RETRY_DELAY_S,
+        generation_config=_agent_config(),
+    )
+    return result.english_query if result else ""
+
 
 def _do_duckduckgo_search(query: str) -> List[dict]:
     try:
-        results = DDGS().text(query, max_results=3)
-        return [{"body": r.get('body', ''), "href": r.get('href', '')} for r in results if 'body' in r]
+        results = DDGS(timeout=DDGS_HTTP_TIMEOUT_S).text(query, max_results=MAX_SEARCH_RESULTS)
+        return [{"body": r.get("body", ""), "href": r.get("href", "")} for r in results if "body" in r]
     except RatelimitException:
         logger.warning(f"DuckDuckGo RateLimit hit for query: {query}")
         return []
@@ -105,15 +98,16 @@ def _do_duckduckgo_search(query: str) -> List[dict]:
         logger.error(f"DuckDuckGo error: {e}")
         return []
 
+
 async def search_duckduckgo(query: str) -> List[dict]:
+    """Асинхронний пошук у DuckDuckGo з обмеженням за часом; при будь-якій помилці повертає []."""
     if not query:
         return []
     try:
-        snippets = await asyncio.wait_for(
+        return await asyncio.wait_for(
             asyncio.to_thread(_do_duckduckgo_search, query),
-            timeout=8.0
+            timeout=SEARCH_TIMEOUT_S,
         )
-        return snippets
     except asyncio.TimeoutError:
         logger.warning(f"DuckDuckGo search timed out for query: {query}")
         return []
@@ -121,40 +115,23 @@ async def search_duckduckgo(query: str) -> List[dict]:
         logger.error(f"search_duckduckgo error: {e}")
         return []
 
+
 async def run_cross_agent(claim_text: str, snippets: List[dict]) -> CrossReferenceResult | None:
-    if not client or not snippets:
+    """Порівнює тезу зі сніпетами пошуку й повертає вердикт; None, якщо агент недоступний."""
+    if not ai_available() or not snippets:
         return None
-        
+
     snippets_text = "\n".join([f"- {s['body']}" for s in snippets])
     prompt = f"ORIGINAL CLAIM: {claim_text}\n\nSEARCH RESULTS (SNIPPETS):\n{snippets_text}"
-    
-    try:
-        max_retries = 2
-        current_model = MODEL_NAME
-        for attempt in range(max_retries):
-            try:
-                response = await client.chat.completions.create(
-                    model=current_model,
-                    response_model=CrossReferenceResult,
-                    messages=[
-                        {"role": "system", "content": CROSS_AGENT_PROMPT},
-                        {"role": "user", "content": prompt}
-                    ],
-                    config=types.GenerateContentConfig(temperature=0.05)
-                )
-                return response
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"CrossReference error with {current_model}: {e}. Retrying...")
-                    if current_model == MODEL_NAME:
-                        current_model = FALLBACK_MODEL_NAME
-                    await asyncio.sleep(1)
-                else:
-                    logger.error(f"CrossReference failed: {e}")
-                    return None
-    except Exception as e:
-        logger.error(f"CrossReference fatal error: {e}")
-        return None
+    return await run_agent(
+        prompt,
+        CROSS_AGENT_PROMPT,
+        CrossReferenceResult,
+        max_retries=AGENT_MAX_RETRIES,
+        retry_delay=AGENT_RETRY_DELAY_S,
+        generation_config=_agent_config(),
+    )
+
 
 async def process_single_claim(claim: VerifiableClaim) -> tuple[str, GeminiHighlight | None, str | None]:
     """Обробляє одну фактологічну тезу: генерація запиту → пошук → перехресна верифікація."""
@@ -201,7 +178,7 @@ async def verify_claims(claims: List[VerifiableClaim]) -> tuple[List[GeminiHighl
     if not claims:
         return [], 0, 0, []
         
-    target_claims = claims[:5]
+    target_claims = claims[:MAX_CLAIMS_TO_VERIFY]
     logger.info(f"[CrossVerify] Starting parallel verification for {len(target_claims)} claims.")
     
     tasks = [process_single_claim(c) for c in target_claims]
@@ -234,58 +211,44 @@ async def check_domain_reputation(domain: str) -> DomainReputationResult:
     """Перевіряє репутацію домену: спочатку локальна база, потім пошук + Gemini для аналізу медіа-репутації."""
     if not domain:
         return DomainReputationResult(trust_index=0.5, background_summary="Оцінка неможлива (пустий домен)")
-        
-    domain_lower = domain.lower().replace("www.", "")
-    if domain_lower in LOCAL_DOMAINS_REPUTATION:
-        logger.info(f"[CrossVerify] Domain '{domain_lower}' found in LOCAL_DOMAINS_REPUTATION.")
-        local_data = LOCAL_DOMAINS_REPUTATION[domain_lower]
+
+    local_data = find_local_reputation(domain)
+    if local_data:
+        logger.info(f"[CrossVerify] Domain '{domain}' found in LOCAL_DOMAINS_REPUTATION.")
         return DomainReputationResult(
             trust_index=local_data["trust_index"],
-            background_summary=local_data["summary"]
+            background_summary=local_data["summary"],
         )
 
-    if not client:
+    if not ai_available():
         return DomainReputationResult(trust_index=0.5, background_summary="Оцінка неможлива (AI offline)")
-        
+
     query = f"{domain} bias fact-check reliability credibility"
     logger.info(f"[CrossVerify] Querying reputation for domain: {domain}")
-    
+
     snippets = await search_duckduckgo(query)
-    
+
     if not snippets:
         logger.info(f"[CrossVerify] No watchdog data for {domain}. Defaulting to 0.5.")
         return DomainReputationResult(
-            trust_index=0.5, 
-            background_summary="Локальне або маловідоме видання. Прямих підтверджень упередженості не знайдено."
+            trust_index=0.5,
+            background_summary="Локальне або маловідоме видання. Прямих підтверджень упередженості не знайдено.",
         )
-        
-    snippets_text = "\n".join([f"- {s}" for s in snippets])
+
+    snippets_text = "\n".join([f"- {s['body']}" for s in snippets])
     prompt = f"TARGET DOMAIN: {domain}\n\nREPUTATION SNIPPETS:\n{snippets_text}"
-    
-    try:
-        max_retries = 2
-        current_model = MODEL_NAME
-        for attempt in range(max_retries):
-            try:
-                response = await client.chat.completions.create(
-                    model=current_model,
-                    response_model=DomainReputationResult,
-                    messages=[
-                        {"role": "system", "content": REPUTATION_AGENT_PROMPT},
-                        {"role": "user", "content": prompt}
-                    ],
-                    config=types.GenerateContentConfig(temperature=0.05)
-                )
-                return response
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"ReputationAgent error with {current_model} for {domain}: {e}. Retrying...")
-                    if current_model == MODEL_NAME:
-                        current_model = FALLBACK_MODEL_NAME
-                    await asyncio.sleep(1)
-                else:
-                    logger.error(f"ReputationAgent failed for {domain}: {e}")
-                    return DomainReputationResult(trust_index=0.5, background_summary="Помилка при аналізі репутації. Застосовано нейтральний рейтинг.")
-    except Exception as e:
-        logger.error(f"ReputationAgent fatal error for {domain}: {e}")
-        return DomainReputationResult(trust_index=0.5, background_summary="Помилка при аналізі репутації. Застосовано нейтральний рейтинг.")
+
+    result = await run_agent(
+        prompt,
+        REPUTATION_AGENT_PROMPT,
+        DomainReputationResult,
+        max_retries=AGENT_MAX_RETRIES,
+        retry_delay=AGENT_RETRY_DELAY_S,
+        generation_config=_agent_config(),
+    )
+    if result is None:
+        return DomainReputationResult(
+            trust_index=0.5,
+            background_summary="Помилка при аналізі репутації. Застосовано нейтральний рейтинг.",
+        )
+    return result

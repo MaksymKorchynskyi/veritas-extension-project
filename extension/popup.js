@@ -727,7 +727,7 @@ function scrollToHighlightInPage(index) {
 
 async function checkConnection() {
     try {
-        const response = await fetch('http://127.0.0.1:8000/health');
+        const response = await fetch(`${VERITAS_API_BASE_URL}/health`);
         if (response.ok) {
             el.connectionDot?.classList.add('connected');
             if (el.connectionText) el.connectionText.textContent = 'Connected';

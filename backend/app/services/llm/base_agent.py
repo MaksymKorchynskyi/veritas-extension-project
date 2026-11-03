@@ -27,42 +27,67 @@ else:
 
 MODEL_NAME = "gemini-2.5-flash"
 FALLBACK_MODEL_NAME = "gemini-3-flash-preview"
+LLM_CALL_TIMEOUT_S = 120.0
+DEFAULT_MAX_RETRIES = 4
 
 T = TypeVar("T", bound=BaseModel)
 
 
-async def run_agent(prompt: str, system_instruction: str, response_schema: Type[T]) -> T | None:
+def ai_available() -> bool:
+    """Повертає True, якщо Gemini-клієнт налаштовано (є GEMINI_API_KEY)."""
+    return client is not None
+
+
+def default_generation_config() -> types.GenerateContentConfig:
+    """Конфігурація генерації за замовчуванням для всіх агентів."""
+    return types.GenerateContentConfig(
+        temperature=0.05,
+        top_p=0.8,
+        top_k=40,
+        max_output_tokens=8192,
+    )
+
+
+async def run_agent(
+    prompt: str,
+    system_instruction: str,
+    response_schema: Type[T],
+    *,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    retry_delay: float | None = None,
+    generation_config: types.GenerateContentConfig | None = None,
+) -> T | None:
     """
     Універсальна обгортка для запуску Gemini-агента зі структурованим виходом.
 
     - Використовує `instructor` для Pydantic-валідованих відповідей.
-    - Повторює до 4 разів з експоненційним відступом.
+    - Повторює до `max_retries` разів; пауза між спробами `retry_delay` секунд
+      (за замовчуванням лінійно зростає: 2, 4, 6, ...).
     - Чергує основну та резервну моделі при кожній спробі.
+    - Обмежує тривалість кожного виклику значенням LLM_CALL_TIMEOUT_S.
     - Логує ланцюг міркувань, якщо присутній у відповіді.
     """
     if not client:
         logger.warning("AI client not available — skipping agent call.")
         return None
 
-    max_retries = 4
     models = [MODEL_NAME, FALLBACK_MODEL_NAME]
+    config = generation_config or default_generation_config()
 
     for attempt in range(max_retries):
         current_model = models[attempt % len(models)]
         try:
-            response = await client.chat.completions.create(
-                model=current_model,
-                response_model=response_schema,
-                messages=[
-                    {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": prompt},
-                ],
-                config=types.GenerateContentConfig(
-                    temperature=0.05,
-                    top_p=0.8,
-                    top_k=40,
-                    max_output_tokens=8192,
+            response = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=current_model,
+                    response_model=response_schema,
+                    messages=[
+                        {"role": "system", "content": system_instruction},
+                        {"role": "user", "content": prompt},
+                    ],
+                    config=config,
                 ),
+                timeout=LLM_CALL_TIMEOUT_S,
             )
 
             if hasattr(response, "raw_thoughts") and response.raw_thoughts:
@@ -81,8 +106,7 @@ async def run_agent(prompt: str, system_instruction: str, response_schema: Type[
             is_overload = "503" in err_str or "UNAVAILABLE" in err_str or "overloaded" in err_str.lower()
 
             if attempt < max_retries - 1:
-                delay = (attempt + 1) * 2
-                level = "warning" if is_overload else "error"
+                delay = retry_delay if retry_delay is not None else (attempt + 1) * 2
                 logger.log(
                     logging.WARNING if is_overload else logging.ERROR,
                     f"Agent error ({current_model}, attempt {attempt+1}/{max_retries}): {e}. "

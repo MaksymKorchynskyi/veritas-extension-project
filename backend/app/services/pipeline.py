@@ -41,7 +41,7 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
     
     fact_task = extract_factual_claims(common_prompt)
     reputation_task = check_domain_reputation(article_domain)
-    total_words = len(formatted_article_text.split())
+    total_words = sum(len(p.text.split()) for p in request.paragraphs)
     
     fact_res, reputation_res = await asyncio.gather(
         fact_task, reputation_task,
@@ -86,7 +86,7 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
         n_conf, n_contra = 0, 0
         cv_highlights = []
         
-    n_unverified = len(verifiable_claims) - n_conf - n_contra if verifiable_claims else 0
+    n_unverified = len(extracted_claims_results) - n_conf - n_contra
 
 
     # STEP 3: METZGER JUDGE AGENT (Accuracy & Objectivity)
@@ -153,7 +153,6 @@ async def process_article(request: AnalysisRequest) -> AnalysisResponse:
 
     # STEP 5: POST-SCORING AI SUMMARY
     from app.services.llm.base_agent import run_agent
-    from app.models.schemas import JudgeEvaluation
 
     lang_label = "Ukrainian" if request.language == "uk" else "English"
     summary_prompt = f"""You must write your response ENTIRELY in {lang_label}.

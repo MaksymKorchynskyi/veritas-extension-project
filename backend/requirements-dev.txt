@@ -1,0 +1,9 @@
+# Development, test and benchmark tooling.
+-r requirements.txt
+httpx>=0.28.1,<1.0
+pytest>=9.0.0,<10.0
+pytest-asyncio>=1.3.0,<2.0
+matplotlib>=3.10.0,<4.0
+numpy>=2.0.0,<3.0
+ruff>=0.17.0,<1.0
+mypy>=2.4.0,<3.0

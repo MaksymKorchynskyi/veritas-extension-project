@@ -1,8 +1,12 @@
+import logging
+import os
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.api.endpoints import router as api_router
-import logging
+from app.services.cache import AnalysisCache
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,30 +16,47 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+API_VERSION = "2.0.0"
+
+# Розширення браузера та локальні сторінки. Змінюється через змінну VERITAS_CORS_ORIGIN_REGEX.
+DEFAULT_CORS_ORIGIN_REGEX = (
+    r"^(chrome-extension|moz-extension)://[^/]+$"
+    r"|^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up VERITAS API...")
     yield
     logger.info("Shutting down VERITAS API...")
 
-app = FastAPI(
-    title="VERITAS API",
-    description="Аналізатор достовірності новин — гібридний AI-конвеєр",
-    version="2.0.0",
-    lifespan=lifespan
-)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def create_app() -> FastAPI:
+    """Створює застосунок FastAPI з CORS, кешем аналізу та маршрутами."""
+    application = FastAPI(
+        title="VERITAS API",
+        description="Аналізатор достовірності новин — гібридний AI-конвеєр",
+        version=API_VERSION,
+        lifespan=lifespan
+    )
+    application.state.analysis_cache = AnalysisCache()
 
-@app.get("/health")
-async def health_check():
-    """Ендпоінт перевірки стану сервера."""
-    return {"status": "ok", "version": "2.0.0", "algorithm": "Hybrid AI Pipeline", "phase": "Enterprise"}
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=os.getenv("VERITAS_CORS_ORIGIN_REGEX", DEFAULT_CORS_ORIGIN_REGEX),
+        allow_credentials=False,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
 
-app.include_router(api_router)
+    @application.get("/health")
+    async def health_check() -> dict[str, str]:
+        """Ендпоінт перевірки стану сервера."""
+        return {"status": "ok", "version": API_VERSION, "algorithm": "Hybrid AI Pipeline", "phase": "Enterprise"}
+
+    application.include_router(api_router)
+    return application
+
+
+app = create_app()

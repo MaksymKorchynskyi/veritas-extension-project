@@ -1,6 +1,6 @@
 
 
-const BASE_URL = "http://127.0.0.1:8000";
+importScripts('config.js');
 
 
 async function getStorageKey(url) {
@@ -130,7 +130,7 @@ async function performAnalysis(tabId, tabUrl) {
         const storage = await chrome.storage.local.get(['appLanguage']);
         const lang = storage.appLanguage || 'uk';
 
-        const apiResponse = await fetch(`${BASE_URL}/analyze`, {
+        const apiResponse = await fetch(`${VERITAS_API_BASE_URL}/analyze`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

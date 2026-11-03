@@ -402,6 +402,19 @@ if (urlParams.get('tab') === 'tests') {
 
 function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
+function escAttr(t) {
+  return esc(t).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function safeHttpUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+  } catch (e) {
+    return '';
+  }
+}
+
 function renderAnalysisSidebar(analysisResult, actualHighlights, prefix, contentEl) {
   const score = analysisResult.trust_score || 0;
   const scoreEl = document.getElementById(prefix + '-score');
@@ -759,8 +772,8 @@ function renderAnalyticsDashboard(analysisResult, containerId) {
       html += `<div class="cv-claim">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
           <span class="cv-badge ${statusClass}">${statusLabel}</span>
-          ${cl.evidence_url ? `
-            <a href="${cl.evidence_url}" target="_blank" class="cv-link" title="Перейти до джерела">
+          ${safeHttpUrl(cl.evidence_url) ? `
+            <a href="${escAttr(safeHttpUrl(cl.evidence_url))}" target="_blank" rel="noopener noreferrer" class="cv-link" title="Перейти до джерела">
               <span>Джерело</span>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -783,7 +796,7 @@ function renderAnalyticsDashboard(analysisResult, containerId) {
 }
 
 
-const API = 'http://127.0.0.1:8000/analyze';
+const API = `${VERITAS_API_BASE_URL}/analyze`;
 
 const ARTICLES = [
   {
