@@ -17,11 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://maksymkorchynskyi.github.io/veritas-extension-project/"><img alt="Open the landing page" src="https://img.shields.io/badge/Landing%20page-open-2EA44F?style=for-the-badge&logo=githubpages&logoColor=white"></a>
-  <br>
   <a href="https://maksymkorchynskyi.github.io/veritas-extension-project/">maksymkorchynskyi.github.io/veritas-extension-project</a>
-  ·
-  <a href="https://github.com/MaksymKorchynskyi/veritas-extension-project/actions/workflows/deploy-landing.yml"><img alt="Landing deploy status" src="https://github.com/MaksymKorchynskyi/veritas-extension-project/actions/workflows/deploy-landing.yml/badge.svg"></a>
 </p>
 
 # Veritas
