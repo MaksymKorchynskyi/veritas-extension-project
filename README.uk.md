@@ -201,6 +201,8 @@ python -m pytest            # офлайн юніт-тести, API-ключ н�
 ruff check . && ruff format --check . && mypy
 ```
 
+`tests/run_all_tests.sh [all|unit|bench|charts]` одним запуском проганяє юніт-тести, бенчмарк ISOT і графіки.
+
 Набір покриває формули скорингу, склейку пайплайну, перехресну верифікацію, кеш, API (включно з CORS і валідацією) та логіку повторів обгортки LLM. Усі зовнішні сервіси замінені заглушками.
 
 ## Бенчмарки
@@ -213,6 +215,8 @@ python -m tests.benchmark_articles      # ISOT, 50 статей
 python -m tests.benchmark_coursework    # набір курсової, 48 статей
 python -m tests.visualize_results       # графіки за останніми результатами
 ```
+
+Вибірку ISOT у `tests/benchmark_articles_isot.py` генерує `python -m tests.build_dataset_from_isot` з [датасету на Kaggle](https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset) (фіксований seed, тож вибірка відтворювана).
 
 ## Обмеження
 
