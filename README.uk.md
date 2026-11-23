@@ -230,6 +230,17 @@ python -m tests.visualize_results       # графіки за останніми
 - Захист вхідних даних LLM від prompt injection, перевірений на бенчмарк-наборах.
 - Вужчі дозволи розширення (вставка content script на вимогу).
 
+## Лендінг
+
+`veritas-landing/` — промо-сайт, який автоматично публікується на GitHub Pages після push. Локальний запуск:
+
+```bash
+cd veritas-landing
+npm ci && npm run dev
+```
+
+Деталі збірки та деплою — у [veritas-landing/README.md](veritas-landing/README.md).
+
 ## Внесок
 
 Issues та pull requests вітаються. Для більших змін спершу відкрийте issue. Тримайте зміни сфокусованими, перед pull request запускайте `ruff`, `mypy` і `pytest` та ніколи не додавайте у репозиторій API-ключі чи файли `.env`.

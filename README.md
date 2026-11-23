@@ -230,6 +230,17 @@ python -m tests.visualize_results       # charts from the latest results
 - Prompt-injection hardening of the LLM inputs, validated against the benchmark sets.
 - Narrower extension permissions (on-demand content script injection).
 
+## Landing page
+
+`veritas-landing/` is the promo site, deployed to GitHub Pages automatically on push. To run it locally:
+
+```bash
+cd veritas-landing
+npm ci && npm run dev
+```
+
+See [veritas-landing/README.md](veritas-landing/README.md) for build and deployment details.
+
 ## Contributing
 
 Issues and pull requests are welcome. For larger changes, open an issue first. Keep changes focused, run `ruff`, `mypy` and `pytest` before opening a pull request, and never commit API keys or `.env` files.
