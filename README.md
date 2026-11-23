@@ -130,6 +130,12 @@ Check `http://127.0.0.1:8000/health`, then load the extension: open `chrome://ex
 
 Open a news article, click the Veritas icon and press analyze. The result takes 5 to 15 seconds. Without an API key the server still starts, but the AI agents are disabled and the analysis returns neutral results.
 
+### Troubleshooting
+
+- **All scores are 50 / 50 / 50.** The agents did not run: check that `GEMINI_API_KEY` is set in `backend/.env` and watch the server log for quota or model errors.
+- **The popup cannot reach the backend.** Make sure `uvicorn` is running and `/health` responds. If you changed the host or port, update `extension/config.js` and `host_permissions` in `extension/manifest.json`, then reload the extension.
+- **A repeated analysis returns the same result instantly.** That is the cache (12 hours, keyed by domain, headline and language); restart the backend to clear it.
+
 ### API
 
 `GET /health` returns the service status; interactive docs are available at `/docs`.
