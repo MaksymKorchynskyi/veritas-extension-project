@@ -102,7 +102,8 @@ extension/                            # Manifest V3, Chromium-браузери
 └── icons/
 
 veritas-landing/                      # промо-сайт (React + Vite)
-docs/assets/banner.svg
+.github/workflows/deploy-landing.yml   # збирає лендінг і публікує його на GitHub Pages
+docs/assets/banner.svg                # банер для README
 ```
 
 ## Браузерне розширення

@@ -102,7 +102,8 @@ extension/                            # Manifest V3, Chromium browsers
 └── icons/
 
 veritas-landing/                      # promo site (React + Vite)
-docs/assets/banner.svg
+.github/workflows/deploy-landing.yml   # builds the landing page and deploys it to GitHub Pages
+docs/assets/banner.svg                # README banner
 ```
 
 ## Browser extension
