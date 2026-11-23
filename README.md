@@ -126,7 +126,7 @@ echo "GEMINI_API_KEY=your_key" > .env
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Check `http://127.0.0.1:8000/health`, then load the extension: open `chrome://extensions/`, enable **Developer mode**, click **Load unpacked** and select the `extension/` folder.
+Check `http://127.0.0.1:8000/health` (it should return `"status": "ok"`), then load the extension: open `chrome://extensions/`, enable **Developer mode**, click **Load unpacked** and select the `extension/` folder.
 
 Open a news article, click the Veritas icon and press analyze. The result takes 5 to 15 seconds. Without an API key the server still starts, but the AI agents are disabled and the analysis returns neutral results.
 
