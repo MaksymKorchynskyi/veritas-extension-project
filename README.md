@@ -253,7 +253,7 @@ See [veritas-landing/README.md](veritas-landing/README.md) for build and deploym
 
 ## Contributing
 
-Issues and pull requests are welcome. For larger changes, open an issue first. Keep changes focused, run `ruff`, `mypy` and `pytest` before opening a pull request, and never commit API keys or `.env` files.
+Issues and pull requests are welcome. For larger changes, open an issue first. Keep changes focused, run `ruff`, `mypy` and `pytest` before opening a pull request, and never commit API keys or `.env` files. Commit messages follow the Conventional Commits style (`feat:`, `fix:`, `docs:`, ...).
 
 ## License
 
