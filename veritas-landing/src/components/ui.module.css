@@ -1,0 +1,117 @@
+/* Logo */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Italic, matching the giant wordmark in the footer and the popup brand. */
+.logoWord {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 1.6rem;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--c-espresso-900);
+}
+
+/* Score ring */
+.ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.ring svg {
+  position: absolute;
+  inset: 0;
+}
+.ringTrack {
+  fill: none;
+  stroke: rgb(62 39 35 / 0.1);
+}
+.ringFill {
+  fill: none;
+  stroke: var(--tone);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.6s var(--ease-out) 0.15s;
+}
+.ringValue {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  line-height: 1;
+  color: var(--c-espresso-900);
+}
+.ringValue b {
+  font-family: var(--f-display);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.ringValue small {
+  margin-top: 4px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-umber);
+}
+.ringInverse .ringTrack {
+  stroke: rgb(239 233 225 / 0.16);
+}
+.ringInverse .ringValue,
+.ringInverse .ringValue small {
+  color: var(--c-cream);
+}
+
+/* Criterion meter */
+.meter {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  row-gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--c-umber);
+}
+.meter b {
+  color: var(--c-espresso-900);
+  font-variant-numeric: tabular-nums;
+}
+.meter > i {
+  grid-column: 1 / -1;
+  height: 5px;
+  border-radius: 99px;
+  background: rgb(62 39 35 / 0.1);
+  overflow: hidden;
+}
+.meter > i > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tone);
+  transform-origin: left;
+  transition: transform 1.4s var(--ease-out) 0.25s;
+}
+
+/* Verdict badge */
+.verdict {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.confirmed {
+  background: rgb(51 105 30 / 0.12);
+  color: var(--c-olive);
+}
+.contradicted {
+  background: rgb(141 45 36 / 0.12);
+  color: var(--c-oxblood);
+}
+.unverified {
+  background: rgb(197 137 64 / 0.18);
+  color: var(--c-amber-ink);
+}
