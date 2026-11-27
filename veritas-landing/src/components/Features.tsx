@@ -1,81 +1,224 @@
-import { motion } from 'framer-motion';
-import { BrainCircuit, ArrowRight, Landmark, Highlighter, Languages, FileSearch, ShieldCheck, Braces } from 'lucide-react';
-import { spotlight } from '../lib/hooks';
-import { CountUp } from './CountUp';
-import { MaskLines, FadeUp } from './Reveal';
-import { EASE } from '../lib/motion';
+import { CircleX, Sigma, Star, TriangleAlert } from 'lucide-react';
+import { SAMPLE_SCORES, TONE_LABEL, scoreTone } from '../lib/scoring';
+import { useInView } from '../lib/hooks';
+import { Meter, Reveal, SectionHead, VerdictBadge } from './ui';
+import type { Verdict } from './ui';
+import styles from './Features.module.css';
 
-const card = (i: number) => ({
-  initial: { opacity: 0, y: 40 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: '-4% 0px' },
-  transition: { duration: 0.7, delay: (i % 3) * 0.07, ease: EASE },
-});
+const s = SAMPLE_SCORES;
+const trust = Math.round(s.trust);
+
+const CLAIMS: Array<{ text: string; verdict: Verdict }> = [
+  { text: 'Fare rises from $2.75 to $3.50 in January', verdict: 'confirmed' },
+  { text: 'Council vote held on March 14', verdict: 'confirmed' },
+  { text: 'Ridership fell by 40% last year', verdict: 'contradicted' },
+  { text: 'Two more routes to close in spring', verdict: 'unverified' },
+];
+
+const OUTLETS = ['S', 'P', 'U', 'L'];
+
+const WEIGHTS = [
+  { label: 'Credibility', weight: 50, color: 'var(--c-olive)' },
+  { label: 'Transparency', weight: 30, color: 'var(--c-amber)' },
+  { label: 'Objectivity', weight: 20, color: 'var(--c-taupe)' },
+];
+
+const DONUT = { size: 132, stroke: 14, gap: 4 };
+const DONUT_C = 2 * Math.PI * ((DONUT.size - DONUT.stroke) / 2);
+/** Each weight as a dash on the ring, offset by the weights before it. */
+const SEGMENTS = WEIGHTS.map((w, i) => ({
+  ...w,
+  length: (w.weight / 100) * DONUT_C - DONUT.gap,
+  offset: (WEIGHTS.slice(0, i).reduce((sum, p) => sum + p.weight, 0) / 100) * DONUT_C,
+}));
+
+function WeightsDonut() {
+  const { size, stroke } = DONUT;
+  const mid = size / 2;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+      {SEGMENTS.map((seg) => (
+        <circle
+          key={seg.label}
+          cx={mid}
+          cy={mid}
+          r={(size - stroke) / 2}
+          fill="none"
+          stroke={seg.color}
+          strokeWidth={stroke}
+          strokeDasharray={`${seg.length} ${DONUT_C - seg.length}`}
+          strokeDashoffset={-seg.offset}
+          transform={`rotate(-90 ${mid} ${mid})`}
+        />
+      ))}
+    </svg>
+  );
+}
 
 export function Features() {
+  const [gridRef, inView] = useInView<HTMLDivElement>();
+  const tone = scoreTone(s.trust);
+
   return (
-    <section id="features">
+    <section id="features" className="section" aria-labelledby="features-title">
       <div className="container">
-        <div className="section-head center">
-          <FadeUp><div className="eyebrow">Features</div></FadeUp>
-          <MaskLines className="section-title" lines={[<>Why you can <span className="em">verify</span></>, 'Veritas itself']} />
-          <FadeUp delay={0.2}><p className="section-lead">We don’t ask you to take our word for it. The score is built from visible numbers, not from a model’s gut feeling.</p></FadeUp>
-        </div>
+        <SectionHead
+          id="features-title"
+          eyebrow="Core features"
+          title={
+            <>
+              Clear evidence and honest scores
+              <br /> for every article you read
+            </>
+          }
+        />
 
-        <div className="bento">
-          <motion.article className="glass bento-card b-a" onMouseMove={spotlight} {...card(0)}>
-            <div className="b-icon"><BrainCircuit size={26} /></div>
-            <h3>Hybrid by design: LLMs find evidence, formulas decide</h3>
-            <p>Language models return only counts and labels: claims, citations, manipulative phrases. The score itself comes from a deterministic Beta Reputation System, which is unit-testable and reproducible.</p>
-            <div className="hybrid-vis">
-              <div className="hv-box">Article<small>id-indexed paragraphs</small></div><ArrowRight className="hv-arrow" size={20} />
-              <div className="hv-box">LLM agents<small>evidence, not scores</small></div><ArrowRight className="hv-arrow" size={20} />
-              <div className="hv-box solid">BRS formulas<small>Trust Score</small></div>
+        <div ref={gridRef} className={styles.grid}>
+          {/* A — real-time result */}
+          <Reveal className={`${styles.card} ${styles.dark} ${styles.a}`}>
+            <div className={styles.phone} aria-hidden="true">
+              <div className={styles.phoneTop}>
+                <span>9 s</span>
+                <span className={styles.phoneDots}>
+                  <i />
+                  <i />
+                </span>
+              </div>
+              <p className={styles.phoneTitle}>Your Trust Score is ready.</p>
+              <p className={styles.phoneText}>dailycourier.example · 4 claims checked against open sources.</p>
+              <div className={styles.result}>
+                <p className={styles.resultSite}>dailycourier.example</p>
+                <p className={styles.resultScore}>
+                  <b>{trust}</b>/100 · {TONE_LABEL[tone]}
+                </p>
+                <div className={styles.resultMeters}>
+                  <Meter label="Credibility" value={s.credibility} active={inView} />
+                  <Meter label="Transparency" value={s.transparency} active={inView} />
+                  <Meter label="Objectivity" value={s.objectivity} active={inView} />
+                </div>
+              </div>
+              <div className={styles.phoneRows}>
+                <span>
+                  Claims confirmed <b>3 / 4</b>
+                </span>
+                <span>
+                  Manipulative phrases <b>1</b>
+                </span>
+                <span>
+                  Domain reputation <b>0.80</b>
+                </span>
+              </div>
             </div>
-          </motion.article>
-
-          <motion.article className="glass bento-card b-b" onMouseMove={spotlight} {...card(1)}>
-            <div className="b-icon"><FileSearch size={26} /></div>
-            <h3>Cross-verification</h3>
-            <p>Up to 5 claims per article, each with its own search and an evidence link.</p>
-            <div className="verdicts">
-              <div className="claim"><span className="st ok">CONFIRMED</span>evidence found</div>
-              <div className="claim"><span className="st bad">CONTRADICTED</span>refuting evidence</div>
-              <div className="claim"><span className="st unk">UNVERIFIED</span>not enough data</div>
+            <div className={styles.aCopy}>
+              <h3>Real-time analysis</h3>
+              <p>One click in the toolbar, a full result in 5 to 15 seconds. Ukrainian and English UI.</p>
             </div>
-          </motion.article>
+          </Reveal>
 
-          <motion.article className="glass bento-card b-c" onMouseMove={spotlight} {...card(2)}>
-            <div className="b-icon"><Landmark size={26} /></div>
-            <div className="big-num accent-mid" style={{ marginTop: 14 }}><CountUp to={54} /></div>
-            <h3 style={{ marginTop: 6 }}>Domain reputation</h3>
-            <p>A local table of known outlets. Unknown sites are rated through search plus an LLM lookup.</p>
-          </motion.article>
+          {/* B — cross-verification */}
+          <Reveal className={`${styles.card} ${styles.light} ${styles.b}`} delay={80}>
+            <div className={styles.copy}>
+              <h3 className={styles.big}>Cross-verification</h3>
+              <p>Up to five verifiable claims (figures, dates, concrete events) are checked against open sources, each with an evidence link.</p>
+            </div>
+            <div className={styles.claimsPhone} aria-hidden="true">
+              <p className={styles.claimsHead}>Extracted claims</p>
+              <ul role="list">
+                {CLAIMS.map((c) => (
+                  <li key={c.text}>
+                    <span>{c.text}</span>
+                    <VerdictBadge verdict={c.verdict} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className={styles.verdictCard} aria-hidden="true">
+              <span>Verdicts</span>
+              <b>2 confirmed</b>
+              <em>1 contradicted</em>
+            </div>
+          </Reveal>
 
-          <motion.article className="glass bento-card b-d" onMouseMove={spotlight} {...card(3)}>
-            <div className="b-icon"><Highlighter size={26} /></div>
-            <h3>In-page highlights</h3>
-            <p>Warnings and risks are marked directly in the article text, with the reason on hover.</p>
-          </motion.article>
+          {/* C — in-page highlights */}
+          <Reveal className={`${styles.card} ${styles.dark} ${styles.c}`} delay={120}>
+            <div className={styles.rings} aria-hidden="true" />
+            <div className={styles.copy}>
+              <h3>In-page highlights</h3>
+              <p>Contradicted claims and manipulative phrases are marked right in the article, with the reason.</p>
+            </div>
+            <div className={styles.notes} aria-hidden="true">
+              <div className={styles.note}>
+                <TriangleAlert size={15} />
+                <span>
+                  <small>Manipulative phrase</small>“a shocking decision”
+                </span>
+              </div>
+              <div className={`${styles.note} ${styles.noteRisk}`}>
+                <CircleX size={15} />
+                <span>
+                  <small>Contradicted claim</small>“lost 40% of its riders”
+                </span>
+              </div>
+            </div>
+          </Reveal>
 
-          <motion.article className="glass bento-card b-e" onMouseMove={spotlight} {...card(4)}>
-            <div className="b-icon"><Languages size={26} /></div>
-            <h3>UK / EN and your own text</h3>
-            <p>Interface and summary in two languages, plus a “write and analyze” mode for pasted text.</p>
-            <div className="lang-switch"><span className="cur">UK</span><span>EN</span></div>
-          </motion.article>
+          {/* D — domain reputation */}
+          <Reveal className={`${styles.card} ${styles.light} ${styles.d}`} delay={160}>
+            <h3 className={styles.centerTitle}>
+              54 outlets
+              <br /> rated locally
+            </h3>
+            <div className={styles.avatars} aria-hidden="true">
+              {OUTLETS.map((o) => (
+                <span key={o}>{o}</span>
+              ))}
+              <span className={styles.more}>50+</span>
+            </div>
+            <p className={styles.fine}>
+              <Star size={13} aria-hidden="true" /> plus an LLM lookup for the rest
+            </p>
+          </Reveal>
 
-          <motion.article className="glass bento-card b-f" onMouseMove={spotlight} {...card(5)}>
-            <div className="b-icon"><ShieldCheck size={26} /></div>
-            <h3>Built to keep working</h3>
-            <p>Retries with backoff, primary and fallback model switching, search timeouts. If an agent fails, you get a neutral 50 / 50 / 50 result instead of an error.</p>
-          </motion.article>
+          {/* E — transparent model */}
+          <Reveal className={`${styles.card} ${styles.olive} ${styles.e}`}>
+            <div className={styles.copy}>
+              <h3>Transparent by design</h3>
+              <p>LLMs only gather evidence. Every score comes from a deterministic, unit-tested Beta Reputation System model.</p>
+            </div>
+            <div className={styles.formulaCard} aria-hidden="true">
+              <span className={styles.formulaIcon}>
+                <Sigma size={20} />
+              </span>
+              <b>E(p) = (r + W·a) / (r + s + W)</b>
+              <small>W = 2 · prior weight</small>
+            </div>
+          </Reveal>
 
-          <motion.article className="glass bento-card b-g" onMouseMove={spotlight} {...card(6)}>
-            <div className="b-icon"><Braces size={26} /></div>
-            <h3>Typed LLM output</h3>
-            <p>Gemini responses are parsed through instructor into Pydantic v2 models, so malformed output fails validation instead of leaking into scoring.</p>
-          </motion.article>
+          {/* F — three criteria */}
+          <Reveal className={`${styles.card} ${styles.light} ${styles.f}`} delay={80}>
+            <div className={styles.copy}>
+              <h3>Three criteria, one score</h3>
+              <p>Credibility, Transparency and Objectivity, combined with fixed weights you can read in the source.</p>
+            </div>
+            <div className={styles.donutCard}>
+              <p className={styles.donutTitle}>Trust Score weights</p>
+              <p className={styles.donutSub}>How the final number is built.</p>
+              <div className={styles.donut}>
+                <WeightsDonut />
+                <span>
+                  <small>sum</small>100%
+                </span>
+              </div>
+              <ul role="list" className={styles.legend}>
+                {WEIGHTS.map((w) => (
+                  <li key={w.label}>
+                    <i style={{ background: w.color }} aria-hidden="true" />
+                    {w.label} <b>{w.weight}%</b>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
         </div>
       </div>
     </section>
