@@ -1,30 +1,30 @@
-import './index.css';
-import { Nav } from './components/Nav';
-import { Hero } from './components/Hero';
-import { Marquee } from './components/Marquee';
-import { Problem } from './components/Problem';
-import { Demo } from './components/Demo';
-import { Pipeline } from './components/Pipeline';
 import { Features } from './components/Features';
-import { Calculator } from './components/Calculator';
-import { QuickStart, Final } from './components/Finale';
+import { Footer } from './components/Footer';
+import { Header } from './components/Header';
+import { Hero } from './components/Hero';
+import { Highlights } from './components/Highlights';
+import { HowItWorks } from './components/HowItWorks';
+import { Scoring } from './components/Scoring';
+import { Stack } from './components/Stack';
+import { Steps } from './components/Steps';
 
 export default function App() {
   return (
     <>
-      <Nav />
-      <main>
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
+      <Header />
+      <main id="main" tabIndex={-1}>
         <Hero />
-        <Marquee />
-        <Problem />
-        <Demo />
-        <Pipeline />
+        <Stack />
         <Features />
-        <Calculator />
-
-        <QuickStart />
-        <Final />
+        <Steps />
+        <HowItWorks />
+        <Highlights />
+        <Scoring />
       </main>
+      <Footer />
     </>
   );
 }

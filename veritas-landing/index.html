@@ -2,14 +2,53 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Veritas — AI news credibility analyzer</title>
-    <meta name="description" content="Veritas: a browser extension that cross-checks news claims against open sources and computes a transparent Trust Score with the Beta Reputation System." />
-    <meta name="theme-color" content="#EFE9E1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Veritas · See what a news story stands on</title>
+    <meta
+      name="description"
+      content="Veritas is an open-source browser extension that extracts the claims in a news article, cross-checks them against open sources and computes a transparent Trust Score."
+    />
+    <link rel="canonical" href="https://maksymkorchynskyi.github.io/veritas-extension-project/" />
+    <meta name="theme-color" content="#FBF8F3" />
+    <meta name="color-scheme" content="light" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Veritas" />
+    <meta property="og:title" content="Veritas · See what a news story stands on" />
+    <meta
+      property="og:description"
+      content="Claim extraction, cross-verification and a transparent Trust Score, right in your browser."
+    />
+    <meta property="og:url" content="https://maksymkorchynskyi.github.io/veritas-extension-project/" />
+    <meta property="og:image" content="https://maksymkorchynskyi.github.io/veritas-extension-project/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Veritas: read the news smarter and see what it stands on" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Veritas",
+        "applicationCategory": "BrowserApplication",
+        "operatingSystem": "Chromium-based browsers",
+        "description": "Browser extension that estimates the credibility of news articles with LLM claim extraction, cross-verification and a Beta Reputation System Trust Score.",
+        "url": "https://maksymkorchynskyi.github.io/veritas-extension-project/",
+        "codeRepository": "https://github.com/MaksymKorchynskyi/veritas-extension-project",
+        "license": "https://opensource.org/licenses/MIT",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+
+    <!-- Without JavaScript nothing would reveal on scroll, so show it all. -->
+    <noscript><style>.reveal { opacity: 1 !important; translate: none !important; }</style></noscript>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><!--app-html--></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
